@@ -101,7 +101,8 @@
       <div class="stat-details">
         <h4>Total Students</h4>
         <h2><?= number_format($stats['students']) ?></h2>
-        <div class="stat-trend trend-up"><svg style="width:12px;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg> 5.4% from last month</div>
+        <?php $t = $trends['students']; ?>
+        <div class="stat-trend trend-<?= $t['dir'] ?>"><svg style="width:12px;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="<?= $t['dir']==='up'?'M5 10l7-7m0 0l7 7m-7-7v18':($t['dir']==='down'?'M19 14l-7 7m0 0l-7-7m7 7V3':'M20 12H4') ?>"/></svg> <?= htmlspecialchars($t['label']) ?></div>
       </div>
     </div>
   </div>
@@ -114,7 +115,8 @@
       <div class="stat-details">
         <h4>Total Teachers</h4>
         <h2><?= number_format($stats['teachers']) ?></h2>
-        <div class="stat-trend trend-up"><svg style="width:12px;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg> 3.2% from last month</div>
+        <?php $t = $trends['teachers']; ?>
+        <div class="stat-trend trend-<?= $t['dir'] ?>"><svg style="width:12px;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="<?= $t['dir']==='up'?'M5 10l7-7m0 0l7 7m-7-7v18':($t['dir']==='down'?'M19 14l-7 7m0 0l-7-7m7 7V3':'M20 12H4') ?>"/></svg> <?= htmlspecialchars($t['label']) ?></div>
       </div>
     </div>
   </div>
@@ -127,7 +129,8 @@
       <div class="stat-details">
         <h4>Total Classes</h4>
         <h2><?= number_format($stats['classes']) ?></h2>
-        <div class="stat-trend trend-flat"><svg style="width:12px;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg> No change</div>
+        <?php $t = $trends['classes']; ?>
+        <div class="stat-trend trend-<?= $t['dir'] ?>"><svg style="width:12px;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="<?= $t['dir']==='up'?'M5 10l7-7m0 0l7 7m-7-7v18':($t['dir']==='down'?'M19 14l-7 7m0 0l-7-7m7 7V3':'M20 12H4') ?>"/></svg> <?= htmlspecialchars($t['label']) ?></div>
       </div>
     </div>
   </div>
@@ -140,7 +143,8 @@
       <div class="stat-details">
         <h4>Today's Attendance</h4>
         <h2><?= number_format($stats['attendance_pct'], 1) ?>%</h2>
-        <div class="stat-trend trend-up"><svg style="width:12px;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg> 2.6% from yesterday</div>
+        <?php $t = $trends['attendance']; ?>
+        <div class="stat-trend trend-<?= $t['dir'] ?>"><svg style="width:12px;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="<?= $t['dir']==='up'?'M5 10l7-7m0 0l7 7m-7-7v18':($t['dir']==='down'?'M19 14l-7 7m0 0l-7-7m7 7V3':'M20 12H4') ?>"/></svg> <?= htmlspecialchars($t['label']) ?></div>
       </div>
     </div>
   </div>
@@ -165,7 +169,7 @@
   <div class="dash-card">
     <div class="dash-card-header">
       <div class="dash-card-title">Recent Announcements</div>
-      <div class="dash-card-action">View All</div>
+      <a href="<?= $cfg['url'] ?>/school/announcements" class="dash-card-action" style="text-decoration:none;">View All</a>
     </div>
     <div style="flex:1;overflow-y:auto;">
       <?php if(!empty($announcements)): foreach($announcements as $a): ?>
@@ -190,24 +194,19 @@
   <div class="dash-card">
     <div class="dash-card-header">
       <div class="dash-card-title">Events Calendar</div>
-      <div class="dash-card-action">View Calendar</div>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <svg style="width:16px;cursor:pointer;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-      <span style="font-weight:600;font-size:13px;"><?= date('F Y') ?></span>
-      <svg style="width:16px;cursor:pointer;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      <a href="<?= $cfg['url'] ?>/school/dashboard?cal_month=<?= $calendar['prevMonth'] ?>" style="display:flex;"><svg style="width:16px;cursor:pointer;color:var(--text-muted);" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></a>
+      <span style="font-weight:600;font-size:13px;"><?= htmlspecialchars($calendar['label']) ?></span>
+      <a href="<?= $cfg['url'] ?>/school/dashboard?cal_month=<?= $calendar['nextMonth'] ?>" style="display:flex;"><svg style="width:16px;cursor:pointer;color:var(--text-muted);" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></a>
     </div>
     <div class="cal-grid cal-header">
       <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
     </div>
     <div class="cal-grid">
-      <!-- Mock calendar days for visual representation -->
-      <div class="cal-day" style="opacity:0.3">27</div><div class="cal-day" style="opacity:0.3">28</div><div class="cal-day" style="opacity:0.3">29</div><div class="cal-day" style="opacity:0.3">30</div>
-      <div class="cal-day">1</div><div class="cal-day">2</div><div class="cal-day">3</div>
-      <div class="cal-day">4</div><div class="cal-day">5</div><div class="cal-day">6</div><div class="cal-day">7</div><div class="cal-day">8</div><div class="cal-day">9</div><div class="cal-day">10</div>
-      <div class="cal-day">11</div><div class="cal-day">12</div><div class="cal-day">13</div><div class="cal-day has-event">14</div><div class="cal-day has-event">15</div><div class="cal-day">16</div><div class="cal-day">17</div>
-      <div class="cal-day">18</div><div class="cal-day">19</div><div class="cal-day active">20</div><div class="cal-day">21</div><div class="cal-day">22</div><div class="cal-day">23</div><div class="cal-day">24</div>
-      <div class="cal-day">25</div><div class="cal-day">26</div><div class="cal-day">27</div><div class="cal-day">28</div><div class="cal-day">29</div><div class="cal-day">30</div><div class="cal-day">31</div>
+      <?php foreach($calendar['days'] as $d): ?>
+        <div class="cal-day<?= $d['isToday']?' active':'' ?><?= $d['hasEvent']?' has-event':'' ?>" <?= $d['inMonth']?'':'style="opacity:0.3"' ?>><?= $d['day'] ?></div>
+      <?php endforeach; ?>
     </div>
   </div>
 </div>
@@ -251,15 +250,15 @@
       <div class="dash-card-title">Quick Links</div>
     </div>
     <div class="ql-grid">
-      <a href="<?= $cfg['url'] ?>/school/students/create" class="ql-btn">
+      <a href="<?= $cfg['url'] ?>/school/students?open=admitModal" class="ql-btn">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
         <span>Add Student</span>
       </a>
-      <a href="#" class="ql-btn">
+      <a href="<?= $cfg['url'] ?>/school/teachers?open=addTeacherModal" class="ql-btn">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
         <span>Add Teacher</span>
       </a>
-      <a href="#" class="ql-btn">
+      <a href="<?= $cfg['url'] ?>/school/classes?open=addClassModal" class="ql-btn">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>
         <span>Add Class</span>
       </a>
@@ -267,13 +266,13 @@
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         <span>Mark Attendance</span>
       </a>
-      <a href="#" class="ql-btn">
+      <a href="<?= $cfg['url'] ?>/school/announcements?open=addAnnouncementModal" class="ql-btn">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-        <span>Assign Assignment</span>
+        <span>Post Announcement</span>
       </a>
-      <a href="#" class="ql-btn">
+      <a href="<?= $cfg['url'] ?>/school/analytics" class="ql-btn">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-        <span>Generate Report</span>
+        <span>View Reports</span>
       </a>
     </div>
   </div>

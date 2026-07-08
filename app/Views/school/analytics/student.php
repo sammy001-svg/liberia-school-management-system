@@ -1,6 +1,10 @@
 <?php require ROOT_DIR . '/app/Views/layouts/header.php'; ?>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+<div class="breadcrumb">
+  <a href="<?= $cfg['url'] ?>/school/analytics">Academic Analytics</a>
+  <span>/</span><span><?= htmlspecialchars($studentName) ?></span>
+</div>
 <div class="page-header">
     <div class="page-header-title">Academic Growth: <?= htmlspecialchars($studentName) ?></div>
     <a href="<?= $cfg['url'] ?>/school/analytics" class="btn btn-secondary">Back to Analytics</a>

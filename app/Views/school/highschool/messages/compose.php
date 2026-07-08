@@ -1,4 +1,8 @@
 <?php require ROOT_DIR . '/app/Views/layouts/header.php'; ?>
+<div class="breadcrumb">
+  <a href="<?= $cfg['url'] ?>/school/messages">Messages</a>
+  <span>/</span><span>Compose</span>
+</div>
 <div class="page-header"><div class="page-header-title">Compose Message</div></div>
 <div style="max-width:680px;">
 <form method="POST" action="<?= $cfg['url'] ?>/school/messages/send">

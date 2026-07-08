@@ -37,6 +37,15 @@ function closeSidebar(){
   });
 })();
 
+// Auto-open a modal via ?open=<modalId> (used by dashboard Quick Links etc.)
+(function(){
+  const openId = new URLSearchParams(window.location.search).get('open');
+  if (openId) {
+    const el = document.getElementById(openId);
+    if (el) el.classList.add('open');
+  }
+})();
+
 // ── THEME TOGGLE ──
 function applyThemeIcon(){
   const isLight = document.documentElement.getAttribute('data-theme') === 'light';
@@ -104,13 +113,13 @@ document.querySelectorAll('.modal-overlay form').forEach(function(form){
     e.preventDefault();
     const modal = form.closest('.modal-overlay');
     const submitBtn = form.querySelector('button[type="submit"]');
-    const originalLabel = submitBtn ? submitBtn.textContent : '';
+    const originalHtml = submitBtn ? submitBtn.innerHTML : '';
     const existingError = form.querySelector('.ajax-error');
     if (existingError) existingError.remove();
     form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
     form.querySelectorAll('.field-error').forEach(el => el.remove());
 
-    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Saving…'; }
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<span class="btn-spinner"></span>Saving…'; }
 
     try {
       const res = await fetch(form.getAttribute('action'), {
@@ -149,7 +158,7 @@ document.querySelectorAll('.modal-overlay form').forEach(function(form){
     } catch (err) {
       showToast('Network error. Please try again.', 'danger');
     } finally {
-      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalLabel; }
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalHtml; }
     }
   });
 });

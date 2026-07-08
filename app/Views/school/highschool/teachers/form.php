@@ -1,4 +1,9 @@
 <?php require ROOT_DIR . '/app/Views/layouts/header.php'; ?>
+<div class="breadcrumb">
+  <a href="<?= $cfg['url'] ?>/school/teachers">Teachers</a>
+  <span>/</span><a href="<?= $cfg['url'] ?>/school/teachers/<?= $teacher['id'] ?>"><?= htmlspecialchars($teacher['name']) ?></a>
+  <span>/</span><span>Edit</span>
+</div>
 <div class="page-header"><div class="page-header-title">Edit Teacher</div></div>
 <div style="max-width:680px;">
 <form method="POST" action="<?= $cfg['url'] ?>/school/teachers/<?= $teacher['id'] ?>/update">

@@ -1,4 +1,8 @@
 <?php require ROOT_DIR . '/app/Views/layouts/header.php'; ?>
+<div class="breadcrumb">
+  <a href="<?= $cfg['url'] ?>/school/attendance">Attendance</a>
+  <span>/</span><span>Report</span>
+</div>
 <div class="page-header"><div class="page-header-title">Attendance Report</div></div>
 <form method="GET" class="card" style="padding:16px 20px;margin-bottom:20px;">
   <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">

@@ -1,4 +1,8 @@
 <?php require ROOT_DIR . '/app/Views/layouts/header.php'; ?>
+<div class="breadcrumb">
+  <a href="<?= $cfg['url'] ?>/school/analytics">Academic Analytics</a>
+  <span>/</span><span>Attendance Heatmap</span>
+</div>
 <div class="page-header">
     <div class="page-header-title">Attendance Heatmap & Chronic Absenteeism</div>
     <div class="text-muted">Early identification of students falling below the 75% attendance threshold.</div>

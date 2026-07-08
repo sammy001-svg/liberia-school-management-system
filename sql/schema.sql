@@ -235,6 +235,7 @@ CREATE TABLE classes (
     class_teacher_id INT UNSIGNED DEFAULT NULL,
     room_number VARCHAR(50) DEFAULT NULL,
     description TEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
     FOREIGN KEY (academic_year_id) REFERENCES academic_years(id) ON DELETE SET NULL
 );
