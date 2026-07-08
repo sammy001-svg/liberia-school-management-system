@@ -62,7 +62,35 @@ class TeacherController extends Controller {
         $this->requireAuth(['School Admin']);
         $teacher = $this->db->fetchOne("SELECT t.*, u.name, u.email, u.phone, u.gender FROM teachers t JOIN users u ON t.user_id=u.id WHERE t.id=? AND t.tenant_id=?", [$id,$this->tid]);
         if (!$teacher) { $this->redirect('/school/teachers'); }
-        $this->view('school/highschool/teachers/show', ['pageTitle'=>$teacher['name'],'panelType'=>'school','teacher'=>$teacher,'flash'=>$this->getFlash()]);
+        $assignedCourses = $this->db->fetchAll(
+            "SELECT c.* FROM teacher_courses tc JOIN courses c ON tc.course_id=c.id WHERE tc.teacher_id=? AND c.tenant_id=? ORDER BY c.name",
+            [$id, $this->tid]
+        );
+        $availableCourses = $this->db->fetchAll(
+            "SELECT * FROM courses WHERE tenant_id=? AND id NOT IN (SELECT course_id FROM teacher_courses WHERE teacher_id=?) ORDER BY name",
+            [$this->tid, $id]
+        );
+        $this->view('school/highschool/teachers/show', [
+            'pageTitle'=>$teacher['name'],'panelType'=>'school','teacher'=>$teacher,
+            'assignedCourses'=>$assignedCourses,'availableCourses'=>$availableCourses,
+            'flash'=>$this->getFlash(),
+        ]);
+    }
+
+    public function assignCourse(string $id): void {
+        $this->requireAuth(['School Admin']);
+        $errors = $this->validate($_POST, ['course_id' => 'required']);
+        if ($errors) { $this->failValidation($errors, '/school/teachers/'.$id); }
+        $this->db->insert("INSERT INTO teacher_courses (teacher_id, course_id) VALUES (?, ?)", [$id, $_POST['course_id']]);
+        $this->flash('success', 'Course assigned.');
+        $this->redirect('/school/teachers/'.$id);
+    }
+
+    public function removeCourse(string $id, string $courseId): void {
+        $this->requireAuth(['School Admin']);
+        $this->db->execute("DELETE FROM teacher_courses WHERE teacher_id=? AND course_id=?", [$id, $courseId]);
+        $this->flash('success', 'Course unassigned.');
+        $this->redirect('/school/teachers/'.$id);
     }
 
     public function edit(string $id): void {

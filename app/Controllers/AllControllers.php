@@ -72,7 +72,30 @@ class GradeController extends Controller {
     public function index(): void {
         $this->requireAuth(['School Admin','Teacher']);
         $exams = $this->db->fetchAll("SELECT e.*, c.name AS class_name FROM exams e LEFT JOIN classes c ON e.class_id=c.id WHERE e.tenant_id=? ORDER BY e.exam_date DESC", [$this->tid]);
-        $this->view('school/highschool/grades/index', ['pageTitle'=>'Grades & Exams','panelType'=>'school','exams'=>$exams,'flash'=>$this->getFlash()]);
+        $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
+        $terms = $this->db->fetchAll("SELECT id,name FROM terms WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]);
+        $academicYears = $this->db->fetchAll("SELECT id,name FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]);
+        $this->view('school/highschool/grades/index', ['pageTitle'=>'Grades & Exams','panelType'=>'school','exams'=>$exams,'classes'=>$classes,'terms'=>$terms,'academicYears'=>$academicYears,'flash'=>$this->getFlash()]);
+    }
+
+    public function storeExam(): void {
+        $this->requireAuth(['School Admin','Teacher']);
+        $errors = $this->validate($_POST, [
+            'name'        => 'required|max:150',
+            'exam_date'   => 'date',
+            'total_marks' => 'numeric',
+            'pass_marks'  => 'numeric',
+        ]);
+        if ($errors) { $this->failValidation($errors, '/school/grades'); }
+        $this->db->insert(
+            "INSERT INTO exams (tenant_id,name,class_id,term_id,academic_year_id,exam_date,total_marks,pass_marks) VALUES (?,?,?,?,?,?,?,?)",
+            [
+                $this->tid, $_POST['name'], $_POST['class_id']?:null, $_POST['term_id']?:null, $_POST['academic_year_id']?:null,
+                $_POST['exam_date']?:null, $_POST['total_marks']?:100, $_POST['pass_marks']?:40,
+            ]
+        );
+        $this->flash('success', 'Exam created.');
+        $this->redirect('/school/grades');
     }
 
     public function enter(): void {

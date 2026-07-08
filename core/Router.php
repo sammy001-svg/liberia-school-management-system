@@ -96,7 +96,7 @@ class Router {
     private function friendlyError(\Throwable $e, bool $debug): string {
         $msg = $e->getMessage();
         if (str_contains($msg, 'Duplicate entry')) {
-            return 'That record already exists (duplicate email or unique field).';
+            return 'That record already exists.';
         }
         if (str_contains($msg, 'foreign key constraint fails') || str_contains($msg, 'a foreign key constraint fails')) {
             return 'One of the selected options is invalid. Please refresh the page and try again.';

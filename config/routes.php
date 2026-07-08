@@ -26,6 +26,8 @@ $router->post('/school/teachers/store',     ['TeacherController', 'store']);
 $router->get('/school/teachers/{id}',       ['TeacherController', 'show']);
 $router->get('/school/teachers/{id}/edit',  ['TeacherController', 'edit']);
 $router->post('/school/teachers/{id}/update', ['TeacherController', 'update']);
+$router->post('/school/teachers/{id}/courses/assign', ['TeacherController', 'assignCourse']);
+$router->post('/school/teachers/{id}/courses/{courseId}/remove', ['TeacherController', 'removeCourse']);
 
 $router->get('/school/classes',             ['ClassController', 'index']);
 $router->get('/school/classes/create',      ['ClassController', 'create']);
@@ -44,6 +46,7 @@ $router->post('/school/timetable/store',    ['TimetableController', 'store']);
 $router->get('/school/grades',              ['GradeController', 'index']);
 $router->get('/school/grades/enter',        ['GradeController', 'enter']);
 $router->post('/school/grades/store',       ['GradeController', 'store']);
+$router->post('/school/exams/store',        ['GradeController', 'storeExam']);
 $router->get('/school/grades/report/{studentId}', ['GradeController', 'report']);
 
 $router->get('/school/finance',             ['FinanceController', 'index']);
@@ -80,6 +83,11 @@ $router->get('/school/courses',             ['UniversityController', 'courses'])
 $router->get('/school/courses/create',      ['UniversityController', 'createCourse']);
 $router->post('/school/courses/store',      ['UniversityController', 'storeCourse']);
 
+// ── ACADEMIC YEARS & TERMS ──────────────────────────────────────
+$router->get('/school/academic-years',        ['AcademicController', 'index']);
+$router->post('/school/academic-years/store', ['AcademicController', 'storeYear']);
+$router->post('/school/terms/store',          ['AcademicController', 'storeTerm']);
+
 // ── STUDENT PORTAL ──────────────────────────────────────────────
 $router->get('/student/dashboard',          ['StudentPortalController', 'dashboard']);
 $router->get('/student/timetable',          ['StudentPortalController', 'timetable']);
@@ -92,6 +100,8 @@ $router->get('/parent/student/{id}',        ['ParentPortalController', 'viewChil
 $router->get('/parent/finance',             ['ParentPortalController', 'finance']);
 
 // ── HR & PAYROLL ────────────────────────────────────────────────
+$router->get('/school/staff',               ['StaffController', 'index']);
+$router->post('/school/staff/store',        ['StaffController', 'store']);
 $router->get('/school/hr/payroll',          ['HRController', 'payroll']);
 $router->post('/school/hr/payroll/generate', ['HRController', 'generatePayroll']);
 $router->get('/school/hr/leaves',           ['HRController', 'leaves']);
