@@ -32,32 +32,49 @@ class StudentPortalController extends Controller {
         );
 
         $recentGrades = $this->db->fetchAll(
-            "SELECT g.*, e.name as exam_name, co.name as course_name 
-             FROM grades g 
-             JOIN exams e ON g.exam_id = e.id 
-             JOIN courses co ON g.course_id = co.id 
-             WHERE g.student_id = ? ORDER BY e.date DESC LIMIT 5", 
+            "SELECT g.*, e.name as exam_name, co.name as course_name
+             FROM grades g
+             JOIN exams e ON g.exam_id = e.id
+             JOIN courses co ON g.course_id = co.id
+             WHERE g.student_id = ? ORDER BY e.exam_date DESC LIMIT 5",
             [$this->sid]
         );
+
+        $obtained = 0; $possible = 0;
+        foreach ($recentGrades as $g) { $obtained += $g['marks_obtained']; $possible += $g['total_marks']; }
+        $averageMark = $possible > 0 ? round($obtained / $possible * 100) : null;
+
+        $classId = $_SESSION['class_id'] ?? 0;
+        $todaySchedule = $classId ? $this->db->fetchAll(
+            "SELECT t.*, c.name as course_name, u.name as teacher_name
+             FROM timetable t
+             LEFT JOIN courses c ON t.course_id = c.id
+             LEFT JOIN teachers te ON t.teacher_id = te.id
+             LEFT JOIN users u ON te.user_id = u.id
+             WHERE t.class_id = ? AND t.day_of_week = ? ORDER BY t.start_time",
+            [$classId, strtolower(date('l'))]
+        ) : [];
 
         $this->view('school/portals/student/dashboard', [
             'pageTitle' => 'Student Dashboard',
             'panelType' => 'student',
             'student' => $student,
             'attendance' => $attendance,
-            'recentGrades' => $recentGrades
+            'recentGrades' => $recentGrades,
+            'averageMark' => $averageMark,
+            'todaySchedule' => $todaySchedule,
         ]);
     }
 
     public function timetable(): void {
         $class_id = $_SESSION['class_id'] ?? 0;
         $timetable = $this->db->fetchAll(
-            "SELECT t.*, c.name as course_name, u.name as teacher_name 
-             FROM timetable t 
-             JOIN courses c ON t.course_id = c.id 
-             LEFT JOIN teachers te ON t.teacher_id = te.id 
-             LEFT JOIN users u ON te.user_id = u.id 
-             WHERE t.class_id = ? ORDER BY FIELD(t.day, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'), t.start_time", 
+            "SELECT t.*, c.name as course_name, u.name as teacher_name
+             FROM timetable t
+             LEFT JOIN courses c ON t.course_id = c.id
+             LEFT JOIN teachers te ON t.teacher_id = te.id
+             LEFT JOIN users u ON te.user_id = u.id
+             WHERE t.class_id = ? ORDER BY FIELD(t.day_of_week, 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'), t.start_time",
             [$class_id]
         );
 
@@ -74,7 +91,7 @@ class StudentPortalController extends Controller {
              FROM grades g 
              JOIN exams e ON g.exam_id = e.id 
              JOIN courses co ON g.course_id = co.id 
-             WHERE g.student_id = ? ORDER BY e.date DESC", 
+             WHERE g.student_id = ? ORDER BY e.exam_date DESC", 
             [$this->sid]
         );
 

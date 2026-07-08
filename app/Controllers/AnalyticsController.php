@@ -45,11 +45,11 @@ class AnalyticsController extends Controller {
         
         // Growth over time (Exam by Exam)
         $growth = $this->db->fetchAll(
-            "SELECT e.name as exam, e.date, AVG(g.marks_obtained) as avg_score 
-             FROM grades g 
-             JOIN exams e ON g.exam_id = e.id 
-             WHERE g.student_id = ? 
-             GROUP BY e.id ORDER BY e.date ASC", 
+            "SELECT e.name as exam, e.exam_date, AVG(g.marks_obtained) as avg_score
+             FROM grades g
+             JOIN exams e ON g.exam_id = e.id
+             WHERE g.student_id = ?
+             GROUP BY e.id ORDER BY e.exam_date ASC",
             [$sid]
         );
 

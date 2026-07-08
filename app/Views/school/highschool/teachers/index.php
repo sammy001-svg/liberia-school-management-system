@@ -11,25 +11,75 @@
   </div>
 </div>
 
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Total Teachers</div>
+    <div class="stat-value"><?= (int)($stats['total'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--success);">
+    <div class="stat-label">Full-Time</div>
+    <div class="stat-value"><?= (int)($stats['full_time'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--warning);">
+    <div class="stat-label">Part-Time / Contract</div>
+    <div class="stat-value"><?= (int)($stats['part_time'] ?? 0) + (int)($stats['contract'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--info);">
+    <div class="stat-label">Departments Covered</div>
+    <div class="stat-value"><?= (int)($stats['departments'] ?? 0) ?></div>
+  </div>
+</div>
+
+<!-- FILTERS -->
+<form method="GET" class="card" style="padding:16px 20px;margin-bottom:20px;">
+  <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+    <input type="text" name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Search name or employee no…" class="form-control" style="max-width:280px;">
+    <select name="department_id" class="form-control" style="max-width:200px;">
+      <option value="">All Departments</option>
+      <?php foreach($departments as $d): ?>
+        <option value="<?= $d['id'] ?>" <?= $deptId==$d['id']?'selected':'' ?>><?= htmlspecialchars($d['name']) ?></option>
+      <?php endforeach; ?>
+    </select>
+    <button type="submit" class="btn btn-secondary">Filter</button>
+    <a href="<?= $cfg['url'] ?>/school/teachers" class="btn btn-outline">Reset</a>
+  </div>
+</form>
+
 <div class="card">
   <div class="card-header">
     <div class="card-title">All Teachers (<?= $total ?>)</div>
   </div>
   <div class="table-wrapper">
     <table>
-      <thead><tr><th>Teacher</th><th>Employee No</th><th>Class</th><th>Specialization</th><th>Phone</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Teacher</th><th>Employee No</th><th>Department</th><th>Class</th><th>Specialization</th><th>Phone</th><th>Actions</th></tr></thead>
       <tbody>
         <?php foreach($teachers as $t): ?>
         <tr>
-          <td><div style="display:flex;align-items:center;gap:10px;"><div class="avatar"><?= strtoupper(substr($t['name'],0,1)) ?></div><div><div class="fw-600"><?= htmlspecialchars($t['name']) ?></div><div style="font-size:11px;color:var(--text-muted)"><?= htmlspecialchars($t['email']) ?></div></div></div></td>
+          <td>
+            <a href="<?= $cfg['url'] ?>/school/teachers/<?= $t['id'] ?>" style="display:flex;align-items:center;gap:10px;color:inherit;">
+              <div class="avatar"><?= strtoupper(substr($t['name'],0,1)) ?></div>
+              <div>
+                <div class="fw-600"><?= htmlspecialchars($t['name']) ?></div>
+                <div style="font-size:11px;color:var(--text-muted)"><?= htmlspecialchars($t['email']) ?></div>
+              </div>
+            </a>
+          </td>
           <td style="font-family:monospace;font-size:12px"><?= htmlspecialchars($t['employee_no']) ?></td>
+          <td><?= htmlspecialchars($t['department_name']??'—') ?></td>
           <td><?= htmlspecialchars($t['class_name']??'—') ?></td>
           <td><?= htmlspecialchars($t['specialization']??'—') ?></td>
           <td><?= htmlspecialchars($t['phone']??'—') ?></td>
           <td><div style="display:flex;gap:6px;"><a href="<?= $cfg['url'] ?>/school/teachers/<?= $t['id'] ?>" class="btn btn-sm btn-outline">View</a><a href="<?= $cfg['url'] ?>/school/teachers/<?= $t['id'] ?>/edit" class="btn btn-sm btn-secondary">Edit</a></div></td>
         </tr>
         <?php endforeach; ?>
-        <?php if(empty($teachers)): ?><tr><td colspan="6" class="text-center text-muted" style="padding:40px"><span>No teachers yet.</span> <a href="javascript:void(0)" onclick="document.getElementById('addTeacherModal').classList.add('open')">Add first teacher</a></td></tr><?php endif; ?>
+        <?php if(empty($teachers)): ?>
+        <tr><td colspan="7">
+          <div class="empty-state">
+            <div class="empty-state-icon">🧑‍🏫</div>
+            <div class="empty-state-text">No teachers found. <a href="javascript:void(0)" onclick="document.getElementById('addTeacherModal').classList.add('open')">Add the first teacher</a></div>
+          </div>
+        </td></tr>
+        <?php endif; ?>
       </tbody>
     </table>
   </div>

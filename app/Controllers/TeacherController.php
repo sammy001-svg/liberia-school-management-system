@@ -7,16 +7,34 @@ class TeacherController extends Controller {
 
     public function index(): void {
         $this->requireAuth(['School Admin']);
-        $totalCount = $this->db->fetchOne("SELECT COUNT(*) c FROM teachers t WHERE t.tenant_id=?", [$this->tid])['c'];
+        $search = $_GET['q'] ?? '';
+        $deptId = $_GET['department_id'] ?? '';
+        $params = [$this->tid];
+        $where = "t.tenant_id=?";
+        if ($search) { $where .= " AND (u.name LIKE ? OR t.employee_no LIKE ?)"; $params[] = "%$search%"; $params[] = "%$search%"; }
+        if ($deptId) { $where .= " AND t.department_id=?"; $params[] = $deptId; }
+
+        $totalCount = $this->db->fetchOne("SELECT COUNT(*) c FROM teachers t JOIN users u ON t.user_id=u.id WHERE $where", $params)['c'];
         $p = $this->paginate($totalCount);
         $teachers = $this->db->fetchAll(
-            "SELECT t.*, u.name, u.email, u.phone, u.gender, c.name AS class_name FROM teachers t JOIN users u ON t.user_id=u.id LEFT JOIN classes c ON t.class_id=c.id WHERE t.tenant_id=? ORDER BY u.name LIMIT {$p['perPage']} OFFSET {$p['offset']}",
-            [$this->tid]
+            "SELECT t.*, u.name, u.email, u.phone, u.gender, c.name AS class_name, d.name AS department_name
+             FROM teachers t JOIN users u ON t.user_id=u.id LEFT JOIN classes c ON t.class_id=c.id LEFT JOIN departments d ON t.department_id=d.id
+             WHERE $where ORDER BY u.name LIMIT {$p['perPage']} OFFSET {$p['offset']}",
+            $params
         );
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
         $departments = $this->db->fetchAll("SELECT id,name FROM departments WHERE tenant_id=? ORDER BY name", [$this->tid]);
+        $stats = $this->db->fetchOne(
+            "SELECT COUNT(*) total,
+                    SUM(CASE WHEN t.employment_type='full_time' THEN 1 ELSE 0 END) full_time,
+                    SUM(CASE WHEN t.employment_type='part_time' THEN 1 ELSE 0 END) part_time,
+                    SUM(CASE WHEN t.employment_type='contract' THEN 1 ELSE 0 END) contract,
+                    COUNT(DISTINCT t.department_id) departments
+             FROM teachers t WHERE t.tenant_id=?", [$this->tid]
+        );
         $this->view('school/highschool/teachers/index', [
             'pageTitle'=>'Teachers','panelType'=>'school','teachers'=>$teachers,'classes'=>$classes,'departments'=>$departments,
+            'search'=>$search,'deptId'=>$deptId,'stats'=>$stats,
             'page'=>$p['page'],'totalPages'=>$p['totalPages'],'total'=>$p['total'],'perPage'=>$p['perPage'],
             'flash'=>$this->getFlash(), 'importErrors'=>$this->getImportErrors(),
         ]);
@@ -129,7 +147,7 @@ class TeacherController extends Controller {
 
     public function show(string $id): void {
         $this->requireAuth(['School Admin']);
-        $teacher = $this->db->fetchOne("SELECT t.*, u.name, u.email, u.phone, u.gender FROM teachers t JOIN users u ON t.user_id=u.id WHERE t.id=? AND t.tenant_id=?", [$id,$this->tid]);
+        $teacher = $this->db->fetchOne("SELECT t.*, u.name, u.email, u.phone, u.gender, u.date_of_birth, c.name AS class_name, d.name AS department_name FROM teachers t JOIN users u ON t.user_id=u.id LEFT JOIN classes c ON t.class_id=c.id LEFT JOIN departments d ON t.department_id=d.id WHERE t.id=? AND t.tenant_id=?", [$id,$this->tid]);
         if (!$teacher) { $this->redirect('/school/teachers'); }
         $assignedCourses = $this->db->fetchAll(
             "SELECT c.* FROM teacher_courses tc JOIN courses c ON tc.course_id=c.id WHERE tc.teacher_id=? AND c.tenant_id=? ORDER BY c.name",
@@ -139,9 +157,15 @@ class TeacherController extends Controller {
             "SELECT * FROM courses WHERE tenant_id=? AND id NOT IN (SELECT course_id FROM teacher_courses WHERE teacher_id=?) ORDER BY name",
             [$this->tid, $id]
         );
+        $homeroomCount = $teacher['class_id']
+            ? ($this->db->fetchOne("SELECT COUNT(*) c FROM students WHERE class_id=? AND tenant_id=?", [$teacher['class_id'], $this->tid])['c'] ?? 0)
+            : 0;
+        $yearsOfService = $teacher['joined_at'] ? floor((time() - strtotime($teacher['joined_at'])) / 31536000) : null;
+
         $this->view('school/highschool/teachers/show', [
             'pageTitle'=>$teacher['name'],'panelType'=>'school','teacher'=>$teacher,
             'assignedCourses'=>$assignedCourses,'availableCourses'=>$availableCourses,
+            'homeroomCount'=>$homeroomCount,'yearsOfService'=>$yearsOfService,
             'flash'=>$this->getFlash(),
         ]);
     }

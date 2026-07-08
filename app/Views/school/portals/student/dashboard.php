@@ -17,8 +17,8 @@
     </div>
     <div class="stat-card" style="--card-color: var(--success);">
         <div class="stat-label">Average Mark</div>
-        <div class="stat-value">78%</div>
-        <div class="stat-sub">Based on last 5 exams</div>
+        <div class="stat-value"><?= $averageMark !== null ? $averageMark.'%' : '—' ?></div>
+        <div class="stat-sub"><?= empty($recentGrades) ? 'No exams recorded yet' : 'Based on last '.count($recentGrades).' exam'.(count($recentGrades)===1?'':'s') ?></div>
     </div>
 </div>
 
@@ -52,7 +52,19 @@
     <div class="card">
         <div class="card-header"><div class="card-title">Today's Schedule</div></div>
         <div class="card-body">
-            <div class="text-muted text-center" style="padding:20px;">No classes scheduled for today.</div>
+            <?php if (!empty($todaySchedule)): ?>
+                <?php foreach($todaySchedule as $slot): ?>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+                    <div>
+                        <div class="fw-600" style="font-size:13px;"><?= htmlspecialchars($slot['course_name'] ?? 'Free Period') ?></div>
+                        <div class="text-muted" style="font-size:11px;"><?= htmlspecialchars($slot['teacher_name'] ?? '—') ?><?= $slot['room'] ? ' · '.htmlspecialchars($slot['room']) : '' ?></div>
+                    </div>
+                    <div class="text-muted" style="font-size:12px;font-family:monospace;"><?= substr($slot['start_time'],0,5) ?>–<?= substr($slot['end_time'],0,5) ?></div>
+                </div>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <div class="text-muted text-center" style="padding:20px;">No classes scheduled for today.</div>
+            <?php endif; ?>
         </div>
     </div>
 </div>

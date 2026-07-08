@@ -1,10 +1,17 @@
 <?php require ROOT_DIR . '/app/Views/layouts/header.php'; ?>
 <div class="breadcrumb">
   <a href="<?= $cfg['url'] ?>/school/students">Students</a>
-  <span>/</span><span>Edit Student</span>
+  <span>/</span><a href="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>"><?= htmlspecialchars($student['name'] ?? '') ?></a>
+  <span>/</span><span>Edit</span>
 </div>
 <div class="page-header">
-  <div class="page-header-title">Edit Student Profile</div>
+  <div style="display:flex;align-items:center;gap:14px;">
+    <div class="avatar avatar-lg"><?= strtoupper(substr($student['name'] ?? '?',0,1)) ?></div>
+    <div>
+      <div class="page-header-title">Edit Student Profile</div>
+      <div class="page-header-sub"><?= htmlspecialchars($student['name'] ?? '') ?></div>
+    </div>
+  </div>
 </div>
 <div style="max-width:700px;">
 <form method="POST" action="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/update">

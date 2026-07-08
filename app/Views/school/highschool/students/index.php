@@ -11,6 +11,25 @@
   </div>
 </div>
 
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Total Students</div>
+    <div class="stat-value"><?= (int)($stats['total'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--success);">
+    <div class="stat-label">Active</div>
+    <div class="stat-value"><?= (int)($stats['active'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--info);">
+    <div class="stat-label">Male</div>
+    <div class="stat-value"><?= (int)($stats['male'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: #EC4899;">
+    <div class="stat-label">Female</div>
+    <div class="stat-value"><?= (int)($stats['female'] ?? 0) ?></div>
+  </div>
+</div>
+
 <!-- FILTERS -->
 <form method="GET" class="card" style="padding:16px 20px;margin-bottom:20px;">
   <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
@@ -37,13 +56,13 @@
         <?php foreach($students as $s): ?>
         <tr>
           <td>
-            <div style="display:flex;align-items:center;gap:10px;">
+            <a href="<?= $cfg['url'] ?>/school/students/<?= $s['id'] ?>" style="display:flex;align-items:center;gap:10px;color:inherit;">
               <div class="avatar"><?= strtoupper(substr($s['name'],0,1)) ?></div>
               <div>
                 <div class="fw-600"><?= htmlspecialchars($s['name']) ?></div>
                 <div style="font-size:11px;color:var(--text-muted)"><?= htmlspecialchars($s['email']) ?></div>
               </div>
-            </div>
+            </a>
           </td>
           <td style="font-family:monospace;font-size:12px"><?= htmlspecialchars($s['admission_no']) ?></td>
           <td><?= htmlspecialchars($s['class_name']??'—') ?></td>
@@ -63,7 +82,12 @@
         </tr>
         <?php endforeach; ?>
         <?php if(empty($students)): ?>
-          <tr><td colspan="7" class="text-center text-muted" style="padding:40px;">No students found. <a href="javascript:void(0)" onclick="document.getElementById('admitModal').classList.add('open')">Admit first student</a></td></tr>
+        <tr><td colspan="7">
+          <div class="empty-state">
+            <div class="empty-state-icon">🎓</div>
+            <div class="empty-state-text">No students found. <a href="javascript:void(0)" onclick="document.getElementById('admitModal').classList.add('open')">Admit the first student</a></div>
+          </div>
+        </td></tr>
         <?php endif; ?>
       </tbody>
     </table>

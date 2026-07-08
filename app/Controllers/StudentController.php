@@ -28,9 +28,16 @@ class StudentController extends Controller {
              WHERE $where ORDER BY u.name ASC LIMIT {$p['perPage']} OFFSET {$p['offset']}", $params
         );
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
+        $stats = $this->db->fetchOne(
+            "SELECT COUNT(*) total,
+                    SUM(CASE WHEN s.status='active' THEN 1 ELSE 0 END) active,
+                    SUM(CASE WHEN u.gender='male' THEN 1 ELSE 0 END) male,
+                    SUM(CASE WHEN u.gender='female' THEN 1 ELSE 0 END) female
+             FROM students s JOIN users u ON s.user_id=u.id WHERE s.tenant_id=?", [$this->tid]
+        );
         $this->view('school/highschool/students/index', [
             'pageTitle'=>'Students','panelType'=>'school','students'=>$students,'classes'=>$classes,'search'=>$search,'classId'=>$classId,
-            'page'=>$p['page'],'totalPages'=>$p['totalPages'],'total'=>$p['total'],'perPage'=>$p['perPage'],
+            'page'=>$p['page'],'totalPages'=>$p['totalPages'],'total'=>$p['total'],'perPage'=>$p['perPage'],'stats'=>$stats,
             'flash'=>$this->getFlash(), 'importErrors'=>$this->getImportErrors(),
         ]);
     }
@@ -144,9 +151,31 @@ class StudentController extends Controller {
         );
         if (!$student) { $this->redirect('/school/students'); }
         $grades   = $this->db->fetchAll("SELECT g.*, c.name AS course_name FROM grades g LEFT JOIN courses c ON g.course_id=c.id WHERE g.student_id=? AND g.tenant_id=? ORDER BY g.created_at DESC LIMIT 10",[$id,$this->tid]);
-        $attendance = $this->db->fetchAll("SELECT * FROM attendance WHERE student_id=? AND tenant_id=? ORDER BY date DESC LIMIT 30",[$id,$this->tid]);
+        $attendance = $this->db->fetchAll("SELECT * FROM attendance WHERE student_id=? AND tenant_id=? ORDER BY date DESC LIMIT 10",[$id,$this->tid]);
         $invoices = $this->db->fetchAll("SELECT * FROM invoices WHERE student_id=? AND tenant_id=? ORDER BY created_at DESC",[$id,$this->tid]);
-        $this->view('school/highschool/students/show',['pageTitle'=>$student['name'],'panelType'=>'school','student'=>$student,'grades'=>$grades,'attendance'=>$attendance,'invoices'=>$invoices,'flash'=>$this->getFlash()]);
+
+        $attendanceStats = $this->db->fetchOne(
+            "SELECT COUNT(*) total, SUM(CASE WHEN status='present' THEN 1 ELSE 0 END) present FROM attendance WHERE student_id=? AND tenant_id=?",
+            [$id,$this->tid]
+        );
+        $attendanceRate = $attendanceStats['total'] > 0 ? round($attendanceStats['present'] / $attendanceStats['total'] * 100) : null;
+
+        $gradeStats = $this->db->fetchOne(
+            "SELECT AVG(marks_obtained/total_marks*100) avg_pct FROM grades WHERE student_id=? AND tenant_id=? AND total_marks>0",
+            [$id,$this->tid]
+        );
+        $avgGrade = $gradeStats['avg_pct'] !== null ? round($gradeStats['avg_pct']) : null;
+
+        $feesStats = $this->db->fetchOne(
+            "SELECT COALESCE(SUM(amount_due-amount_paid),0) outstanding FROM invoices WHERE student_id=? AND tenant_id=? AND status NOT IN ('paid','waived')",
+            [$id,$this->tid]
+        );
+
+        $this->view('school/highschool/students/show',[
+            'pageTitle'=>$student['name'],'panelType'=>'school','student'=>$student,'grades'=>$grades,'attendance'=>$attendance,'invoices'=>$invoices,
+            'attendanceRate'=>$attendanceRate,'avgGrade'=>$avgGrade,'outstandingFees'=>$feesStats['outstanding'],
+            'flash'=>$this->getFlash(),
+        ]);
     }
 
     public function idCard(string $id): void {

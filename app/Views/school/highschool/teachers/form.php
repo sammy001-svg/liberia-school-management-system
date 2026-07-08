@@ -4,7 +4,15 @@
   <span>/</span><a href="<?= $cfg['url'] ?>/school/teachers/<?= $teacher['id'] ?>"><?= htmlspecialchars($teacher['name']) ?></a>
   <span>/</span><span>Edit</span>
 </div>
-<div class="page-header"><div class="page-header-title">Edit Teacher</div></div>
+<div class="page-header">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <div class="avatar avatar-lg"><?= strtoupper(substr($teacher['name'] ?? '?',0,1)) ?></div>
+    <div>
+      <div class="page-header-title">Edit Teacher</div>
+      <div class="page-header-sub"><?= htmlspecialchars($teacher['name'] ?? '') ?></div>
+    </div>
+  </div>
+</div>
 <div style="max-width:680px;">
 <form method="POST" action="<?= $cfg['url'] ?>/school/teachers/<?= $teacher['id'] ?>/update">
   <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">

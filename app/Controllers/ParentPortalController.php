@@ -61,7 +61,7 @@ class ParentPortalController extends Controller {
              FROM grades g 
              JOIN exams e ON g.exam_id = e.id 
              JOIN courses co ON g.course_id = co.id 
-             WHERE g.student_id = ? ORDER BY e.date DESC", 
+             WHERE g.student_id = ? ORDER BY e.exam_date DESC", 
             [$sid]
         );
 
