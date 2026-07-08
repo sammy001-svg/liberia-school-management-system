@@ -194,13 +194,71 @@ class ParentController extends Controller {
         $this->view('school/highschool/parents/index', [
             'pageTitle'=>'Parents','panelType'=>'school','parents'=>$parents,'students'=>$students,
             'page'=>$p2['page'],'totalPages'=>$p2['totalPages'],'total'=>$p2['total'],'perPage'=>$p2['perPage'],
-            'flash'=>$this->getFlash(),
+            'flash'=>$this->getFlash(), 'importErrors'=>$this->getImportErrors(),
         ]);
     }
 
     public function create(): void {
         $this->requireAuth(['School Admin']);
         $this->redirect('/school/parents');
+    }
+
+    public function bulkTemplate(): void {
+        $this->requireAuth(['School Admin']);
+        $this->downloadCsvTemplate('parents_template.csv',
+            ['name','email','phone','gender','dob','occupation','workplace','student_admission_no','relationship'],
+            ['John Doe','john.doe@example.com','0779876543','male','1980-02-10','Trader','Waterside Market','ADM-2026-0001','Father']
+        );
+    }
+
+    public function bulkUpload(): void {
+        $this->requireAuth(['School Admin']);
+        $rows = $this->parseCsvUpload('csv_file');
+        $roleId = $this->db->fetchOne("SELECT id FROM roles WHERE name='Parent' LIMIT 1")['id'] ?? 8;
+        $students = $this->db->fetchAll("SELECT id,admission_no FROM students WHERE tenant_id=?", [$this->tid]);
+        $studentByAdmNo = [];
+        foreach ($students as $s) { $studentByAdmNo[strtolower($s['admission_no'])] = $s['id']; }
+
+        $success = 0;
+        $rowErrors = [];
+        foreach ($rows as $i => $row) {
+            $line = $i + 2;
+            try {
+                $name = $row['name'] ?? '';
+                $email = $row['email'] ?? '';
+                if ($name === '' || $email === '') {
+                    $rowErrors[] = "Row {$line}: name and email are required.";
+                    continue;
+                }
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $rowErrors[] = "Row {$line}: '{$email}' is not a valid email address.";
+                    continue;
+                }
+                $studentId = null;
+                if (!empty($row['student_admission_no'])) {
+                    $studentId = $studentByAdmNo[strtolower($row['student_admission_no'])] ?? null;
+                    if ($studentId === null) { $rowErrors[] = "Row {$line}: student with admission no '{$row['student_admission_no']}' not found — parent added without a linked student."; }
+                }
+                $userId = $this->db->insert(
+                    "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,date_of_birth,status) VALUES (?,?,?,?,?,?,?,?)",
+                    [$this->tid, $roleId, $name, $email, $row['phone'] ?? '', $row['gender'] ?: null, $row['dob'] ?: null, 'active']
+                );
+                $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [password_hash('Parent@123', PASSWORD_BCRYPT), $userId]);
+                $parentId = $this->db->insert(
+                    "INSERT INTO parents (tenant_id,user_id,occupation,workplace) VALUES (?,?,?,?)",
+                    [$this->tid, $userId, $row['occupation'] ?? '', $row['workplace'] ?: null]
+                );
+                if ($studentId !== null) {
+                    $this->db->insert("INSERT INTO parent_students (parent_id,student_id,relationship) VALUES (?,?,?)",
+                        [$parentId, $studentId, $row['relationship'] ?: 'parent']);
+                }
+                $success++;
+            } catch (\Throwable $e) {
+                $reason = str_contains($e->getMessage(), 'Duplicate entry') ? 'that email is already registered.' : 'could not be imported.';
+                $rowErrors[] = "Row {$line}: {$reason}";
+            }
+        }
+        $this->finishBulkImport($success, count($rows), $rowErrors, '/school/parents');
     }
 
     public function store(): void {

@@ -42,7 +42,8 @@ class InventoryController extends Controller {
             'pageTitle' => 'Library Books',
             'panelType' => 'school',
             'books' => $books,
-            'flash' => $this->getFlash()
+            'flash' => $this->getFlash(),
+            'importErrors' => $this->getImportErrors(),
         ]);
     }
 
@@ -55,6 +56,37 @@ class InventoryController extends Controller {
         );
         $this->flash('success', 'Book added to library catalog.');
         $this->redirect('/school/library');
+    }
+
+    public function bulkTemplateBooks(): void {
+        $this->downloadCsvTemplate('library_books_template.csv',
+            ['title','author','isbn','category'],
+            ['Things Fall Apart','Chinua Achebe','978-0435905255','Fiction']
+        );
+    }
+
+    public function bulkUploadBooks(): void {
+        $rows = $this->parseCsvUpload('csv_file');
+        $success = 0;
+        $rowErrors = [];
+        foreach ($rows as $i => $row) {
+            $line = $i + 2;
+            try {
+                $title = $row['title'] ?? '';
+                if ($title === '') {
+                    $rowErrors[] = "Row {$line}: title is required.";
+                    continue;
+                }
+                $this->db->insert(
+                    "INSERT INTO library_books (tenant_id, title, author, isbn, category, status) VALUES (?, ?, ?, ?, ?, 'available')",
+                    [$this->tid, $title, $row['author'] ?? '', $row['isbn'] ?? '', $row['category'] ?? '']
+                );
+                $success++;
+            } catch (\Throwable $e) {
+                $rowErrors[] = "Row {$line}: could not be imported.";
+            }
+        }
+        $this->finishBulkImport($success, count($rows), $rowErrors, '/school/library');
     }
 
     public function loans(): void {

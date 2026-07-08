@@ -87,5 +87,21 @@ $role     = $_SESSION['role_name'] ?? '';
   </div>
   <?php endif; ?>
 
+  <!-- IMPORT ERRORS -->
+  <?php if (!empty($importErrors)): ?>
+  <div style="padding:0 24px;margin-top:16px;">
+    <div class="card" style="border-color:var(--danger);">
+      <div class="card-header"><div class="card-title" style="color:var(--danger);">Import Errors (<?= count($importErrors) ?>)</div></div>
+      <div class="card-body" style="max-height:220px;overflow-y:auto;">
+        <ul style="padding-left:18px;font-size:12.5px;color:var(--text-light);line-height:1.9;">
+          <?php foreach ($importErrors as $err): ?>
+            <li><?= htmlspecialchars($err) ?></li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <?php endif; ?>
+
   <!-- PAGE BODY -->
   <main class="page-body">

@@ -18,13 +18,82 @@ class TeacherController extends Controller {
         $this->view('school/highschool/teachers/index', [
             'pageTitle'=>'Teachers','panelType'=>'school','teachers'=>$teachers,'classes'=>$classes,'departments'=>$departments,
             'page'=>$p['page'],'totalPages'=>$p['totalPages'],'total'=>$p['total'],'perPage'=>$p['perPage'],
-            'flash'=>$this->getFlash(),
+            'flash'=>$this->getFlash(), 'importErrors'=>$this->getImportErrors(),
         ]);
     }
 
     public function create(): void {
         $this->requireAuth(['School Admin']);
         $this->redirect('/school/teachers');
+    }
+
+    public function bulkTemplate(): void {
+        $this->requireAuth(['School Admin']);
+        $this->downloadCsvTemplate('teachers_template.csv',
+            ['name','email','phone','gender','dob','qualification','specialization','department_name','class_name','employment_type','joined_at'],
+            ['John Smith','john.smith@example.com','0771234567','male','1985-03-20','B.Ed','Mathematics','Sciences','Grade 7A','full_time','2026-01-15']
+        );
+    }
+
+    public function bulkUpload(): void {
+        $this->requireAuth(['School Admin']);
+        $rows = $this->parseCsvUpload('csv_file');
+        $roleId = $this->db->fetchOne("SELECT id FROM roles WHERE name='Teacher' LIMIT 1")['id'] ?? 5;
+        $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?", [$this->tid]);
+        $classByName = [];
+        foreach ($classes as $c) { $classByName[strtolower($c['name'])] = $c['id']; }
+        $departments = $this->db->fetchAll("SELECT id,name FROM departments WHERE tenant_id=?", [$this->tid]);
+        $deptByName = [];
+        foreach ($departments as $d) { $deptByName[strtolower($d['name'])] = $d['id']; }
+
+        $success = 0;
+        $rowErrors = [];
+        foreach ($rows as $i => $row) {
+            $line = $i + 2;
+            try {
+                $name = $row['name'] ?? '';
+                $email = $row['email'] ?? '';
+                if ($name === '' || $email === '') {
+                    $rowErrors[] = "Row {$line}: name and email are required.";
+                    continue;
+                }
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $rowErrors[] = "Row {$line}: '{$email}' is not a valid email address.";
+                    continue;
+                }
+                $classId = null;
+                if (!empty($row['class_name'])) {
+                    $classId = $classByName[strtolower($row['class_name'])] ?? null;
+                    if ($classId === null) { $rowErrors[] = "Row {$line}: class '{$row['class_name']}' not found — teacher added without a class."; }
+                }
+                $deptId = null;
+                if (!empty($row['department_name'])) {
+                    $deptId = $deptByName[strtolower($row['department_name'])] ?? null;
+                    if ($deptId === null) { $rowErrors[] = "Row {$line}: department '{$row['department_name']}' not found — teacher added without a department."; }
+                }
+                $userId = $this->db->insert(
+                    "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,date_of_birth,status) VALUES (?,?,?,?,?,?,?,?)",
+                    [$this->tid, $roleId, $name, $email, $row['phone'] ?? '', $row['gender'] ?: null, $row['dob'] ?: null, 'active']
+                );
+                $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [password_hash('Teacher@123', PASSWORD_BCRYPT), $userId]);
+                $empNo = 'EMP-'.date('Y').'-'.str_pad($userId, 4, '0', STR_PAD_LEFT);
+                $this->db->insert(
+                    "INSERT INTO teachers (tenant_id,user_id,employee_no,department_id,class_id,qualification,specialization,employment_type,joined_at)
+                     VALUES (?,?,?,?,?,?,?,?,?)",
+                    [
+                        $this->tid, $userId, $empNo, $deptId, $classId,
+                        $row['qualification'] ?? '', $row['specialization'] ?? '',
+                        in_array($row['employment_type'] ?? '', ['full_time','part_time','contract'], true) ? $row['employment_type'] : 'full_time',
+                        $row['joined_at'] ?: date('Y-m-d'),
+                    ]
+                );
+                $success++;
+            } catch (\Throwable $e) {
+                $reason = str_contains($e->getMessage(), 'Duplicate entry') ? 'that email is already registered.' : 'could not be imported.';
+                $rowErrors[] = "Row {$line}: {$reason}";
+            }
+        }
+        $this->finishBulkImport($success, count($rows), $rowErrors, '/school/teachers');
     }
 
     public function store(): void {

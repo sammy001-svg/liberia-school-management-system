@@ -155,6 +155,69 @@ abstract class Controller {
     }
 
     /**
+     * Parse an uploaded CSV file into an array of associative rows, keyed
+     * by lowercased header column names. Returns [] if no file was uploaded.
+     */
+    protected function parseCsvUpload(string $fieldName): array {
+        if (empty($_FILES[$fieldName]) || $_FILES[$fieldName]['error'] !== UPLOAD_ERR_OK) {
+            return [];
+        }
+        $rows = [];
+        $handle = fopen($_FILES[$fieldName]['tmp_name'], 'r');
+        if ($handle !== false) {
+            $header = fgetcsv($handle);
+            if ($header) {
+                $header = array_map(fn($h) => strtolower(trim((string)$h)), $header);
+                while (($data = fgetcsv($handle)) !== false) {
+                    if (count($data) === 1 && trim((string)$data[0]) === '') continue;
+                    $row = [];
+                    foreach ($header as $i => $key) { $row[$key] = trim((string)($data[$i] ?? '')); }
+                    $rows[] = $row;
+                }
+            }
+            fclose($handle);
+        }
+        return $rows;
+    }
+
+    /** Stream a downloadable CSV template with the given headers and an optional example row. */
+    protected function downloadCsvTemplate(string $filename, array $headers, array $exampleRow = []): never {
+        if (ob_get_level()) { ob_end_clean(); }
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        $out = fopen('php://output', 'w');
+        fputcsv($out, $headers);
+        if ($exampleRow) { fputcsv($out, $exampleRow); }
+        fclose($out);
+        exit;
+    }
+
+    /**
+     * Flash a summary of a bulk import (X of Y rows imported), stash any
+     * per-row error details for display on the next page, then redirect.
+     */
+    protected function finishBulkImport(int $successCount, int $totalRows, array $rowErrors, string $redirectUrl): never {
+        if ($totalRows === 0) {
+            $this->flash('danger', 'No rows found in the uploaded file.');
+            $this->redirect($redirectUrl);
+        }
+        $type = empty($rowErrors) ? 'success' : ($successCount > 0 ? 'warning' : 'danger');
+        $message = "Imported {$successCount} of {$totalRows} row(s).";
+        if ($rowErrors) {
+            $message .= ' ' . count($rowErrors) . ' row(s) had errors — see details below.';
+            $_SESSION['import_errors'] = $rowErrors;
+        }
+        $this->flash($type, $message);
+        $this->redirect($redirectUrl);
+    }
+
+    protected function getImportErrors(): array {
+        $errors = $_SESSION['import_errors'] ?? [];
+        unset($_SESSION['import_errors']);
+        return $errors;
+    }
+
+    /**
      * Pagination helper: given a total row count, works out the current
      * page (from $_GET['page']), page size, and SQL OFFSET.
      */

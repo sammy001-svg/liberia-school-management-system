@@ -5,7 +5,10 @@
     <div class="page-header-title">Students</div>
     <div class="page-header-sub">Manage student enrolment and profiles</div>
   </div>
-  <button type="button" class="btn btn-primary" onclick="document.getElementById('admitModal').classList.add('open')">+ Admit Student</button>
+  <div style="display:flex;gap:10px;">
+    <button type="button" class="btn btn-secondary" onclick="document.getElementById('bulkUploadModal').classList.add('open')">Bulk Upload</button>
+    <button type="button" class="btn btn-primary" onclick="document.getElementById('admitModal').classList.add('open')">+ Admit Student</button>
+  </div>
 </div>
 
 <!-- FILTERS -->
@@ -184,6 +187,34 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="document.getElementById('admitModal').classList.remove('open')">Cancel</button>
         <button type="submit" class="btn btn-primary">Admit Student</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Bulk Upload Modal -->
+<div class="modal-overlay" id="bulkUploadModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Bulk Upload Students</div>
+      <button class="modal-close" onclick="document.getElementById('bulkUploadModal').classList.remove('open')">&times;</button>
+    </div>
+    <form method="POST" action="<?= $cfg['url'] ?>/school/students/bulk-upload" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+      <div class="modal-body">
+        <p class="text-muted" style="font-size:13px;margin-bottom:16px;">
+          Upload a CSV file to admit multiple students at once.
+          <a href="<?= $cfg['url'] ?>/school/students/bulk-template">Download the CSV template</a> to see the expected columns.
+        </p>
+        <div class="form-group">
+          <label class="form-label">CSV File *</label>
+          <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+          <div class="form-hint">New students get the default password <code>Student@123</code>. Rows with missing name/email or duplicate emails are skipped and reported.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('bulkUploadModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Upload &amp; Import</button>
       </div>
     </form>
   </div>

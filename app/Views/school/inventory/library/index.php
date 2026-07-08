@@ -1,8 +1,9 @@
 <?php require ROOT_DIR . '/app/Views/layouts/header.php'; ?>
 <div class="page-header">
     <div class="page-header-title">Library Books</div>
-    <div>
+    <div style="display:flex;gap:10px;">
         <a href="<?= $cfg['url'] ?>/school/library/loans" class="btn btn-outline">View Loans</a>
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('bulkUploadModal').classList.add('open')">Bulk Upload</button>
         <button type="button" class="btn btn-primary" onclick="document.getElementById('addBookModal').classList.add('open')">+ Add Book</button>
     </div>
 </div>
@@ -74,6 +75,34 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="document.getElementById('addBookModal').classList.remove('open')">Cancel</button>
         <button type="submit" class="btn btn-primary">Save Book</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Bulk Upload Modal -->
+<div class="modal-overlay" id="bulkUploadModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Bulk Upload Books</div>
+      <button class="modal-close" onclick="document.getElementById('bulkUploadModal').classList.remove('open')">&times;</button>
+    </div>
+    <form method="POST" action="<?= $cfg['url'] ?>/school/library/bulk-upload" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+      <div class="modal-body">
+        <p class="text-muted" style="font-size:13px;margin-bottom:16px;">
+          Upload a CSV file to add multiple books to the catalog at once.
+          <a href="<?= $cfg['url'] ?>/school/library/bulk-template">Download the CSV template</a> to see the expected columns.
+        </p>
+        <div class="form-group">
+          <label class="form-label">CSV File *</label>
+          <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+          <div class="form-hint">Rows with a missing title are skipped and reported.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('bulkUploadModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Upload &amp; Import</button>
       </div>
     </form>
   </div>
