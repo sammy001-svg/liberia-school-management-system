@@ -8,6 +8,7 @@
 </div>
 <div style="max-width:700px;">
 <form method="POST" action="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/update">
+  <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
   <div class="card">
     <div class="card-header"><div class="card-title">Personal Information</div></div>
     <div class="card-body">

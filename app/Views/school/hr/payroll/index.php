@@ -2,6 +2,7 @@
 <div class="page-header">
     <div class="page-header-title">Staff Payroll (<?= date("F", mktime(0, 0, 0, $month, 10)) ?> <?= $year ?>)</div>
     <form method="POST" action="<?= $cfg['url'] ?>/school/hr/payroll/generate" style="display:flex; gap:10px;">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
         <input type="hidden" name="month" value="<?= $month ?>">
         <input type="hidden" name="year" value="<?= $year ?>">
         <button type="submit" class="btn btn-primary">Generate Payroll Draft</button>

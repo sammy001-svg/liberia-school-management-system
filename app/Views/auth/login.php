@@ -12,6 +12,7 @@ $secondaryColor = $branding['secondary_color'] ?? null;
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= htmlspecialchars($pageTitle ?? 'Login') ?> — <?= htmlspecialchars($appName) ?></title>
+<script>(function(){try{if(localStorage.getItem('theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
 <link rel="stylesheet" href="<?= $cfg['url'] ?>/assets/css/style.css">
 <?php if ($primaryColor): ?>
 <style>
@@ -42,6 +43,7 @@ $secondaryColor = $branding['secondary_color'] ?? null;
     <?php endif; ?>
 
     <form action="<?= $cfg['url'] ?>/login" method="POST">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
       <div class="form-group">
         <label class="form-label">Email Address</label>
         <input type="email" name="email" class="form-control" placeholder="you@school.com" required autofocus>

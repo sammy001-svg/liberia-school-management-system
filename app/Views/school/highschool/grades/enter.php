@@ -11,6 +11,7 @@
 </form>
 <?php if (!empty($students)): ?>
 <form method="POST" action="<?= $cfg['url'] ?>/school/grades/store">
+  <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
   <div class="form-group" style="max-width:300px;margin-bottom:20px;">
     <label class="form-label">Exam</label>
     <select name="exam_id" class="form-control">

@@ -25,23 +25,44 @@ class FinanceController extends Controller {
         $where  = "i.tenant_id=?";
         if ($status) { $where .= " AND i.status=?"; $params[] = $status; }
         $invoices = $this->db->fetchAll("SELECT i.*, u.name AS student_name, c.name AS class_name FROM invoices i JOIN students s ON i.student_id=s.id JOIN users u ON s.user_id=u.id LEFT JOIN classes c ON s.class_id=c.id WHERE $where ORDER BY i.created_at DESC", $params);
-        $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
-        $this->view('school/highschool/finance/invoices', ['pageTitle'=>'Invoices','panelType'=>'school','tenant'=>$tenant,'invoices'=>$invoices,'status'=>$status,'flash'=>$this->getFlash()]);
+        $tenant     = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
+        $students   = $this->db->fetchAll("SELECT s.id, u.name FROM students s JOIN users u ON s.user_id=u.id WHERE s.tenant_id=? AND s.status='active' ORDER BY u.name",[$this->tid]);
+        $feeStructs = $this->db->fetchAll("SELECT id,name,amount FROM fee_structures WHERE tenant_id=?",[$this->tid]);
+        $this->view('school/highschool/finance/invoices', ['pageTitle'=>'Invoices','panelType'=>'school','tenant'=>$tenant,'invoices'=>$invoices,'status'=>$status,'students'=>$students,'feeStructs'=>$feeStructs,'flash'=>$this->getFlash()]);
     }
 
     public function createInvoice(): void {
         $this->requireAuth(['School Admin','Accountant']);
-        $students   = $this->db->fetchAll("SELECT s.id, u.name FROM students s JOIN users u ON s.user_id=u.id WHERE s.tenant_id=? AND s.status='active' ORDER BY u.name",[$this->tid]);
-        $feeStructs = $this->db->fetchAll("SELECT id,name,amount FROM fee_structures WHERE tenant_id=?",[$this->tid]);
-        $this->view('school/highschool/finance/create_invoice', ['pageTitle'=>'Create Invoice','panelType'=>'school','students'=>$students,'feeStructs'=>$feeStructs,'flash'=>$this->getFlash()]);
+        $this->redirect('/school/finance/invoices');
     }
 
     public function storeInvoice(): void {
         $this->requireAuth(['School Admin','Accountant']);
         $invoiceNo = 'INV-'.date('Ymd').'-'.rand(1000,9999);
         $this->db->insert("INSERT INTO invoices (tenant_id,student_id,fee_structure_id,invoice_no,amount_due,discount,due_date,notes,status) VALUES (?,?,?,?,?,?,?,?,?)",
-            [$this->tid,$_POST['student_id'],$_POST['fee_structure_id']??null,$invoiceNo,$_POST['amount_due'],$_POST['discount']??0,$_POST['due_date']??null,$_POST['notes']??'','unpaid']);
+            [$this->tid,$_POST['student_id'],$_POST['fee_structure_id']?:null,$invoiceNo,$_POST['amount_due'],$_POST['discount']??0,$_POST['due_date']??null,$_POST['notes']??'','unpaid']);
         $this->flash('success','Invoice '.$invoiceNo.' created.'); $this->redirect('/school/finance/invoices');
+    }
+
+    public function feeStructures(): void {
+        $this->requireAuth(['School Admin','Accountant']);
+        $fees = $this->db->fetchAll(
+            "SELECT f.*, c.name AS class_name FROM fee_structures f LEFT JOIN classes c ON f.class_id=c.id WHERE f.tenant_id=? ORDER BY f.name",
+            [$this->tid]
+        );
+        $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
+        $academicYears = $this->db->fetchAll("SELECT id,name FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]);
+        $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
+        $this->view('school/highschool/finance/fee_structures', ['pageTitle'=>'Fee Structures','panelType'=>'school','tenant'=>$tenant,'fees'=>$fees,'classes'=>$classes,'academicYears'=>$academicYears,'flash'=>$this->getFlash()]);
+    }
+
+    public function storeFeeStructure(): void {
+        $this->requireAuth(['School Admin','Accountant']);
+        $this->db->insert(
+            "INSERT INTO fee_structures (tenant_id,name,amount,frequency,class_id,academic_year_id,description) VALUES (?,?,?,?,?,?,?)",
+            [$this->tid,$_POST['name'],$_POST['amount'],$_POST['frequency']??'termly',$_POST['class_id']?:null,$_POST['academic_year_id']?:null,$_POST['description']??'']
+        );
+        $this->flash('success','Fee structure created.'); $this->redirect('/school/finance/fees');
     }
 
     public function payments(): void {

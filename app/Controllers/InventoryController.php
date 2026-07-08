@@ -22,8 +22,8 @@ class InventoryController extends Controller {
 
     public function store(): void {
         $this->db->insert(
-            "INSERT INTO inventory (tenant_id, item_name, category, quantity, unit, location) VALUES (?, ?, ?, ?, ?, ?)",
-            [$this->tid, $_POST['item_name'], $_POST['category'], $_POST['quantity'], $_POST['unit'], $_POST['location']]
+            "INSERT INTO inventory (tenant_id, item_name, category, quantity, unit, location, supplier, unit_price) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [$this->tid, $_POST['item_name'], $_POST['category'], $_POST['quantity'], $_POST['unit'], $_POST['location'], $_POST['supplier'] ?? '', $_POST['unit_price'] ?: null]
         );
         $this->flash('success', 'Item added to inventory.');
         $this->redirect('/school/inventory');
@@ -40,24 +40,42 @@ class InventoryController extends Controller {
         ]);
     }
 
+    public function storeBook(): void {
+        $this->db->insert(
+            "INSERT INTO library_books (tenant_id, title, author, isbn, category, status) VALUES (?, ?, ?, ?, ?, 'available')",
+            [$this->tid, $_POST['title'], $_POST['author'] ?? '', $_POST['isbn'] ?? '', $_POST['category'] ?? '']
+        );
+        $this->flash('success', 'Book added to library catalog.');
+        $this->redirect('/school/library');
+    }
+
     public function loans(): void {
         $loans = $this->db->fetchAll(
-            "SELECT l.*, b.title as book_title, u.name as user_name 
-             FROM library_loans l 
-             JOIN library_books b ON l.book_id = b.id 
-             JOIN users u ON l.user_id = u.id 
-             WHERE l.tenant_id = ? ORDER BY l.issued_at DESC", 
+            "SELECT l.*, b.title as book_title, u.name as user_name
+             FROM library_loans l
+             JOIN library_books b ON l.book_id = b.id
+             JOIN users u ON l.user_id = u.id
+             WHERE l.tenant_id = ? ORDER BY l.issued_at DESC",
             [$this->tid]
         );
+        $availableBooks = $this->db->fetchAll("SELECT id, title FROM library_books WHERE tenant_id = ? AND status = 'available' ORDER BY title", [$this->tid]);
+        $borrowers = $this->db->fetchAll("SELECT id, name FROM users WHERE tenant_id = ? AND status = 'active' ORDER BY name", [$this->tid]);
         $this->view('school/inventory/library/loans', [
             'pageTitle' => 'Book Loans',
             'panelType' => 'school',
             'loans' => $loans,
+            'availableBooks' => $availableBooks,
+            'borrowers' => $borrowers,
             'flash' => $this->getFlash()
         ]);
     }
 
     public function issueBook(): void {
+        $book = $this->db->fetchOne("SELECT status FROM library_books WHERE id=? AND tenant_id=?", [$_POST['book_id'], $this->tid]);
+        if (!$book || $book['status'] !== 'available') {
+            $this->flash('danger', 'That book is not available for loan.');
+            $this->redirect('/school/library/loans');
+        }
         $this->db->insert(
             "INSERT INTO library_loans (tenant_id, book_id, user_id, due_date) VALUES (?, ?, ?, ?)",
             [$this->tid, $_POST['book_id'], $_POST['user_id'], $_POST['due_date']]

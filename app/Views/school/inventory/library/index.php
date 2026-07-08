@@ -3,7 +3,7 @@
     <div class="page-header-title">Library Books</div>
     <div>
         <a href="<?= $cfg['url'] ?>/school/library/loans" class="btn btn-outline">View Loans</a>
-        <button class="btn btn-primary">+ Add Book</button>
+        <button type="button" class="btn btn-primary" onclick="document.getElementById('addBookModal').classList.add('open')">+ Add Book</button>
     </div>
 </div>
 
@@ -27,7 +27,7 @@
                     <td><?= htmlspecialchars($b['isbn']) ?></td>
                     <td><?= htmlspecialchars($b['category']) ?></td>
                     <td>
-                        <?php 
+                        <?php
                         $badge = $b['status'] === 'available' ? 'badge-success' : 'badge-danger';
                         ?>
                         <span class="badge <?= $badge ?>"><?= strtoupper($b['status']) ?></span>
@@ -35,10 +35,47 @@
                 </tr>
                 <?php endforeach; ?>
                 <?php if(empty($books)): ?>
-                <tr><td colspan="5" class="text-center text-muted" style="padding:40px;">No books in library catalog.</td></tr>
+                <tr><td colspan="5" class="text-center text-muted" style="padding:40px;">No books in library catalog. <a href="javascript:void(0)" onclick="document.getElementById('addBookModal').classList.add('open')">Add one</a></td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
     </div>
+</div>
+
+<!-- Add Book Modal -->
+<div class="modal-overlay" id="addBookModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add Book to Catalog</div>
+      <button class="modal-close" onclick="document.getElementById('addBookModal').classList.remove('open')">&times;</button>
+    </div>
+    <form method="POST" action="<?= $cfg['url'] ?>/school/library/store">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Title *</label>
+          <input type="text" name="title" class="form-control" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Author</label>
+            <input type="text" name="author" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">ISBN</label>
+            <input type="text" name="isbn" class="form-control">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <input type="text" name="category" class="form-control" placeholder="e.g. Fiction, Science, Reference">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('addBookModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Book</button>
+      </div>
+    </form>
+  </div>
 </div>
 <?php require ROOT_DIR . '/app/Views/layouts/footer.php'; ?>

@@ -52,6 +52,8 @@ $router->get('/school/finance/invoices/create', ['FinanceController', 'createInv
 $router->post('/school/finance/invoices/store', ['FinanceController', 'storeInvoice']);
 $router->get('/school/finance/payments',    ['FinanceController', 'payments']);
 $router->post('/school/finance/payments/store', ['FinanceController', 'storePayment']);
+$router->get('/school/finance/fees',        ['FinanceController', 'feeStructures']);
+$router->post('/school/finance/fees/store', ['FinanceController', 'storeFeeStructure']);
 
 $router->get('/school/parents',             ['ParentController', 'index']);
 $router->get('/school/parents/create',      ['ParentController', 'create']);
@@ -69,22 +71,14 @@ $router->get('/school/messages/{id}',       ['MessageController', 'show']);
 $router->get('/school/settings',            ['SchoolSettingsController', 'index']);
 $router->post('/school/settings/update',    ['SchoolSettingsController', 'update']);
 
-// ── UNIVERSITY SPECIFIC ─────────────────────────────────────────
+// ── DEPARTMENTS & COURSES (used by Teachers, Grades, Timetable) ──
 $router->get('/school/departments',         ['UniversityController', 'departments']);
 $router->get('/school/departments/create',  ['UniversityController', 'createDepartment']);
 $router->post('/school/departments/store',  ['UniversityController', 'storeDepartment']);
 
-$router->get('/school/programs',            ['UniversityController', 'programs']);
-$router->get('/school/programs/create',     ['UniversityController', 'createProgram']);
-$router->post('/school/programs/store',     ['UniversityController', 'storeProgram']);
-
 $router->get('/school/courses',             ['UniversityController', 'courses']);
 $router->get('/school/courses/create',      ['UniversityController', 'createCourse']);
 $router->post('/school/courses/store',      ['UniversityController', 'storeCourse']);
-
-$router->get('/school/enrollments',         ['UniversityController', 'enrollments']);
-$router->get('/school/enrollments/create',  ['UniversityController', 'createEnrollment']);
-$router->post('/school/enrollments/store',  ['UniversityController', 'storeEnrollment']);
 
 // ── STUDENT PORTAL ──────────────────────────────────────────────
 $router->get('/student/dashboard',          ['StudentPortalController', 'dashboard']);
@@ -107,6 +101,7 @@ $router->post('/school/hr/leaves/approve',  ['HRController', 'approveLeave']);
 $router->get('/school/inventory',           ['InventoryController', 'index']);
 $router->post('/school/inventory/store',    ['InventoryController', 'store']);
 $router->get('/school/library',             ['InventoryController', 'library']);
+$router->post('/school/library/store',      ['InventoryController', 'storeBook']);
 $router->get('/school/library/loans',       ['InventoryController', 'loans']);
 $router->post('/school/library/issue',      ['InventoryController', 'issueBook']);
 

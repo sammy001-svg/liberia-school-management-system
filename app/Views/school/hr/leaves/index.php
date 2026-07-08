@@ -29,6 +29,7 @@
                     <td>
                         <?php if($l['status'] === 'pending'): ?>
                         <form method="POST" action="<?= $cfg['url'] ?>/school/hr/leaves/approve" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
                             <input type="hidden" name="id" value="<?= $l['id'] ?>">
                             <button name="status" value="approved" class="btn btn-sm btn-success">Approve</button>
                             <button name="status" value="rejected" class="btn btn-sm btn-danger">Reject</button>

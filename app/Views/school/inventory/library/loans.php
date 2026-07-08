@@ -1,7 +1,7 @@
 <?php require ROOT_DIR . '/app/Views/layouts/header.php'; ?>
 <div class="page-header">
-    <div class="page-header-title">Book Loans & Circulation</div>
-    <button class="btn btn-primary" onclick="document.getElementById('loanModal').style.display='flex'">Issue Book</button>
+    <div class="page-header-title">Book Loans &amp; Circulation</div>
+    <button type="button" class="btn btn-primary" onclick="document.getElementById('loanModal').classList.add('open')">Issue Book</button>
 </div>
 
 <div class="card">
@@ -44,16 +44,45 @@
     </div>
 </div>
 
-<!-- Issue Modal Stub -->
+<!-- Issue Book Modal -->
 <div class="modal-overlay" id="loanModal">
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title">Issue Book</div>
-      <button class="modal-close" onclick="document.getElementById('loanModal').style.display='none'">&times;</button>
+      <button class="modal-close" onclick="document.getElementById('loanModal').classList.remove('open')">&times;</button>
     </div>
-    <div class="modal-body">
-      <p class="text-muted">Form logic for issuing books (selecting book, user, and due date).</p>
-    </div>
+    <form method="POST" action="<?= $cfg['url'] ?>/school/library/issue">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Book *</label>
+          <select name="book_id" class="form-control" required>
+            <option value="">— Select Available Book —</option>
+            <?php foreach($availableBooks as $b): ?>
+              <option value="<?= $b['id'] ?>"><?= htmlspecialchars($b['title']) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?php if(empty($availableBooks)): ?><div class="form-hint">No books currently available to issue.</div><?php endif; ?>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Issue To *</label>
+          <select name="user_id" class="form-control" required>
+            <option value="">— Select Borrower —</option>
+            <?php foreach($borrowers as $u): ?>
+              <option value="<?= $u['id'] ?>"><?= htmlspecialchars($u['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Due Date *</label>
+          <input type="date" name="due_date" class="form-control" required value="<?= date('Y-m-d', strtotime('+14 days')) ?>">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('loanModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Issue Book</button>
+      </div>
+    </form>
   </div>
 </div>
 <?php require ROOT_DIR . '/app/Views/layouts/footer.php'; ?>

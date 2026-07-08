@@ -52,6 +52,7 @@
               <a href="<?= $cfg['url'] ?>/school/students/<?= $s['id'] ?>" class="btn btn-sm btn-outline">View</a>
               <a href="<?= $cfg['url'] ?>/school/students/<?= $s['id'] ?>/edit" class="btn btn-sm btn-secondary">Edit</a>
               <form method="POST" action="<?= $cfg['url'] ?>/school/students/<?= $s['id'] ?>/delete" onsubmit="return confirm('Remove student?')">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
                 <button class="btn btn-sm btn-danger">Del</button>
               </form>
             </div>
@@ -74,6 +75,7 @@
       <button class="modal-close" onclick="document.getElementById('admitModal').classList.remove('open')">&times;</button>
     </div>
     <form method="POST" action="<?= $cfg['url'] ?>/school/students/store">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
       <div class="modal-body">
 
         <div class="modal-section-title">Personal Information</div>

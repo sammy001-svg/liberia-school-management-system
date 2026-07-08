@@ -8,19 +8,21 @@ class AnnouncementController extends Controller {
     public function index(): void {
         $this->requireAuth(['School Admin','Teacher']);
         $announcements = $this->db->fetchAll("SELECT a.*, u.name AS author FROM announcements a JOIN users u ON a.author_id=u.id WHERE a.tenant_id=? ORDER BY a.published_at DESC", [$this->tid]);
-        $this->view('school/highschool/announcements/index', ['pageTitle'=>'Announcements','panelType'=>'school','announcements'=>$announcements,'flash'=>$this->getFlash()]);
+        $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?", [$this->tid]);
+        $this->view('school/highschool/announcements/index', ['pageTitle'=>'Announcements','panelType'=>'school','announcements'=>$announcements,'classes'=>$classes,'flash'=>$this->getFlash()]);
     }
 
     public function create(): void {
         $this->requireAuth(['School Admin','Teacher']);
-        $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?", [$this->tid]);
-        $this->view('school/highschool/announcements/form', ['pageTitle'=>'Post Announcement','panelType'=>'school','classes'=>$classes,'flash'=>$this->getFlash()]);
+        $this->redirect('/school/announcements');
     }
 
     public function store(): void {
         $this->requireAuth(['School Admin','Teacher']);
-        $this->db->insert("INSERT INTO announcements (tenant_id,author_id,title,body,audience,class_id,is_pinned) VALUES (?,?,?,?,?,?,?)",
-            [$this->tid,$_SESSION['user_id'],$_POST['title'],$_POST['body'],$_POST['audience']??'all',$_POST['class_id']??null,(int)($_POST['is_pinned']??0)]);
+        $this->db->insert(
+            "INSERT INTO announcements (tenant_id,author_id,title,body,audience,class_id,is_pinned,expires_at) VALUES (?,?,?,?,?,?,?,?)",
+            [$this->tid,$_SESSION['user_id'],$_POST['title'],$_POST['body'],$_POST['audience']??'all',$_POST['class_id']?:null,(int)($_POST['is_pinned']??0),$_POST['expires_at']?:null]
+        );
         $this->flash('success','Announcement posted.'); $this->redirect('/school/announcements');
     }
 }
@@ -109,26 +111,33 @@ class TimetableController extends Controller {
         $this->requireAuth(['School Admin','Teacher','Student']);
         $classId   = $_GET['class_id'] ?? '';
         $classes   = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?", [$this->tid]);
+        $courses   = $this->db->fetchAll("SELECT id,name FROM courses WHERE tenant_id=?", [$this->tid]);
+        $teachers  = $this->db->fetchAll("SELECT t.id,u.name FROM teachers t JOIN users u ON t.user_id=u.id WHERE t.tenant_id=?", [$this->tid]);
+        $academicYears = $this->db->fetchAll("SELECT id,name FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]);
+        $terms     = $this->db->fetchAll("SELECT id,name FROM terms WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]);
         $timetable = [];
         if ($classId) {
             $rows = $this->db->fetchAll("SELECT tt.*,c.name AS course_name,u.name AS teacher_name FROM timetable tt LEFT JOIN courses c ON tt.course_id=c.id LEFT JOIN teachers t ON tt.teacher_id=t.id LEFT JOIN users u ON t.user_id=u.id WHERE tt.tenant_id=? AND tt.class_id=? ORDER BY FIELD(tt.day_of_week,'monday','tuesday','wednesday','thursday','friday','saturday'),tt.start_time",[$this->tid,$classId]);
             foreach ($rows as $r) { $timetable[$r['day_of_week']][] = $r; }
         }
-        $this->view('school/highschool/timetable/index', ['pageTitle'=>'Timetable','panelType'=>'school','classes'=>$classes,'timetable'=>$timetable,'classId'=>$classId,'flash'=>$this->getFlash()]);
+        $this->view('school/highschool/timetable/index', ['pageTitle'=>'Timetable','panelType'=>'school','classes'=>$classes,'courses'=>$courses,'teachers'=>$teachers,'academicYears'=>$academicYears,'terms'=>$terms,'timetable'=>$timetable,'classId'=>$classId,'flash'=>$this->getFlash()]);
     }
 
     public function create(): void {
         $this->requireAuth(['School Admin']);
-        $classes  = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?", [$this->tid]);
-        $courses  = $this->db->fetchAll("SELECT id,name FROM courses WHERE tenant_id=?", [$this->tid]);
-        $teachers = $this->db->fetchAll("SELECT t.id,u.name FROM teachers t JOIN users u ON t.user_id=u.id WHERE t.tenant_id=?", [$this->tid]);
-        $this->view('school/highschool/timetable/form', ['pageTitle'=>'Add Timetable Entry','panelType'=>'school','classes'=>$classes,'courses'=>$courses,'teachers'=>$teachers,'flash'=>$this->getFlash()]);
+        $this->redirect('/school/timetable');
     }
 
     public function store(): void {
         $this->requireAuth(['School Admin']);
-        $this->db->insert("INSERT INTO timetable (tenant_id,class_id,course_id,teacher_id,day_of_week,start_time,end_time,room) VALUES (?,?,?,?,?,?,?,?)",
-            [$this->tid,$_POST['class_id'],$_POST['course_id']??null,$_POST['teacher_id']??null,$_POST['day_of_week'],$_POST['start_time'],$_POST['end_time'],$_POST['room']??'']);
+        $this->db->insert(
+            "INSERT INTO timetable (tenant_id,class_id,course_id,teacher_id,academic_year_id,term_id,day_of_week,start_time,end_time,room) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            [
+                $this->tid,$_POST['class_id'],$_POST['course_id']?:null,$_POST['teacher_id']?:null,
+                $_POST['academic_year_id']?:null,$_POST['term_id']?:null,
+                $_POST['day_of_week'],$_POST['start_time'],$_POST['end_time'],$_POST['room']??'',
+            ]
+        );
         $this->flash('success','Timetable entry added.'); $this->redirect('/school/timetable?class_id='.$_POST['class_id']);
     }
 }
@@ -140,24 +149,28 @@ class ParentController extends Controller {
     public function index(): void {
         $this->requireAuth(['School Admin']);
         $parents = $this->db->fetchAll("SELECT p.*,u.name,u.email,u.phone FROM parents p JOIN users u ON p.user_id=u.id WHERE p.tenant_id=? ORDER BY u.name", [$this->tid]);
-        $this->view('school/highschool/parents/index', ['pageTitle'=>'Parents','panelType'=>'school','parents'=>$parents,'flash'=>$this->getFlash()]);
+        $students = $this->db->fetchAll("SELECT s.id,u.name FROM students s JOIN users u ON s.user_id=u.id WHERE s.tenant_id=? AND s.status='active' ORDER BY u.name", [$this->tid]);
+        $this->view('school/highschool/parents/index', ['pageTitle'=>'Parents','panelType'=>'school','parents'=>$parents,'students'=>$students,'flash'=>$this->getFlash()]);
     }
 
     public function create(): void {
         $this->requireAuth(['School Admin']);
-        $students = $this->db->fetchAll("SELECT s.id,u.name FROM students s JOIN users u ON s.user_id=u.id WHERE s.tenant_id=? AND s.status='active' ORDER BY u.name", [$this->tid]);
-        $this->view('school/highschool/parents/form', ['pageTitle'=>'Add Parent','panelType'=>'school','students'=>$students,'flash'=>$this->getFlash()]);
+        $this->redirect('/school/parents');
     }
 
     public function store(): void {
         $this->requireAuth(['School Admin']);
         $roleId = $this->db->fetchOne("SELECT id FROM roles WHERE name='Parent' LIMIT 1")['id'] ?? 8;
-        $pw = password_hash($_POST['password'] ?? 'Parent@123', PASSWORD_BCRYPT);
-        $userId = $this->db->insert("INSERT INTO users (tenant_id,role_id,name,email,phone,status) VALUES (?,?,?,?,?,?)",
-            [$this->tid,$roleId,$_POST['name'],$_POST['email'],$_POST['phone']??'','active']);
+        $pw = password_hash($_POST['password'] ?: 'Parent@123', PASSWORD_BCRYPT);
+        $userId = $this->db->insert(
+            "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,date_of_birth,address,status) VALUES (?,?,?,?,?,?,?,?,?)",
+            [$this->tid,$roleId,$_POST['name'],$_POST['email'],$_POST['phone']??'',$_POST['gender']??null,$_POST['dob']??null,$_POST['address']??'','active']
+        );
         $this->db->execute("UPDATE users SET password_hash=? WHERE id=?",[$pw,$userId]);
-        $parentId = $this->db->insert("INSERT INTO parents (tenant_id,user_id,occupation) VALUES (?,?,?)",
-            [$this->tid,$userId,$_POST['occupation']??'']);
+        $parentId = $this->db->insert(
+            "INSERT INTO parents (tenant_id,user_id,occupation,workplace,national_id,emergency_contact_phone) VALUES (?,?,?,?,?,?)",
+            [$this->tid,$userId,$_POST['occupation']??'',$_POST['workplace']??null,$_POST['national_id']??null,$_POST['emergency_contact_phone']??null]
+        );
         if (!empty($_POST['student_id'])) {
             $this->db->insert("INSERT INTO parent_students (parent_id,student_id,relationship) VALUES (?,?,?)",
                 [$parentId,$_POST['student_id'],$_POST['relationship']??'parent']);

@@ -2,6 +2,7 @@
 <div class="page-header"><div class="page-header-title">School Settings</div></div>
 <div style="max-width:680px;">
 <form method="POST" action="<?= $cfg['url'] ?>/school/settings/update">
+  <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
   <div class="card"><div class="card-header"><div class="card-title">General Information</div></div>
   <div class="card-body">
     <div class="form-row">

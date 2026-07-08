@@ -12,6 +12,7 @@
 <div style="display:flex;gap:12px;margin-bottom:20px;">
   <a href="<?= $cfg['url'] ?>/school/finance/invoices" class="btn btn-secondary">All Invoices</a>
   <a href="<?= $cfg['url'] ?>/school/finance/payments" class="btn btn-secondary">All Payments</a>
+  <a href="<?= $cfg['url'] ?>/school/finance/fees" class="btn btn-secondary">Fee Structures</a>
 </div>
 <div class="card">
   <div class="card-header"><div class="card-title">Recent Payments</div></div>

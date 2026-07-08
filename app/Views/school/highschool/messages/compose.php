@@ -2,6 +2,7 @@
 <div class="page-header"><div class="page-header-title">Compose Message</div></div>
 <div style="max-width:680px;">
 <form method="POST" action="<?= $cfg['url'] ?>/school/messages/send">
+  <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
   <div class="card"><div class="card-body">
     <div class="form-group">
       <label class="form-label">To *</label>

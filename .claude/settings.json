@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(ls \"C:/xampp\" 2>&1 | head -50)",
+      "Read(//c/xampp/**)",
+      "Read(//e/Leda School System/**)",
+      "Read(//c/xampp/htdocs/**)",
+      "PowerShell(Start-Process -FilePath \"C:\\\\xampp\\\\apache_start.bat\" -WindowStyle Hidden)",
+      "PowerShell(Start-Process -FilePath \"C:\\\\xampp\\\\mysql_start.bat\" -WindowStyle Hidden)",
+      "PowerShell(Start-Sleep -Seconds 5; Get-Process | Where-Object { $_.Name -match \"httpd|mysqld\" } | Select-Object Name, Id)",
+      "Bash(\"/c/xampp/mysql/bin/mysql.exe\" -u root -e \"CREATE DATABASE IF NOT EXISTS school_mgmt CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\")",
+      "Bash(\"/c/xampp/mysql/bin/mysql.exe\" -u root school_mgmt)",
+      "Bash(\"/c/xampp/mysql/bin/mysql.exe\" -u root school_mgmt -e \"SHOW TABLES;\")",
+      "Bash(\"/c/xampp/mysql/bin/mysql.exe\" -u root school_mgmt -e \"SELECT COUNT\\(*\\) as user_count FROM users; SELECT id, username, email, role_id FROM users LIMIT 5;\")",
+      "Bash(\"/c/xampp/mysql/bin/mysql.exe\" -u root school_mgmt -e \"DESCRIBE users;\")",
+      "Bash(\"/c/xampp/mysql/bin/mysql.exe\" -u root school_mgmt -e \"SELECT id, name, email, role_id, status FROM users;\")",
+      "Bash(\"/c/xampp/mysql/bin/mysql.exe\" -u root school_mgmt -e \"SELECT * FROM roles;\")",
+      "Bash(curl -s -o /tmp/resp.html -w \"HTTP %{http_code}\\\\n\" \"http://localhost/liberia-school-management-system/public/\")",
+      "Read(//tmp/**)",
+      "Bash(curl -s -o /dev/null -w \"root: %{http_code}\\\\n\" \"http://localhost/\")",
+      "Bash(curl -s -o /dev/null -w \"junction listing: %{http_code}\\\\n\" \"http://localhost/liberia-school-management-system/\")",
+      "Bash(curl -s -o /dev/null -w \"direct public index: %{http_code}\\\\n\" \"http://localhost/liberia-school-management-system/public/index.php\")",
+      "Bash(ls -la \"/c/xampp/htdocs/liberia-school-management-system\" 2>&1 | head -20)",
+      "Read(//c/xampp/htdocs/liberia-school-management-system/**)",
+      "Read(//c/xampp/apache/conf/**)",
+      "PowerShell(& \"C:\\\\xampp\\\\apache\\\\bin\\\\httpd.exe\" -t 2>&1)",
+      "PowerShell(Start-Process -FilePath \"C:\\\\xampp\\\\apache\\\\bin\\\\httpd.exe\" -ArgumentList \"-k\",\"restart\" -WindowStyle Hidden -Wait)",
+      "PowerShell(Get-Process | Where-Object { $_.Name -match \"httpd\" } | Select-Object Name, Id, StartTime)",
+      "Read(//c/xampp/apache/conf/extra/**)",
+      "PowerShell(& \"C:\\\\xampp\\\\apache\\\\bin\\\\httpd.exe\" -S 2>&1)",
+      "PowerShell(Get-Process | Where-Object { $_.Name -match \"httpd\" } | Select-Object Id,StartTime)",
+      "Bash(\"/c/xampp/mysql/bin/mysql.exe\" -u root school_mgmt -e \"DESCRIBE tenants;\")",
+      "Bash(\"/c/xampp/mysql/bin/mysql.exe\" -u root -e \"DROP DATABASE school_mgmt; CREATE DATABASE school_mgmt CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\")",
+      "Bash(curl -s -b /tmp/cookies2.txt -o /dev/null -w \"final http_code=%{http_code}\\\\n\" \"http://liberia-school.local/school/dashboard\")"
+    ],
+    "additionalDirectories": [
+      "C:\\xampp\\apache\\conf",
+      "C:\\Windows\\System32\\drivers\\etc"
+    ]
+  }
+}

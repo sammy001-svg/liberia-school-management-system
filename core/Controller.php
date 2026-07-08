@@ -36,6 +36,7 @@ abstract class Controller {
         if (!isset($data['tenant']) && isset($_SESSION['tenant_id'])) {
             $data['tenant'] = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$_SESSION['tenant_id']]);
         }
+        $data['csrf_token'] = $this->csrfToken();
 
         extract($data);
         $viewFile = dirname(__DIR__) . "/app/Views/{$viewPath}.php";
@@ -48,15 +49,32 @@ abstract class Controller {
     protected function redirect(string $url): never {
         $cfg  = require dirname(__DIR__) . '/config/app.php';
         $base = rtrim($cfg['url'], '/');
+        if ($this->isAjax()) {
+            $flash = $_SESSION['flash'] ?? null;
+            unset($_SESSION['flash']);
+            $this->json(['redirect' => $base . $url, 'flash' => $flash]);
+        }
         header("Location: {$base}{$url}");
         exit;
     }
 
+    protected function isAjax(): bool {
+        return ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'XMLHttpRequest';
+    }
+
     protected function json(mixed $data, int $status = 200): never {
+        if (ob_get_level()) { ob_end_clean(); }
         http_response_code($status);
         header('Content-Type: application/json');
         echo json_encode($data);
         exit;
+    }
+
+    public function csrfToken(): string {
+        if (empty($_SESSION['csrf_token'])) {
+            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        }
+        return $_SESSION['csrf_token'];
     }
 
     protected function flash(string $type, string $message): void {

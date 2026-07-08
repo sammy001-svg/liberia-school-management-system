@@ -233,6 +233,8 @@ CREATE TABLE classes (
     section VARCHAR(20) DEFAULT NULL,
     capacity INT DEFAULT 40,
     class_teacher_id INT UNSIGNED DEFAULT NULL,
+    room_number VARCHAR(50) DEFAULT NULL,
+    description TEXT DEFAULT NULL,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
     FOREIGN KEY (academic_year_id) REFERENCES academic_years(id) ON DELETE SET NULL
 );
@@ -267,6 +269,8 @@ CREATE TABLE teachers (
     class_id INT UNSIGNED DEFAULT NULL,
     qualification VARCHAR(150) DEFAULT NULL,
     specialization VARCHAR(150) DEFAULT NULL,
+    national_id VARCHAR(50) DEFAULT NULL,
+    employment_type ENUM('full_time','part_time','contract') DEFAULT 'full_time',
     joined_at DATE DEFAULT NULL,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -320,6 +324,9 @@ CREATE TABLE parents (
     tenant_id INT UNSIGNED NOT NULL,
     user_id INT UNSIGNED NOT NULL,
     occupation VARCHAR(150) DEFAULT NULL,
+    workplace VARCHAR(150) DEFAULT NULL,
+    national_id VARCHAR(50) DEFAULT NULL,
+    emergency_contact_phone VARCHAR(30) DEFAULT NULL,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -628,6 +635,8 @@ CREATE TABLE inventory (
     quantity INT DEFAULT 0,
     unit VARCHAR(20) DEFAULT 'pcs',
     location VARCHAR(100) DEFAULT NULL,
+    supplier VARCHAR(150) DEFAULT NULL,
+    unit_price DECIMAL(10,2) DEFAULT NULL,
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 );

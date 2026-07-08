@@ -16,6 +16,7 @@
 </form>
 <?php if (!empty($students)): ?>
 <form method="POST" action="<?= $cfg['url'] ?>/school/attendance/mark">
+  <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
   <input type="hidden" name="class_id" value="<?= htmlspecialchars($classId) ?>">
   <input type="hidden" name="date" value="<?= htmlspecialchars($date) ?>">
   <div class="card">
