@@ -6,7 +6,7 @@ class HRController extends Controller {
 
     public function __construct() {
         parent::__construct();
-        $this->requireAuth(['School Admin', 'Super Admin', 'Accountant']);
+        $this->requireAuth(['School Admin', 'Accountant']);
         $this->tid = $this->tenantId() ?? 0;
     }
 

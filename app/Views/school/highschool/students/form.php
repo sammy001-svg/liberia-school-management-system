@@ -1,13 +1,13 @@
 <?php require ROOT_DIR . '/app/Views/layouts/header.php'; ?>
 <div class="breadcrumb">
   <a href="<?= $cfg['url'] ?>/school/students">Students</a>
-  <span>/</span><span><?= $student ? 'Edit Student' : 'Admit Student' ?></span>
+  <span>/</span><span>Edit Student</span>
 </div>
 <div class="page-header">
-  <div class="page-header-title"><?= $student ? 'Edit Student Profile' : 'Admit New Student' ?></div>
+  <div class="page-header-title">Edit Student Profile</div>
 </div>
 <div style="max-width:700px;">
-<form method="POST" action="<?= $cfg['url'] ?>/school/students/<?= $student ? $student['id'].'/update' : 'store' ?>">
+<form method="POST" action="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/update">
   <div class="card">
     <div class="card-header"><div class="card-title">Personal Information</div></div>
     <div class="card-body">
@@ -51,7 +51,6 @@
           </select>
         </div>
       </div>
-      <?php if($student): ?>
       <div class="form-group">
         <label class="form-label">Status</label>
         <select name="status" class="form-control">
@@ -60,23 +59,10 @@
           <?php endforeach; ?>
         </select>
       </div>
-      <?php else: ?>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Admission Date</label>
-          <input type="date" name="admission_date" class="form-control" value="<?= date('Y-m-d') ?>">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Login Password</label>
-          <input type="password" name="password" class="form-control" placeholder="Default: Student@123">
-          <div class="form-hint">Leave blank to use default password</div>
-        </div>
-      </div>
-      <?php endif; ?>
     </div>
   </div>
   <div style="display:flex;gap:12px;margin-top:20px;">
-    <button type="submit" class="btn btn-primary"><?= $student ? 'Update Student' : 'Admit Student' ?></button>
+    <button type="submit" class="btn btn-primary">Update Student</button>
     <a href="<?= $cfg['url'] ?>/school/students" class="btn btn-secondary">Cancel</a>
   </div>
 </form>

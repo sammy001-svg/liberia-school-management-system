@@ -6,7 +6,7 @@ class InventoryController extends Controller {
 
     public function __construct() {
         parent::__construct();
-        $this->requireAuth(['School Admin', 'Super Admin', 'Staff']);
+        $this->requireAuth(['School Admin', 'Staff']);
         $this->tid = $this->tenantId() ?? 0;
     }
 

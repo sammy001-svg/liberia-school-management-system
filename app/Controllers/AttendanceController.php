@@ -6,7 +6,7 @@ class AttendanceController extends Controller {
     public function __construct() { parent::__construct(); $this->tid = $this->tenantId() ?? 0; }
 
     public function index(): void {
-        $this->requireAuth(['School Admin','Teacher','Super Admin']);
+        $this->requireAuth(['School Admin','Teacher']);
         $date    = $_GET['date'] ?? date('Y-m-d');
         $classId = $_GET['class_id'] ?? '';
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
@@ -21,7 +21,7 @@ class AttendanceController extends Controller {
     }
 
     public function mark(): void {
-        $this->requireAuth(['School Admin','Teacher','Super Admin']);
+        $this->requireAuth(['School Admin','Teacher']);
         $classId = $_POST['class_id'] ?? '';
         $date    = $_POST['date'] ?? date('Y-m-d');
         $statuses = $_POST['status'] ?? [];
@@ -35,7 +35,7 @@ class AttendanceController extends Controller {
     }
 
     public function report(): void {
-        $this->requireAuth(['School Admin','Teacher','Super Admin']);
+        $this->requireAuth(['School Admin','Teacher']);
         $classId = $_GET['class_id'] ?? '';
         $from    = $_GET['from'] ?? date('Y-m-01');
         $to      = $_GET['to']   ?? date('Y-m-d');

@@ -16,23 +16,14 @@ class AuthController extends Controller {
             'logo' => null
         ];
 
-        // 1. Check if the current domain matches a custom domain in tenants
+        // Check if the current domain matches a custom domain in tenants
         $tenant = $this->db->fetchOne("SELECT name, primary_color, secondary_color, logo FROM tenants WHERE domain = ? AND status = 'active' LIMIT 1", [$host]);
-        
+
         if ($tenant) {
             $branding['name'] = $tenant['name'];
             $branding['primary_color'] = $tenant['primary_color'];
             $branding['secondary_color'] = $tenant['secondary_color'];
             $branding['logo'] = $tenant['logo'];
-        } else {
-            // 2. Check if it matches a reseller domain
-            $reseller = $this->db->fetchOne("SELECT name, primary_color, secondary_color, logo FROM resellers WHERE domain = ? AND status = 'active' LIMIT 1", [$host]);
-            if ($reseller) {
-                $branding['name'] = $reseller['name'];
-                $branding['primary_color'] = $reseller['primary_color'];
-                $branding['secondary_color'] = $reseller['secondary_color'];
-                $branding['logo'] = $reseller['logo'];
-            }
         }
 
         $this->view('auth/login', [
@@ -64,30 +55,24 @@ class AuthController extends Controller {
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['role'] = $user['role_name'];
             $_SESSION['tenant_id'] = $user['tenant_id'];
-            $_SESSION['reseller_id'] = $user['reseller_id'];
             $_SESSION['user_name']   = $user['name'];
             $_SESSION['user']        = $user;
 
             // Update last login
             $this->db->execute("UPDATE users SET last_login = NOW() WHERE id = ?", [$user['id']]);
 
-            // Handle Branding for session if reseller/school
-            if ($user['reseller_id']) {
-                $reseller = $this->db->fetchOne("SELECT * FROM resellers WHERE id = ?", [$user['reseller_id']]);
-                if ($reseller) {
+            // Store institution type and school branding
+            if ($user['tenant_id']) {
+                $tenant = $this->db->fetchOne("SELECT institution_type, name, primary_color, secondary_color, logo FROM tenants WHERE id = ?", [$user['tenant_id']]);
+                if ($tenant) {
+                    $_SESSION['institution_type'] = $tenant['institution_type'] ?? 'high_school';
                     $_SESSION['branding'] = [
-                        'name' => $reseller['name'],
-                        'primary_color' => $reseller['primary_color'],
-                        'secondary_color' => $reseller['secondary_color'],
-                        'logo' => $reseller['logo']
+                        'name' => $tenant['name'],
+                        'primary_color' => $tenant['primary_color'],
+                        'secondary_color' => $tenant['secondary_color'],
+                        'logo' => $tenant['logo'],
                     ];
                 }
-            }
-
-            // Store institution type
-            if ($user['tenant_id']) {
-                $tenant = $this->db->fetchOne("SELECT institution_type FROM tenants WHERE id = ?", [$user['tenant_id']]);
-                $_SESSION['institution_type'] = $tenant['institution_type'] ?? 'high_school';
             }
 
             // Store Student/Parent specific IDs
@@ -116,12 +101,6 @@ class AuthController extends Controller {
         $role = $_SESSION['role'] ?? '';
         
         switch ($role) {
-            case 'Super Admin':
-                $this->redirect('/admin/dashboard');
-                break;
-            case 'Reseller':
-                $this->redirect('/reseller/dashboard');
-                break;
             case 'School Admin':
             case 'Teacher':
             case 'Accountant':

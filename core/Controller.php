@@ -27,26 +27,14 @@ abstract class Controller {
         }
     }
 
-    protected function requireSuperAdmin(): void {
-        $this->requireAuth(['Super Admin']);
-    }
-
-    protected function requireReseller(): void {
-        $this->requireAuth(['Reseller', 'Reseller Owner', 'Reseller Staff', 'Super Admin']);
-    }
-
     protected function requireSchoolAdmin(): void {
-        $this->requireAuth(['School Admin', 'Super Admin']);
+        $this->requireAuth(['School Admin']);
     }
 
     protected function view(string $viewPath, array $data = []): void {
         // Automatically inject tenant data if it exists in session but not in $data
         if (!isset($data['tenant']) && isset($_SESSION['tenant_id'])) {
             $data['tenant'] = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$_SESSION['tenant_id']]);
-        }
-        // Automatically inject reseller data if it exists in session
-        if (!isset($data['reseller']) && isset($_SESSION['reseller_id'])) {
-            $data['reseller'] = $this->db->fetchOne("SELECT * FROM resellers WHERE id=?", [$_SESSION['reseller_id']]);
         }
 
         extract($data);

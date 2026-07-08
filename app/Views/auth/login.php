@@ -55,12 +55,6 @@ $secondaryColor = $branding['secondary_color'] ?? null;
         Sign In
       </button>
     </form>
-    <p style="text-align:center;margin-top:20px;font-size:14px;">
-      Don't have an account?<br>
-      <a href="<?= $cfg['url'] ?>/register/school" style="color:var(--primary);font-weight:600;">Register your School</a> or 
-      <a href="<?= $cfg['url'] ?>/register/reseller" style="color:var(--secondary);font-weight:600;">Become a Reseller</a>
-    </p>
-
     <p style="text-align:center;margin-top:30px;font-size:12px;color:var(--text-muted);">
       Powered by <?= htmlspecialchars($appName) ?> &copy; <?= date('Y') ?>
     </p>

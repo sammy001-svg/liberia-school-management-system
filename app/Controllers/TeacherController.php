@@ -6,19 +6,19 @@ class TeacherController extends Controller {
     public function __construct() { parent::__construct(); $this->tid = $this->tenantId() ?? 0; }
 
     public function index(): void {
-        $this->requireAuth(['School Admin','Super Admin']);
+        $this->requireAuth(['School Admin']);
         $teachers = $this->db->fetchAll("SELECT t.*, u.name, u.email, u.phone, u.gender, c.name AS class_name FROM teachers t JOIN users u ON t.user_id=u.id LEFT JOIN classes c ON t.class_id=c.id WHERE t.tenant_id=? ORDER BY u.name", [$this->tid]);
         $this->view('school/highschool/teachers/index', ['pageTitle'=>'Teachers','panelType'=>'school','teachers'=>$teachers,'flash'=>$this->getFlash()]);
     }
 
     public function create(): void {
-        $this->requireAuth(['School Admin','Super Admin']);
+        $this->requireAuth(['School Admin']);
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?", [$this->tid]);
         $this->view('school/highschool/teachers/form', ['pageTitle'=>'Add Teacher','panelType'=>'school','teacher'=>null,'classes'=>$classes,'flash'=>$this->getFlash()]);
     }
 
     public function store(): void {
-        $this->requireAuth(['School Admin','Super Admin']);
+        $this->requireAuth(['School Admin']);
         $roleId = $this->db->fetchOne("SELECT id FROM roles WHERE name='Teacher' LIMIT 1")['id'] ?? 5;
         $pw = password_hash($_POST['password'] ?? 'Teacher@123', PASSWORD_BCRYPT);
         $userId = $this->db->insert("INSERT INTO users (tenant_id,role_id,name,email,phone,gender,status) VALUES (?,?,?,?,?,?,?)",
@@ -32,21 +32,21 @@ class TeacherController extends Controller {
     }
 
     public function show(string $id): void {
-        $this->requireAuth(['School Admin','Super Admin']);
+        $this->requireAuth(['School Admin']);
         $teacher = $this->db->fetchOne("SELECT t.*, u.name, u.email, u.phone, u.gender FROM teachers t JOIN users u ON t.user_id=u.id WHERE t.id=? AND t.tenant_id=?", [$id,$this->tid]);
         if (!$teacher) { $this->redirect('/school/teachers'); }
         $this->view('school/highschool/teachers/show', ['pageTitle'=>$teacher['name'],'panelType'=>'school','teacher'=>$teacher,'flash'=>$this->getFlash()]);
     }
 
     public function edit(string $id): void {
-        $this->requireAuth(['School Admin','Super Admin']);
+        $this->requireAuth(['School Admin']);
         $teacher = $this->db->fetchOne("SELECT t.*, u.name, u.email, u.phone, u.gender FROM teachers t JOIN users u ON t.user_id=u.id WHERE t.id=? AND t.tenant_id=?", [$id,$this->tid]);
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?", [$this->tid]);
         $this->view('school/highschool/teachers/form', ['pageTitle'=>'Edit Teacher','panelType'=>'school','teacher'=>$teacher,'classes'=>$classes,'flash'=>$this->getFlash()]);
     }
 
     public function update(string $id): void {
-        $this->requireAuth(['School Admin','Super Admin']);
+        $this->requireAuth(['School Admin']);
         $teacher = $this->db->fetchOne("SELECT user_id FROM teachers WHERE id=? AND tenant_id=?", [$id,$this->tid]);
         if (!$teacher) { $this->redirect('/school/teachers'); }
         $this->db->execute("UPDATE users SET name=?,email=?,phone=?,gender=? WHERE id=?", [$_POST['name'],$_POST['email'],$_POST['phone']??'',$_POST['gender']??null,$teacher['user_id']]);

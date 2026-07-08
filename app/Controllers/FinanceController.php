@@ -6,7 +6,7 @@ class FinanceController extends Controller {
     public function __construct() { parent::__construct(); $this->tid = $this->tenantId() ?? 0; }
 
     public function index(): void {
-        $this->requireAuth(['School Admin','Accountant','Super Admin']);
+        $this->requireAuth(['School Admin','Accountant']);
         $stats = [
             'total_due'  => $this->db->fetchOne("SELECT COALESCE(SUM(amount_due),0) AS c FROM invoices WHERE tenant_id=?",[$this->tid])['c']??0,
             'total_paid' => $this->db->fetchOne("SELECT COALESCE(SUM(amount_paid),0) AS c FROM invoices WHERE tenant_id=?",[$this->tid])['c']??0,
@@ -19,7 +19,7 @@ class FinanceController extends Controller {
     }
 
     public function invoices(): void {
-        $this->requireAuth(['School Admin','Accountant','Super Admin']);
+        $this->requireAuth(['School Admin','Accountant']);
         $status = $_GET['status'] ?? '';
         $params = [$this->tid];
         $where  = "i.tenant_id=?";
@@ -30,14 +30,14 @@ class FinanceController extends Controller {
     }
 
     public function createInvoice(): void {
-        $this->requireAuth(['School Admin','Accountant','Super Admin']);
+        $this->requireAuth(['School Admin','Accountant']);
         $students   = $this->db->fetchAll("SELECT s.id, u.name FROM students s JOIN users u ON s.user_id=u.id WHERE s.tenant_id=? AND s.status='active' ORDER BY u.name",[$this->tid]);
         $feeStructs = $this->db->fetchAll("SELECT id,name,amount FROM fee_structures WHERE tenant_id=?",[$this->tid]);
         $this->view('school/highschool/finance/create_invoice', ['pageTitle'=>'Create Invoice','panelType'=>'school','students'=>$students,'feeStructs'=>$feeStructs,'flash'=>$this->getFlash()]);
     }
 
     public function storeInvoice(): void {
-        $this->requireAuth(['School Admin','Accountant','Super Admin']);
+        $this->requireAuth(['School Admin','Accountant']);
         $invoiceNo = 'INV-'.date('Ymd').'-'.rand(1000,9999);
         $this->db->insert("INSERT INTO invoices (tenant_id,student_id,fee_structure_id,invoice_no,amount_due,discount,due_date,notes,status) VALUES (?,?,?,?,?,?,?,?,?)",
             [$this->tid,$_POST['student_id'],$_POST['fee_structure_id']??null,$invoiceNo,$_POST['amount_due'],$_POST['discount']??0,$_POST['due_date']??null,$_POST['notes']??'','unpaid']);
@@ -45,14 +45,14 @@ class FinanceController extends Controller {
     }
 
     public function payments(): void {
-        $this->requireAuth(['School Admin','Accountant','Super Admin']);
+        $this->requireAuth(['School Admin','Accountant']);
         $payments = $this->db->fetchAll("SELECT p.*, i.invoice_no, u.name AS student_name FROM payments p JOIN invoices i ON p.invoice_id=i.id JOIN students s ON i.student_id=s.id JOIN users u ON s.user_id=u.id WHERE p.tenant_id=? ORDER BY p.paid_at DESC",[$this->tid]);
         $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
         $this->view('school/highschool/finance/payments', ['pageTitle'=>'Payments','panelType'=>'school','tenant'=>$tenant,'payments'=>$payments,'flash'=>$this->getFlash()]);
     }
 
     public function storePayment(): void {
-        $this->requireAuth(['School Admin','Accountant','Super Admin']);
+        $this->requireAuth(['School Admin','Accountant']);
         $invoiceId = $_POST['invoice_id'];
         $amount    = (float)$_POST['amount'];
         $this->db->insert("INSERT INTO payments (tenant_id,invoice_id,amount,method,reference,received_by,notes) VALUES (?,?,?,?,?,?,?)",

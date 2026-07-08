@@ -8,62 +8,6 @@ $router->get('/login',    ['AuthController', 'loginPage']);
 $router->post('/login',   ['AuthController', 'loginPost']);
 $router->get('/logout',   ['AuthController', 'logout']);
 
-// Registration
-$router->get('/register/school',    ['RegistrationController', 'schoolPage']);
-$router->post('/register/school',   ['RegistrationController', 'registerSchool']);
-$router->get('/register/reseller',  ['RegistrationController', 'resellerPage']);
-$router->post('/register/reseller', ['RegistrationController', 'registerReseller']);
-
-// ── SUPER ADMIN ──────────────────────────────────────────────
-$router->get('/admin',                      ['AdminDashboardController', 'index']);
-$router->get('/admin/dashboard',            ['AdminDashboardController', 'index']);
-
-// Reseller Plans (Packages for resellers)
-$router->get('/admin/reseller-plans',                ['AdminResellerPlanController', 'index']);
-$router->get('/admin/reseller-plans/create',         ['AdminResellerPlanController', 'create']);
-$router->post('/admin/reseller-plans/store',         ['AdminResellerPlanController', 'store']);
-$router->get('/admin/reseller-plans/{id}/edit',      ['AdminResellerPlanController', 'edit']);
-$router->post('/admin/reseller-plans/{id}/update',   ['AdminResellerPlanController', 'update']);
-
-// Resellers
-$router->get('/admin/resellers',                ['AdminResellerController', 'index']);
-$router->get('/admin/resellers/create',         ['AdminResellerController', 'create']);
-$router->post('/admin/resellers/store',         ['AdminResellerController', 'store']);
-$router->get('/admin/resellers/{id}',           ['AdminResellerController', 'show']);
-$router->get('/admin/resellers/{id}/edit',      ['AdminResellerController', 'edit']);
-$router->post('/admin/resellers/{id}/update',   ['AdminResellerController', 'update']);
-$router->get('/admin/resellers/{id}/delete',    ['AdminResellerController', 'delete']);
-
-$router->get('/admin/schools',              ['AdminSchoolController', 'index']);
-$router->get('/admin/schools/create',       ['AdminSchoolController', 'create']);
-$router->post('/admin/schools/store',       ['AdminSchoolController', 'store']);
-$router->get('/admin/schools/{id}',         ['AdminSchoolController', 'show']);
-$router->get('/admin/schools/{id}/edit',    ['AdminSchoolController', 'edit']);
-$router->post('/admin/schools/{id}/update', ['AdminSchoolController', 'update']);
-$router->post('/admin/schools/{id}/delete', ['AdminSchoolController', 'delete']);
-
-$router->get('/admin/plans',                ['AdminPlanController', 'index']);
-$router->get('/admin/plans/create',         ['AdminPlanController', 'create']);
-$router->post('/admin/plans/store',         ['AdminPlanController', 'store']);
-$router->get('/admin/plans/{id}/edit',      ['AdminPlanController', 'edit']);
-$router->post('/admin/plans/{id}/update',   ['AdminPlanController', 'update']);
-
-$router->get('/admin/users',                ['AdminUserController', 'index']);
-
-// ── RESELLER ─────────────────────────────────────────────────
-$router->get('/reseller',                   ['ResellerDashboardController', 'index']);
-$router->get('/reseller/dashboard',         ['ResellerDashboardController', 'index']);
-
-$router->get('/reseller/schools',           ['ResellerSchoolController', 'index']);
-$router->get('/reseller/schools/create',    ['ResellerSchoolController', 'create']);
-$router->post('/reseller/schools/store',    ['ResellerSchoolController', 'store']);
-$router->get('/reseller/schools/{id}',      ['ResellerSchoolController', 'show']);
-
-$router->get('/reseller/branding',          ['ResellerBrandingController', 'index']);
-$router->post('/reseller/branding/update',  ['ResellerBrandingController', 'update']);
-
-$router->get('/reseller/billing',           ['ResellerBillingController', 'index']);
-
 // ── SCHOOL (High School) ──────────────────────────────────────
 $router->get('/school',                     ['SchoolDashboardController', 'index']);
 $router->get('/school/dashboard',           ['SchoolDashboardController', 'index']);

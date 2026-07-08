@@ -3,7 +3,7 @@ require_once ROOT_DIR . '/core/Controller.php';
 
 class SchoolDashboardController extends Controller {
     public function index(): void {
-        $this->requireAuth(['School Admin','Teacher','Accountant','Staff','Super Admin']);
+        $this->requireAuth(['School Admin','Teacher','Accountant','Staff']);
         $tid = $this->tenantId();
         $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$tid]);
 

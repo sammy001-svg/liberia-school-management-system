@@ -5,7 +5,7 @@
     <div class="page-header-title">Students</div>
     <div class="page-header-sub">Manage student enrolment and profiles</div>
   </div>
-  <a href="<?= $cfg['url'] ?>/school/students/create" class="btn btn-primary">+ Admit Student</a>
+  <button type="button" class="btn btn-primary" onclick="document.getElementById('admitModal').classList.add('open')">+ Admit Student</button>
 </div>
 
 <!-- FILTERS -->
@@ -59,10 +59,130 @@
         </tr>
         <?php endforeach; ?>
         <?php if(empty($students)): ?>
-          <tr><td colspan="7" class="text-center text-muted" style="padding:40px;">No students found. <a href="<?= $cfg['url'] ?>/school/students/create">Admit first student</a></td></tr>
+          <tr><td colspan="7" class="text-center text-muted" style="padding:40px;">No students found. <a href="javascript:void(0)" onclick="document.getElementById('admitModal').classList.add('open')">Admit first student</a></td></tr>
         <?php endif; ?>
       </tbody>
     </table>
+  </div>
+</div>
+
+<!-- Admission Modal -->
+<div class="modal-overlay" id="admitModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">Admit New Student</div>
+      <button class="modal-close" onclick="document.getElementById('admitModal').classList.remove('open')">&times;</button>
+    </div>
+    <form method="POST" action="<?= $cfg['url'] ?>/school/students/store">
+      <div class="modal-body">
+
+        <div class="modal-section-title">Personal Information</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Full Name *</label>
+            <input type="text" name="name" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email Address *</label>
+            <input type="email" name="email" class="form-control" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Phone</label>
+            <input type="text" name="phone" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Gender</label>
+            <select name="gender" class="form-control">
+              <option value="">— Select —</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Date of Birth</label>
+            <input type="date" name="dob" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Blood Group</label>
+            <select name="blood_group" class="form-control">
+              <option value="">— Select —</option>
+              <?php foreach(['A+','A-','B+','B-','O+','O-','AB+','AB-'] as $bg): ?>
+                <option value="<?= $bg ?>"><?= $bg ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Home Address</label>
+          <textarea name="address" class="form-control" rows="2"></textarea>
+        </div>
+
+        <div class="modal-section-title">Guardian &amp; Emergency Contact</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Guardian Name</label>
+            <input type="text" name="guardian_name" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Relationship</label>
+            <select name="guardian_relationship" class="form-control">
+              <option value="">— Select —</option>
+              <option value="Father">Father</option>
+              <option value="Mother">Mother</option>
+              <option value="Guardian">Guardian</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Guardian Phone</label>
+            <input type="text" name="guardian_phone" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Emergency Contact Phone</label>
+            <input type="text" name="emergency_contact_phone" class="form-control">
+          </div>
+        </div>
+
+        <div class="modal-section-title">Admission Details</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Assign to Class</label>
+            <select name="class_id" class="form-control">
+              <option value="">— Not Assigned —</option>
+              <?php foreach($classes as $c): ?>
+                <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['name']) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Previous School</label>
+            <input type="text" name="previous_school" class="form-control">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Admission Date</label>
+            <input type="date" name="admission_date" class="form-control" value="<?= date('Y-m-d') ?>">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Login Password</label>
+            <input type="password" name="password" class="form-control" placeholder="Default: Student@123">
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('admitModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Admit Student</button>
+      </div>
+    </form>
   </div>
 </div>
 

@@ -1,13 +1,11 @@
 # Liberia School Management System
 
-Liberia School Management System (LiberiaSMS) is a comprehensive, multi-tenant educational management platform designed to streamline administrative tasks, enhance academic tracking, and improve communication between schools, teachers, students, and parents.
+Liberia School Management System (LiberiaSMS) is a comprehensive educational management platform designed to streamline administrative tasks, enhance academic tracking, and improve communication between schools, teachers, students, and parents.
 
 ## 🚀 Key Features
 
-### 🏛️ Administration & Multi-Tenancy
+### 🏛️ Administration
 
-- **Super Admin Dashboard**: Manage resellers, schools, subscription plans, and system-wide users.
-- **Reseller Portal**: Branding customization, school management, and billing tracking.
 - **School Management**: Full control over students, teachers, classes, and departments.
 
 ### 🎓 Academic Excellence

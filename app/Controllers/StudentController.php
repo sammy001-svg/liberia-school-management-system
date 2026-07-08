@@ -10,7 +10,7 @@ class StudentController extends Controller {
     }
 
     public function index(): void {
-        $this->requireAuth(['School Admin','Teacher','Staff','Super Admin']);
+        $this->requireAuth(['School Admin','Teacher','Staff']);
         $search = $_GET['q'] ?? '';
         $classId = $_GET['class_id'] ?? '';
         $params = [$this->tid];
@@ -29,33 +29,37 @@ class StudentController extends Controller {
     }
 
     public function create(): void {
-        $this->requireAuth(['School Admin','Super Admin']);
-        $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
-        $roles   = $this->db->fetchAll("SELECT id,name FROM roles WHERE name='Student'");
-        $this->view('school/highschool/students/form', ['pageTitle'=>'Add Student','panelType'=>'school','student'=>null,'classes'=>$classes,'roles'=>$roles,'flash'=>$this->getFlash()]);
+        $this->requireAuth(['School Admin']);
+        $this->redirect('/school/students');
     }
 
     public function store(): void {
-        $this->requireAuth(['School Admin','Super Admin']);
+        $this->requireAuth(['School Admin']);
         $roleId = $this->db->fetchOne("SELECT id FROM roles WHERE name='Student' LIMIT 1")['id'] ?? 7;
         $pw = password_hash($_POST['password'] ?? 'Student@123', PASSWORD_BCRYPT);
         $userId = $this->db->insert(
-            "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,date_of_birth,status) VALUES (?,?,?,?,?,?,?,?)",
-            [$this->tid, $roleId, $_POST['name'], $_POST['email'], $_POST['phone']??'', $_POST['gender']??null, $_POST['dob']??null, 'active']
+            "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,date_of_birth,address,status) VALUES (?,?,?,?,?,?,?,?,?)",
+            [$this->tid, $roleId, $_POST['name'], $_POST['email'], $_POST['phone']??'', $_POST['gender']??null, $_POST['dob']??null, $_POST['address']??'', 'active']
         );
         // Update password
         $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [$pw, $userId]);
         $admNo = 'ADM-'.date('Y').'-'.str_pad($userId, 4, '0', STR_PAD_LEFT);
         $this->db->insert(
-            "INSERT INTO students (tenant_id,user_id,admission_no,class_id,admission_date,status) VALUES (?,?,?,?,?,?)",
-            [$this->tid, $userId, $admNo, $_POST['class_id']??null, $_POST['admission_date']??date('Y-m-d'), 'active']
+            "INSERT INTO students (tenant_id,user_id,admission_no,class_id,admission_date,status,blood_group,previous_school,guardian_name,guardian_phone,guardian_relationship,emergency_contact_phone)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            [
+                $this->tid, $userId, $admNo, $_POST['class_id']??null, $_POST['admission_date']??date('Y-m-d'), 'active',
+                $_POST['blood_group']??null, $_POST['previous_school']??null,
+                $_POST['guardian_name']??null, $_POST['guardian_phone']??null, $_POST['guardian_relationship']??null,
+                $_POST['emergency_contact_phone']??null,
+            ]
         );
         $this->flash('success', 'Student admitted successfully. Admission No: '.$admNo);
         $this->redirect('/school/students');
     }
 
     public function show(string $id): void {
-        $this->requireAuth(['School Admin','Teacher','Super Admin']);
+        $this->requireAuth(['School Admin','Teacher']);
         $student = $this->db->fetchOne(
             "SELECT s.*, u.name, u.email, u.phone, u.gender, u.date_of_birth, u.avatar,
                     c.name AS class_name
@@ -70,14 +74,14 @@ class StudentController extends Controller {
     }
 
     public function edit(string $id): void {
-        $this->requireAuth(['School Admin','Super Admin']);
+        $this->requireAuth(['School Admin']);
         $student = $this->db->fetchOne("SELECT s.*, u.name, u.email, u.phone, u.gender, u.date_of_birth FROM students s JOIN users u ON s.user_id=u.id WHERE s.id=? AND s.tenant_id=?",[$id,$this->tid]);
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?",[$this->tid]);
         $this->view('school/highschool/students/form',['pageTitle'=>'Edit Student','panelType'=>'school','student'=>$student,'classes'=>$classes,'flash'=>$this->getFlash()]);
     }
 
     public function update(string $id): void {
-        $this->requireAuth(['School Admin','Super Admin']);
+        $this->requireAuth(['School Admin']);
         $student = $this->db->fetchOne("SELECT user_id FROM students WHERE id=? AND tenant_id=?",[$id,$this->tid]);
         if (!$student) { $this->redirect('/school/students'); }
         $this->db->execute("UPDATE users SET name=?,email=?,phone=?,gender=?,date_of_birth=? WHERE id=?",[$_POST['name'],$_POST['email'],$_POST['phone']??'',$_POST['gender']??null,$_POST['dob']??null,$student['user_id']]);
@@ -87,7 +91,7 @@ class StudentController extends Controller {
     }
 
     public function delete(string $id): void {
-        $this->requireAuth(['School Admin','Super Admin']);
+        $this->requireAuth(['School Admin']);
         $student = $this->db->fetchOne("SELECT user_id FROM students WHERE id=? AND tenant_id=?",[$id,$this->tid]);
         if ($student) {
             $this->db->execute("DELETE FROM students WHERE id=? AND tenant_id=?",[$id,$this->tid]);
