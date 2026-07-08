@@ -9,7 +9,10 @@
     <div class="page-header-title"><?= htmlspecialchars($teacher['name']) ?></div>
     <div class="page-header-sub">Employee No: <?= htmlspecialchars($teacher['employee_no']) ?></div>
   </div>
-  <a href="<?= $cfg['url'] ?>/school/teachers/<?= $teacher['id'] ?>/edit" class="btn btn-secondary">Edit</a>
+  <div style="display:flex;gap:10px;">
+    <a href="<?= $cfg['url'] ?>/school/teachers/<?= $teacher['id'] ?>/id-card" target="_blank" class="btn btn-outline">🪪 ID Card</a>
+    <a href="<?= $cfg['url'] ?>/school/teachers/<?= $teacher['id'] ?>/edit" class="btn btn-secondary">Edit</a>
+  </div>
 </div>
 
 <div class="card mb-16">

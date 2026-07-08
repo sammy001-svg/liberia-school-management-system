@@ -130,6 +130,70 @@ class GradeController extends Controller {
         $grades  = $this->db->fetchAll("SELECT g.*,c.name AS course_name,e.name AS exam_name FROM grades g LEFT JOIN courses c ON g.course_id=c.id LEFT JOIN exams e ON g.exam_id=e.id WHERE g.student_id=? AND g.tenant_id=? ORDER BY g.created_at DESC",[$studentId,$this->tid]);
         $this->view('school/highschool/grades/report', ['pageTitle'=>'Grade Report','panelType'=>'school','student'=>$student,'grades'=>$grades,'flash'=>$this->getFlash()]);
     }
+
+    public function reportCard(string $studentId): void {
+        $this->requireAuth(['School Admin','Teacher']);
+        $student = $this->db->fetchOne(
+            "SELECT s.*, u.name, u.gender, u.date_of_birth FROM students s JOIN users u ON s.user_id=u.id WHERE s.id=? AND s.tenant_id=?",
+            [$studentId, $this->tid]
+        );
+        if (!$student) { $this->redirect('/school/students'); }
+        $class  = $student['class_id'] ? $this->db->fetchOne("SELECT * FROM classes WHERE id=?", [$student['class_id']]) : null;
+        $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
+
+        $examOptions = $this->db->fetchAll(
+            "SELECT DISTINCT e.id, e.name, e.exam_date FROM grades g JOIN exams e ON g.exam_id=e.id WHERE g.student_id=? AND g.tenant_id=? ORDER BY e.exam_date DESC",
+            [$studentId, $this->tid]
+        );
+        $examId = $_GET['exam_id'] ?? ($examOptions[0]['id'] ?? null);
+        $exam   = $examId ? $this->db->fetchOne("SELECT * FROM exams WHERE id=? AND tenant_id=?", [$examId, $this->tid]) : null;
+
+        $grades = [];
+        $totalObtained = 0; $totalPossible = 0;
+        if ($examId) {
+            $grades = $this->db->fetchAll(
+                "SELECT g.*, c.name AS course_name FROM grades g LEFT JOIN courses c ON g.course_id=c.id WHERE g.student_id=? AND g.exam_id=? AND g.tenant_id=? ORDER BY c.name",
+                [$studentId, $examId, $this->tid]
+            );
+            foreach ($grades as $g) { $totalObtained += $g['marks_obtained']; $totalPossible += $g['total_marks']; }
+        }
+        $overallPct = $totalPossible > 0 ? round($totalObtained / $totalPossible * 100, 1) : 0;
+        $overallGrade = $overallPct>=90?'A+':($overallPct>=80?'A':($overallPct>=70?'B':($overallPct>=60?'C':($overallPct>=50?'D':'F'))));
+
+        $rank = null; $rankOf = null;
+        if ($examId && $student['class_id']) {
+            $classTotals = $this->db->fetchAll(
+                "SELECT g.student_id, SUM(g.marks_obtained) obtained
+                 FROM grades g JOIN students s2 ON g.student_id=s2.id
+                 WHERE g.exam_id=? AND g.tenant_id=? AND s2.class_id=?
+                 GROUP BY g.student_id ORDER BY obtained DESC",
+                [$examId, $this->tid, $student['class_id']]
+            );
+            $rankOf = count($classTotals);
+            foreach ($classTotals as $i => $row) {
+                if ((int)$row['student_id'] === (int)$studentId) { $rank = $i + 1; break; }
+            }
+        }
+
+        $attendance = null;
+        if ($exam && $exam['term_id']) {
+            $term = $this->db->fetchOne("SELECT * FROM terms WHERE id=?", [$exam['term_id']]);
+            if ($term) {
+                $total = $this->db->fetchOne("SELECT COUNT(*) c FROM attendance WHERE student_id=? AND tenant_id=? AND date BETWEEN ? AND ?", [$studentId, $this->tid, $term['start_date'], $term['end_date']])['c'];
+                $present = $this->db->fetchOne("SELECT COUNT(*) c FROM attendance WHERE student_id=? AND tenant_id=? AND status='present' AND date BETWEEN ? AND ?", [$studentId, $this->tid, $term['start_date'], $term['end_date']])['c'];
+                $attendance = ['total'=>$total, 'present'=>$present, 'pct'=>$total>0 ? round($present/$total*100,1) : null];
+            }
+        }
+
+        $this->view('school/report_card', [
+            'pageTitle' => 'Report Card', 'tenant' => $tenant,
+            'student' => $student, 'class' => $class, 'exam' => $exam,
+            'examOptions' => $examOptions, 'selectedExamId' => $examId,
+            'grades' => $grades, 'totalObtained' => $totalObtained, 'totalPossible' => $totalPossible,
+            'overallPct' => $overallPct, 'overallGrade' => $overallGrade,
+            'rank' => $rank, 'rankOf' => $rankOf, 'attendance' => $attendance,
+        ]);
+    }
 }
 
 class TimetableController extends Controller {

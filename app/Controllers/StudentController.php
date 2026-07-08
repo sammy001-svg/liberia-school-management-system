@@ -149,6 +149,35 @@ class StudentController extends Controller {
         $this->view('school/highschool/students/show',['pageTitle'=>$student['name'],'panelType'=>'school','student'=>$student,'grades'=>$grades,'attendance'=>$attendance,'invoices'=>$invoices,'flash'=>$this->getFlash()]);
     }
 
+    public function idCard(string $id): void {
+        $this->requireAuth(['School Admin','Teacher']);
+        $student = $this->db->fetchOne(
+            "SELECT s.*, u.name, u.gender, u.date_of_birth
+             FROM students s JOIN users u ON s.user_id=u.id
+             WHERE s.id=? AND s.tenant_id=?", [$id, $this->tid]
+        );
+        if (!$student) { $this->redirect('/school/students'); }
+        $class = $student['class_id'] ? $this->db->fetchOne("SELECT name FROM classes WHERE id=?", [$student['class_id']]) : null;
+        $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
+        $currentYear = $this->db->fetchOne("SELECT * FROM academic_years WHERE tenant_id=? AND is_current=1 LIMIT 1", [$this->tid]);
+        $validThru = $currentYear ? date('M Y', strtotime($currentYear['end_date'])) : date('M Y', strtotime('+1 year'));
+
+        $this->view('school/id_card', [
+            'pageTitle' => 'ID Card', 'tenant' => $tenant,
+            'roleLabel' => 'Student',
+            'personName' => $student['name'],
+            'idLabel' => 'Admission No', 'idValue' => $student['admission_no'],
+            'fields' => [
+                'Class'     => $class['name'] ?? 'Not Assigned',
+                'Gender'    => $student['gender'] ? ucfirst($student['gender']) : null,
+                'DOB'       => $student['date_of_birth'] ? date('d M Y', strtotime($student['date_of_birth'])) : null,
+                'Blood Grp' => $student['blood_group'] ?? null,
+            ],
+            'validThru' => $validThru,
+            'backNote' => "This card is the property of " . ($tenant['name'] ?? 'the school') . " and must be carried at all times on school premises.\n\nGuardian Contact: " . ($student['guardian_phone'] ?: 'N/A'),
+        ]);
+    }
+
     public function edit(string $id): void {
         $this->requireAuth(['School Admin']);
         $student = $this->db->fetchOne("SELECT s.*, u.name, u.email, u.phone, u.gender, u.date_of_birth FROM students s JOIN users u ON s.user_id=u.id WHERE s.id=? AND s.tenant_id=?",[$id,$this->tid]);

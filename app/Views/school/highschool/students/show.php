@@ -10,7 +10,11 @@
       </div>
     </div>
   </div>
-  <a href="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/edit" class="btn btn-secondary">Edit Profile</a>
+  <div style="display:flex;gap:10px;">
+    <a href="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/id-card" target="_blank" class="btn btn-outline">🪪 ID Card</a>
+    <a href="<?= $cfg['url'] ?>/school/grades/report-card/<?= $student['id'] ?>" target="_blank" class="btn btn-outline">📄 Report Card</a>
+    <a href="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/edit" class="btn btn-secondary">Edit Profile</a>
+  </div>
 </div>
 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px;">
   <div class="card"><div class="card-body"><div class="stat-label">Email</div><div class="fw-600"><?= htmlspecialchars($student['email']??'—') ?></div></div></div>

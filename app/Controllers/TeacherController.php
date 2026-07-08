@@ -146,6 +146,31 @@ class TeacherController extends Controller {
         ]);
     }
 
+    public function idCard(string $id): void {
+        $this->requireAuth(['School Admin']);
+        $teacher = $this->db->fetchOne("SELECT t.*, u.name, u.gender FROM teachers t JOIN users u ON t.user_id=u.id WHERE t.id=? AND t.tenant_id=?", [$id, $this->tid]);
+        if (!$teacher) { $this->redirect('/school/teachers'); }
+        $department = $teacher['department_id'] ? $this->db->fetchOne("SELECT name FROM departments WHERE id=?", [$teacher['department_id']]) : null;
+        $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
+        $currentYear = $this->db->fetchOne("SELECT * FROM academic_years WHERE tenant_id=? AND is_current=1 LIMIT 1", [$this->tid]);
+        $validThru = $currentYear ? date('M Y', strtotime($currentYear['end_date'])) : date('M Y', strtotime('+1 year'));
+
+        $this->view('school/id_card', [
+            'pageTitle' => 'ID Card', 'tenant' => $tenant,
+            'roleLabel' => 'Staff',
+            'personName' => $teacher['name'],
+            'idLabel' => 'Employee No', 'idValue' => $teacher['employee_no'],
+            'fields' => [
+                'Department' => $department['name'] ?? null,
+                'Subject'    => $teacher['specialization'] ?: null,
+                'Gender'     => $teacher['gender'] ? ucfirst($teacher['gender']) : null,
+                'Qualif.'    => $teacher['qualification'] ?: null,
+            ],
+            'validThru' => $validThru,
+            'backNote' => "This card is the property of " . ($tenant['name'] ?? 'the school') . " and must be carried at all times on school premises.\n\nIf found, please contact the school office.",
+        ]);
+    }
+
     public function assignCourse(string $id): void {
         $this->requireAuth(['School Admin']);
         $errors = $this->validate($_POST, ['course_id' => 'required']);
