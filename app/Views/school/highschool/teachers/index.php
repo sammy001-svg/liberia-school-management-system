@@ -10,7 +10,7 @@
 
 <div class="card">
   <div class="card-header">
-    <div class="card-title">All Teachers (<?= count($teachers) ?>)</div>
+    <div class="card-title">All Teachers (<?= $total ?>)</div>
   </div>
   <div class="table-wrapper">
     <table>
@@ -31,6 +31,7 @@
     </table>
   </div>
 </div>
+<?php require ROOT_DIR . '/app/Views/layouts/pagination.php'; ?>
 
 <!-- Add Teacher Modal -->
 <div class="modal-overlay" id="addTeacherModal">

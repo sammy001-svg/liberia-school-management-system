@@ -36,6 +36,8 @@ class UniversityController extends Controller {
 
     public function storeDepartment(): void {
         $this->requireAuth(['School Admin']);
+        $errors = $this->validate($_POST, ['name' => 'required|max:150']);
+        if ($errors) { $this->failValidation($errors, '/school/departments'); }
         $this->db->insert(
             "INSERT INTO departments (tenant_id, name, code, head_user_id, description) VALUES (?, ?, ?, ?, ?)",
             [$this->tid, $_POST['name'], $_POST['code'] ?? '', $_POST['head_user_id'] ?: null, $_POST['description'] ?? '']
@@ -63,6 +65,12 @@ class UniversityController extends Controller {
 
     public function storeCourse(): void {
         $this->requireAuth(['School Admin']);
+        $errors = $this->validate($_POST, [
+            'name' => 'required|max:150',
+            'credit_hours' => 'numeric',
+            'semester_no'  => 'numeric',
+        ]);
+        if ($errors) { $this->failValidation($errors, '/school/courses'); }
         $this->db->insert(
             "INSERT INTO courses (tenant_id, name, code, credit_hours, semester_no, description) VALUES (?, ?, ?, ?, ?, ?)",
             [$this->tid, $_POST['name'], $_POST['code'], $_POST['credit_hours'], $_POST['semester_no'], $_POST['description'] ?? '']

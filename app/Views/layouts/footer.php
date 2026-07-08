@@ -2,6 +2,23 @@
 </div><!-- /.main-content -->
 </div><!-- /.app-layout -->
 
+<!-- CONFIRM MODAL -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <div class="modal-title" id="confirmModalTitle">Please Confirm</div>
+      <button class="modal-close" onclick="closeConfirmModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p id="confirmModalMessage" style="color:var(--text-light);font-size:13.5px;line-height:1.6;"></p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeConfirmModal()">Cancel</button>
+      <button type="button" class="btn btn-danger" id="confirmModalOkBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+
 <script>
 function toggleSidebar(){
   document.getElementById('sidebar').classList.toggle('open');
@@ -37,6 +54,36 @@ function toggleTheme(){
 }
 applyThemeIcon();
 
+// ── CONFIRM MODAL ──
+let _confirmCallback = null;
+function showConfirm(message, onConfirm, opts){
+  document.getElementById('confirmModalMessage').textContent = message;
+  document.getElementById('confirmModalTitle').textContent = (opts && opts.title) || 'Please Confirm';
+  document.getElementById('confirmModalOkBtn').textContent = (opts && opts.okLabel) || 'Confirm';
+  _confirmCallback = onConfirm;
+  document.getElementById('confirmModal').classList.add('open');
+}
+function closeConfirmModal(){
+  document.getElementById('confirmModal').classList.remove('open');
+  _confirmCallback = null;
+}
+document.getElementById('confirmModalOkBtn').addEventListener('click', function(){
+  const cb = _confirmCallback;
+  closeConfirmModal();
+  if (cb) cb();
+});
+// Any form with data-confirm="message" gets a styled confirm modal instead of the native dialog.
+document.querySelectorAll('form[data-confirm]').forEach(function(form){
+  form.addEventListener('submit', function(e){
+    if (form.dataset.confirmed === 'true') return;
+    e.preventDefault();
+    showConfirm(form.dataset.confirm, function(){
+      form.dataset.confirmed = 'true';
+      form.submit();
+    }, { title: form.dataset.confirmTitle, okLabel: form.dataset.confirmLabel });
+  });
+});
+
 // ── TOASTS ──
 function showToast(message, type){
   const stack = document.getElementById('toastStack');
@@ -60,6 +107,8 @@ document.querySelectorAll('.modal-overlay form').forEach(function(form){
     const originalLabel = submitBtn ? submitBtn.textContent : '';
     const existingError = form.querySelector('.ajax-error');
     if (existingError) existingError.remove();
+    form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+    form.querySelectorAll('.field-error').forEach(el => el.remove());
 
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Saving…'; }
 
@@ -77,6 +126,20 @@ document.querySelectorAll('.modal-overlay form').forEach(function(form){
         box.textContent = data.error;
         const body = form.querySelector('.modal-body') || form;
         body.prepend(box);
+
+        if (data.errors) {
+          Object.keys(data.errors).forEach(function(field){
+            const input = form.querySelector('[name="' + field + '"]');
+            if (!input) return;
+            input.classList.add('is-invalid');
+            const msg = document.createElement('div');
+            msg.className = 'field-error';
+            msg.textContent = data.errors[field];
+            input.insertAdjacentElement('afterend', msg);
+          });
+          const firstInvalid = form.querySelector('.is-invalid');
+          if (firstInvalid) firstInvalid.focus();
+        }
       } else if (data.redirect) {
         if (data.flash && data.flash.message) showToast(data.flash.message, data.flash.type);
         if (modal) modal.classList.remove('open');

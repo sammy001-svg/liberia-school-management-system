@@ -19,6 +19,12 @@ class AnnouncementController extends Controller {
 
     public function store(): void {
         $this->requireAuth(['School Admin','Teacher']);
+        $errors = $this->validate($_POST, [
+            'title' => 'required|max:255',
+            'body'  => 'required',
+            'expires_at' => 'date',
+        ]);
+        if ($errors) { $this->failValidation($errors, '/school/announcements'); }
         $this->db->insert(
             "INSERT INTO announcements (tenant_id,author_id,title,body,audience,class_id,is_pinned,expires_at) VALUES (?,?,?,?,?,?,?,?)",
             [$this->tid,$_SESSION['user_id'],$_POST['title'],$_POST['body'],$_POST['audience']??'all',$_POST['class_id']?:null,(int)($_POST['is_pinned']??0),$_POST['expires_at']?:null]
@@ -130,6 +136,13 @@ class TimetableController extends Controller {
 
     public function store(): void {
         $this->requireAuth(['School Admin']);
+        $errors = $this->validate($_POST, [
+            'class_id'    => 'required',
+            'day_of_week' => 'required',
+            'start_time'  => 'required',
+            'end_time'    => 'required',
+        ]);
+        if ($errors) { $this->failValidation($errors, '/school/timetable?class_id='.($_POST['class_id'] ?? '')); }
         $this->db->insert(
             "INSERT INTO timetable (tenant_id,class_id,course_id,teacher_id,academic_year_id,term_id,day_of_week,start_time,end_time,room) VALUES (?,?,?,?,?,?,?,?,?,?)",
             [
@@ -148,9 +161,18 @@ class ParentController extends Controller {
 
     public function index(): void {
         $this->requireAuth(['School Admin']);
-        $parents = $this->db->fetchAll("SELECT p.*,u.name,u.email,u.phone FROM parents p JOIN users u ON p.user_id=u.id WHERE p.tenant_id=? ORDER BY u.name", [$this->tid]);
+        $totalCount = $this->db->fetchOne("SELECT COUNT(*) c FROM parents p WHERE p.tenant_id=?", [$this->tid])['c'];
+        $p2 = $this->paginate($totalCount);
+        $parents = $this->db->fetchAll(
+            "SELECT p.*,u.name,u.email,u.phone FROM parents p JOIN users u ON p.user_id=u.id WHERE p.tenant_id=? ORDER BY u.name LIMIT {$p2['perPage']} OFFSET {$p2['offset']}",
+            [$this->tid]
+        );
         $students = $this->db->fetchAll("SELECT s.id,u.name FROM students s JOIN users u ON s.user_id=u.id WHERE s.tenant_id=? AND s.status='active' ORDER BY u.name", [$this->tid]);
-        $this->view('school/highschool/parents/index', ['pageTitle'=>'Parents','panelType'=>'school','parents'=>$parents,'students'=>$students,'flash'=>$this->getFlash()]);
+        $this->view('school/highschool/parents/index', [
+            'pageTitle'=>'Parents','panelType'=>'school','parents'=>$parents,'students'=>$students,
+            'page'=>$p2['page'],'totalPages'=>$p2['totalPages'],'total'=>$p2['total'],'perPage'=>$p2['perPage'],
+            'flash'=>$this->getFlash(),
+        ]);
     }
 
     public function create(): void {
@@ -160,6 +182,13 @@ class ParentController extends Controller {
 
     public function store(): void {
         $this->requireAuth(['School Admin']);
+        $errors = $this->validate($_POST, [
+            'name'  => 'required|max:150',
+            'email' => 'required|email|max:150',
+            'phone' => 'required|max:30',
+            'dob'   => 'date',
+        ]);
+        if ($errors) { $this->failValidation($errors, '/school/parents'); }
         $roleId = $this->db->fetchOne("SELECT id FROM roles WHERE name='Parent' LIMIT 1")['id'] ?? 8;
         $pw = password_hash($_POST['password'] ?: 'Parent@123', PASSWORD_BCRYPT);
         $userId = $this->db->insert(

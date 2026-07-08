@@ -94,4 +94,80 @@ abstract class Controller {
     protected function tenantId(): ?int {
         return $_SESSION['tenant_id'] ?? null;
     }
+
+    /**
+     * Validate $_POST-style data against simple pipe-delimited rules, e.g.
+     * ['email' => 'required|email', 'name' => 'required|max:150'].
+     * Returns an assoc array of field => first error message (empty if valid).
+     */
+    protected function validate(array $data, array $rules): array {
+        $errors = [];
+        foreach ($rules as $field => $ruleStr) {
+            $label = ucfirst(str_replace('_', ' ', $field));
+            $value = trim((string)($data[$field] ?? ''));
+            foreach (explode('|', $ruleStr) as $rule) {
+                if ($rule === '') continue;
+                [$name, $param] = array_pad(explode(':', $rule, 2), 2, null);
+                if ($name === 'required' && $value === '') {
+                    $errors[$field] = "{$label} is required.";
+                    break;
+                }
+                if ($value === '') continue; // remaining rules only apply when a value is present
+                switch ($name) {
+                    case 'email':
+                        if (!filter_var($value, FILTER_VALIDATE_EMAIL)) { $errors[$field] = 'Enter a valid email address.'; break 2; }
+                        break;
+                    case 'numeric':
+                        if (!is_numeric($value)) { $errors[$field] = "{$label} must be a number."; break 2; }
+                        break;
+                    case 'integer':
+                        if (!ctype_digit(ltrim($value, '-'))) { $errors[$field] = "{$label} must be a whole number."; break 2; }
+                        break;
+                    case 'min':
+                        if (strlen($value) < (int)$param) { $errors[$field] = "{$label} must be at least {$param} characters."; break 2; }
+                        break;
+                    case 'max':
+                        if (strlen($value) > (int)$param) { $errors[$field] = "{$label} must be at most {$param} characters."; break 2; }
+                        break;
+                    case 'date':
+                        if (strtotime($value) === false) { $errors[$field] = "Enter a valid date for {$label}."; break 2; }
+                        break;
+                    case 'in':
+                        if (!in_array($value, explode(',', (string)$param), true)) { $errors[$field] = "Invalid value for {$label}."; break 2; }
+                        break;
+                }
+            }
+        }
+        return $errors;
+    }
+
+    /**
+     * Send validation errors back to the client: JSON for AJAX requests
+     * (with per-field messages the modal JS renders inline), or a flash +
+     * redirect for normal form posts.
+     */
+    protected function failValidation(array $errors, string $redirectUrl): never {
+        if ($this->isAjax()) {
+            $this->json(['error' => 'Please fix the highlighted fields and try again.', 'errors' => $errors], 422);
+        }
+        $_SESSION['flash'] = ['type' => 'danger', 'message' => implode(' ', $errors)];
+        $this->redirect($redirectUrl);
+    }
+
+    /**
+     * Pagination helper: given a total row count, works out the current
+     * page (from $_GET['page']), page size, and SQL OFFSET.
+     */
+    protected function paginate(int $totalCount, int $perPage = 20): array {
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $totalPages = max(1, (int)ceil($totalCount / $perPage));
+        $page = min($page, $totalPages);
+        return [
+            'page'       => $page,
+            'perPage'    => $perPage,
+            'totalPages' => $totalPages,
+            'total'      => $totalCount,
+            'offset'     => ($page - 1) * $perPage,
+        ];
+    }
 }

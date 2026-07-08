@@ -25,7 +25,7 @@
 
 <div class="card">
   <div class="card-header">
-    <div class="card-title">All Students (<?= count($students) ?>)</div>
+    <div class="card-title">All Students (<?= $total ?>)</div>
   </div>
   <div class="table-wrapper">
     <table>
@@ -51,9 +51,9 @@
             <div style="display:flex;gap:6px;">
               <a href="<?= $cfg['url'] ?>/school/students/<?= $s['id'] ?>" class="btn btn-sm btn-outline">View</a>
               <a href="<?= $cfg['url'] ?>/school/students/<?= $s['id'] ?>/edit" class="btn btn-sm btn-secondary">Edit</a>
-              <form method="POST" action="<?= $cfg['url'] ?>/school/students/<?= $s['id'] ?>/delete" onsubmit="return confirm('Remove student?')">
+              <form method="POST" action="<?= $cfg['url'] ?>/school/students/<?= $s['id'] ?>/delete" data-confirm="Remove <?= htmlspecialchars($s['name']) ?>? This cannot be undone." data-confirm-title="Remove Student" data-confirm-label="Remove">
                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
-                <button class="btn btn-sm btn-danger">Del</button>
+                <button type="submit" class="btn btn-sm btn-danger">Del</button>
               </form>
             </div>
           </td>
@@ -66,6 +66,7 @@
     </table>
   </div>
 </div>
+<?php require ROOT_DIR . '/app/Views/layouts/pagination.php'; ?>
 
 <!-- Admission Modal -->
 <div class="modal-overlay" id="admitModal">

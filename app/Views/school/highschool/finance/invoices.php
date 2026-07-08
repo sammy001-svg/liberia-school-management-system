@@ -35,6 +35,7 @@
     </table>
   </div>
 </div>
+<?php require ROOT_DIR . '/app/Views/layouts/pagination.php'; ?>
 
 <!-- Generate Invoice Modal -->
 <div class="modal-overlay" id="generateInvoiceModal">

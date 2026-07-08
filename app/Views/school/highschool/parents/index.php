@@ -10,7 +10,7 @@
 
 <div class="card">
   <div class="card-header">
-    <div class="card-title">All Parents (<?= count($parents) ?>)</div>
+    <div class="card-title">All Parents (<?= $total ?>)</div>
   </div>
   <div class="table-wrapper">
     <table>
@@ -28,6 +28,7 @@
     </table>
   </div>
 </div>
+<?php require ROOT_DIR . '/app/Views/layouts/pagination.php'; ?>
 
 <!-- Add Parent Modal -->
 <div class="modal-overlay" id="addParentModal">

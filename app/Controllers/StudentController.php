@@ -18,14 +18,21 @@ class StudentController extends Controller {
         if ($search)  { $where .= " AND (u.name LIKE ? OR s.admission_no LIKE ?)"; $params[] = "%$search%"; $params[] = "%$search%"; }
         if ($classId) { $where .= " AND s.class_id=?"; $params[] = $classId; }
 
+        $totalCount = $this->db->fetchOne("SELECT COUNT(*) c FROM students s JOIN users u ON s.user_id=u.id WHERE $where", $params)['c'];
+        $p = $this->paginate($totalCount);
+
         $students = $this->db->fetchAll(
             "SELECT s.*, u.name, u.email, u.phone, u.gender, c.name AS class_name
              FROM students s JOIN users u ON s.user_id=u.id
              LEFT JOIN classes c ON s.class_id=c.id
-             WHERE $where ORDER BY u.name ASC", $params
+             WHERE $where ORDER BY u.name ASC LIMIT {$p['perPage']} OFFSET {$p['offset']}", $params
         );
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
-        $this->view('school/highschool/students/index', ['pageTitle'=>'Students','panelType'=>'school','students'=>$students,'classes'=>$classes,'search'=>$search,'classId'=>$classId,'flash'=>$this->getFlash()]);
+        $this->view('school/highschool/students/index', [
+            'pageTitle'=>'Students','panelType'=>'school','students'=>$students,'classes'=>$classes,'search'=>$search,'classId'=>$classId,
+            'page'=>$p['page'],'totalPages'=>$p['totalPages'],'total'=>$p['total'],'perPage'=>$p['perPage'],
+            'flash'=>$this->getFlash(),
+        ]);
     }
 
     public function create(): void {
@@ -35,6 +42,14 @@ class StudentController extends Controller {
 
     public function store(): void {
         $this->requireAuth(['School Admin']);
+        $errors = $this->validate($_POST, [
+            'name'  => 'required|max:150',
+            'email' => 'required|email|max:150',
+            'phone' => 'max:30',
+            'dob'   => 'date',
+            'admission_date' => 'date',
+        ]);
+        if ($errors) { $this->failValidation($errors, '/school/students'); }
         $roleId = $this->db->fetchOne("SELECT id FROM roles WHERE name='Student' LIMIT 1")['id'] ?? 7;
         $pw = password_hash($_POST['password'] ?? 'Student@123', PASSWORD_BCRYPT);
         $userId = $this->db->insert(
@@ -48,8 +63,8 @@ class StudentController extends Controller {
             "INSERT INTO students (tenant_id,user_id,admission_no,class_id,admission_date,status,blood_group,previous_school,guardian_name,guardian_phone,guardian_relationship,emergency_contact_phone)
              VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             [
-                $this->tid, $userId, $admNo, $_POST['class_id']??null, $_POST['admission_date']??date('Y-m-d'), 'active',
-                $_POST['blood_group']??null, $_POST['previous_school']??null,
+                $this->tid, $userId, $admNo, $_POST['class_id']?:null, $_POST['admission_date']??date('Y-m-d'), 'active',
+                $_POST['blood_group']?:null, $_POST['previous_school']??null,
                 $_POST['guardian_name']??null, $_POST['guardian_phone']??null, $_POST['guardian_relationship']??null,
                 $_POST['emergency_contact_phone']??null,
             ]
@@ -84,8 +99,10 @@ class StudentController extends Controller {
         $this->requireAuth(['School Admin']);
         $student = $this->db->fetchOne("SELECT user_id FROM students WHERE id=? AND tenant_id=?",[$id,$this->tid]);
         if (!$student) { $this->redirect('/school/students'); }
+        $errors = $this->validate($_POST, ['name' => 'required|max:150', 'email' => 'required|email|max:150']);
+        if ($errors) { $this->failValidation($errors, '/school/students/'.$id.'/edit'); }
         $this->db->execute("UPDATE users SET name=?,email=?,phone=?,gender=?,date_of_birth=? WHERE id=?",[$_POST['name'],$_POST['email'],$_POST['phone']??'',$_POST['gender']??null,$_POST['dob']??null,$student['user_id']]);
-        $this->db->execute("UPDATE students SET class_id=?,status=? WHERE id=? AND tenant_id=?",[$_POST['class_id']??null,$_POST['status']??'active',$id,$this->tid]);
+        $this->db->execute("UPDATE students SET class_id=?,status=? WHERE id=? AND tenant_id=?",[$_POST['class_id']?:null,$_POST['status']??'active',$id,$this->tid]);
         $this->flash('success','Student updated.');
         $this->redirect('/school/students/'.$id);
     }

@@ -24,11 +24,22 @@ class FinanceController extends Controller {
         $params = [$this->tid];
         $where  = "i.tenant_id=?";
         if ($status) { $where .= " AND i.status=?"; $params[] = $status; }
-        $invoices = $this->db->fetchAll("SELECT i.*, u.name AS student_name, c.name AS class_name FROM invoices i JOIN students s ON i.student_id=s.id JOIN users u ON s.user_id=u.id LEFT JOIN classes c ON s.class_id=c.id WHERE $where ORDER BY i.created_at DESC", $params);
+
+        $totalCount = $this->db->fetchOne("SELECT COUNT(*) c FROM invoices i WHERE $where", $params)['c'];
+        $p = $this->paginate($totalCount);
+
+        $invoices = $this->db->fetchAll(
+            "SELECT i.*, u.name AS student_name, c.name AS class_name FROM invoices i JOIN students s ON i.student_id=s.id JOIN users u ON s.user_id=u.id LEFT JOIN classes c ON s.class_id=c.id WHERE $where ORDER BY i.created_at DESC LIMIT {$p['perPage']} OFFSET {$p['offset']}",
+            $params
+        );
         $tenant     = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
         $students   = $this->db->fetchAll("SELECT s.id, u.name FROM students s JOIN users u ON s.user_id=u.id WHERE s.tenant_id=? AND s.status='active' ORDER BY u.name",[$this->tid]);
         $feeStructs = $this->db->fetchAll("SELECT id,name,amount FROM fee_structures WHERE tenant_id=?",[$this->tid]);
-        $this->view('school/highschool/finance/invoices', ['pageTitle'=>'Invoices','panelType'=>'school','tenant'=>$tenant,'invoices'=>$invoices,'status'=>$status,'students'=>$students,'feeStructs'=>$feeStructs,'flash'=>$this->getFlash()]);
+        $this->view('school/highschool/finance/invoices', [
+            'pageTitle'=>'Invoices','panelType'=>'school','tenant'=>$tenant,'invoices'=>$invoices,'status'=>$status,'students'=>$students,'feeStructs'=>$feeStructs,
+            'page'=>$p['page'],'totalPages'=>$p['totalPages'],'total'=>$p['total'],'perPage'=>$p['perPage'],
+            'flash'=>$this->getFlash(),
+        ]);
     }
 
     public function createInvoice(): void {
@@ -38,6 +49,13 @@ class FinanceController extends Controller {
 
     public function storeInvoice(): void {
         $this->requireAuth(['School Admin','Accountant']);
+        $errors = $this->validate($_POST, [
+            'student_id' => 'required',
+            'amount_due' => 'required|numeric',
+            'discount'   => 'numeric',
+            'due_date'   => 'date',
+        ]);
+        if ($errors) { $this->failValidation($errors, '/school/finance/invoices'); }
         $invoiceNo = 'INV-'.date('Ymd').'-'.rand(1000,9999);
         $this->db->insert("INSERT INTO invoices (tenant_id,student_id,fee_structure_id,invoice_no,amount_due,discount,due_date,notes,status) VALUES (?,?,?,?,?,?,?,?,?)",
             [$this->tid,$_POST['student_id'],$_POST['fee_structure_id']?:null,$invoiceNo,$_POST['amount_due'],$_POST['discount']??0,$_POST['due_date']??null,$_POST['notes']??'','unpaid']);
@@ -58,6 +76,11 @@ class FinanceController extends Controller {
 
     public function storeFeeStructure(): void {
         $this->requireAuth(['School Admin','Accountant']);
+        $errors = $this->validate($_POST, [
+            'name'   => 'required|max:150',
+            'amount' => 'required|numeric',
+        ]);
+        if ($errors) { $this->failValidation($errors, '/school/finance/fees'); }
         $this->db->insert(
             "INSERT INTO fee_structures (tenant_id,name,amount,frequency,class_id,academic_year_id,description) VALUES (?,?,?,?,?,?,?)",
             [$this->tid,$_POST['name'],$_POST['amount'],$_POST['frequency']??'termly',$_POST['class_id']?:null,$_POST['academic_year_id']?:null,$_POST['description']??'']
@@ -74,6 +97,11 @@ class FinanceController extends Controller {
 
     public function storePayment(): void {
         $this->requireAuth(['School Admin','Accountant']);
+        $errors = $this->validate($_POST, [
+            'invoice_id' => 'required',
+            'amount'     => 'required|numeric',
+        ]);
+        if ($errors) { $this->failValidation($errors, '/school/finance/invoices'); }
         $invoiceId = $_POST['invoice_id'];
         $amount    = (float)$_POST['amount'];
         $this->db->insert("INSERT INTO payments (tenant_id,invoice_id,amount,method,reference,received_by,notes) VALUES (?,?,?,?,?,?,?)",

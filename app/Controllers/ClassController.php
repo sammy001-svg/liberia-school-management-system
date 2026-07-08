@@ -20,6 +20,12 @@ class ClassController extends Controller {
 
     public function store(): void {
         $this->requireAuth(['School Admin']);
+        $errors = $this->validate($_POST, [
+            'name'        => 'required|max:80',
+            'grade_level' => 'required|max:30',
+            'capacity'    => 'numeric',
+        ]);
+        if ($errors) { $this->failValidation($errors, '/school/classes'); }
         $this->db->insert(
             "INSERT INTO classes (tenant_id,academic_year_id,name,grade_level,section,capacity,class_teacher_id,room_number,description) VALUES (?,?,?,?,?,?,?,?,?)",
             [
@@ -39,6 +45,8 @@ class ClassController extends Controller {
 
     public function update(string $id): void {
         $this->requireAuth(['School Admin']);
+        $errors = $this->validate($_POST, ['name' => 'required|max:80', 'grade_level' => 'required|max:30', 'capacity' => 'numeric']);
+        if ($errors) { $this->failValidation($errors, '/school/classes/'.$id.'/edit'); }
         $this->db->execute(
             "UPDATE classes SET name=?,grade_level=?,section=?,capacity=?,class_teacher_id=?,room_number=?,description=? WHERE id=? AND tenant_id=?",
             [$_POST['name'],$_POST['grade_level'],$_POST['section']??'',(int)$_POST['capacity'],$_POST['teacher_id']?:null,$_POST['room_number']??null,$_POST['description']??null,$id,$this->tid]

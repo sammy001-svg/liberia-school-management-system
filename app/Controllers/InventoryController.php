@@ -21,6 +21,12 @@ class InventoryController extends Controller {
     }
 
     public function store(): void {
+        $errors = $this->validate($_POST, [
+            'item_name'  => 'required|max:150',
+            'quantity'   => 'numeric',
+            'unit_price' => 'numeric',
+        ]);
+        if ($errors) { $this->failValidation($errors, '/school/inventory'); }
         $this->db->insert(
             "INSERT INTO inventory (tenant_id, item_name, category, quantity, unit, location, supplier, unit_price) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             [$this->tid, $_POST['item_name'], $_POST['category'], $_POST['quantity'], $_POST['unit'], $_POST['location'], $_POST['supplier'] ?? '', $_POST['unit_price'] ?: null]
@@ -41,6 +47,8 @@ class InventoryController extends Controller {
     }
 
     public function storeBook(): void {
+        $errors = $this->validate($_POST, ['title' => 'required|max:255']);
+        if ($errors) { $this->failValidation($errors, '/school/library'); }
         $this->db->insert(
             "INSERT INTO library_books (tenant_id, title, author, isbn, category, status) VALUES (?, ?, ?, ?, ?, 'available')",
             [$this->tid, $_POST['title'], $_POST['author'] ?? '', $_POST['isbn'] ?? '', $_POST['category'] ?? '']
@@ -71,6 +79,12 @@ class InventoryController extends Controller {
     }
 
     public function issueBook(): void {
+        $errors = $this->validate($_POST, [
+            'book_id'  => 'required',
+            'user_id'  => 'required',
+            'due_date' => 'required|date',
+        ]);
+        if ($errors) { $this->failValidation($errors, '/school/library/loans'); }
         $book = $this->db->fetchOne("SELECT status FROM library_books WHERE id=? AND tenant_id=?", [$_POST['book_id'], $this->tid]);
         if (!$book || $book['status'] !== 'available') {
             $this->flash('danger', 'That book is not available for loan.');
