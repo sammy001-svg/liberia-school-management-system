@@ -69,7 +69,9 @@ class FinanceController extends Controller {
     public function feeStructures(): void {
         $this->requireAuth(['School Admin','Accountant']);
         $fees = $this->db->fetchAll(
-            "SELECT f.*, c.name AS class_name FROM fee_structures f LEFT JOIN classes c ON f.class_id=c.id WHERE f.tenant_id=? ORDER BY f.name",
+            "SELECT f.*, c.name AS class_name,
+                    (SELECT COUNT(*) FROM students s WHERE s.tenant_id=f.tenant_id AND s.status='active' AND (f.class_id IS NULL OR s.class_id=f.class_id)) AS student_count
+             FROM fee_structures f LEFT JOIN classes c ON f.class_id=c.id WHERE f.tenant_id=? ORDER BY f.name",
             [$this->tid]
         );
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
@@ -95,6 +97,57 @@ class FinanceController extends Controller {
             [$this->tid,$_POST['name'],$_POST['amount'],$_POST['frequency']??'termly',$_POST['class_id']?:null,$_POST['academic_year_id']?:null,$_POST['description']??'']
         );
         $this->flash('success','Fee structure created.'); $this->redirect('/school/finance/fees');
+    }
+
+    // Generates one invoice per applicable student (the fee's class, or every active student
+    // if the fee is school-wide) for a given billing period. Idempotent: a period tag is
+    // embedded in the invoice notes and checked before inserting, so re-running for the same
+    // period only bills students who weren't already invoiced — safe to click more than once.
+    public function generateFeeInvoices(string $id): void {
+        $this->requireAuth(['School Admin','Accountant']);
+        $fee = $this->db->fetchOne("SELECT * FROM fee_structures WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        if (!$fee) { $this->redirect('/school/finance/fees'); }
+        $errors = $this->validate($_POST, ['period' => 'required|max:100']);
+        if ($errors) { $this->failValidation($errors, '/school/finance/fees'); }
+
+        $period = trim($_POST['period']);
+        $tag = '[FEE:'.$fee['id'].':'.$period.']';
+        $dueDate = $_POST['due_date'] ?: date('Y-m-d', strtotime('+14 days'));
+
+        $params = [$this->tid];
+        $where = "tenant_id=? AND status='active'";
+        if ($fee['class_id']) { $where .= " AND class_id=?"; $params[] = $fee['class_id']; }
+        $students = $this->db->fetchAll("SELECT id FROM students WHERE $where", $params);
+
+        $alreadyBilled = array_column(
+            $this->db->fetchAll("SELECT student_id FROM invoices WHERE tenant_id=? AND notes LIKE ?", [$this->tid, '%'.$tag]),
+            'student_id'
+        );
+        $alreadyBilled = array_flip($alreadyBilled);
+
+        set_time_limit(120);
+        $created = 0; $skipped = 0;
+        $pdo = $this->db->pdo();
+        $pdo->beginTransaction();
+        try {
+            foreach ($students as $s) {
+                if (isset($alreadyBilled[$s['id']])) { $skipped++; continue; }
+                $invoiceNo = 'INV-'.date('Ymd').'-'.bin2hex(random_bytes(4));
+                $this->db->insert(
+                    "INSERT INTO invoices (tenant_id,student_id,fee_structure_id,invoice_no,amount_due,due_date,notes,status) VALUES (?,?,?,?,?,?,?,?)",
+                    [$this->tid, $s['id'], $fee['id'], $invoiceNo, $fee['amount'], $dueDate, "{$fee['name']} - {$period} {$tag}", 'unpaid']
+                );
+                $created++;
+            }
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            error_log("generateFeeInvoices failed: " . $e->getMessage());
+            $this->flash('danger', 'Could not generate invoices — no changes were made. Please try again.');
+            $this->redirect('/school/finance/fees');
+        }
+        $this->flash($created > 0 ? 'success' : 'warning', "Generated {$created} invoice(s) for {$period}." . ($skipped > 0 ? " {$skipped} student(s) were already billed for this period." : ''));
+        $this->redirect('/school/finance/fees');
     }
 
     public function payments(): void {
@@ -247,16 +300,32 @@ class FinanceController extends Controller {
         $dueDate = $_POST['due_date'] ?: date('Y-m-d', strtotime($month.'-01 +14 days'));
 
         $students = $this->db->fetchAll("SELECT student_id FROM bus_students WHERE route_id=? AND status='active'", [$route['id']]);
+        $alreadyBilled = array_column(
+            $this->db->fetchAll("SELECT student_id FROM invoices WHERE tenant_id=? AND notes LIKE ?", [$this->tid, '%'.$tag]),
+            'student_id'
+        );
+        $alreadyBilled = array_flip($alreadyBilled);
+
+        set_time_limit(120);
         $created = 0; $skipped = 0;
-        foreach ($students as $s) {
-            $exists = $this->db->fetchOne("SELECT id FROM invoices WHERE tenant_id=? AND student_id=? AND notes LIKE ?", [$this->tid, $s['student_id'], '%'.$tag]);
-            if ($exists) { $skipped++; continue; }
-            $invoiceNo = 'BUS-'.date('Ymd').'-'.rand(1000,9999);
-            $this->db->insert(
-                "INSERT INTO invoices (tenant_id,student_id,invoice_no,amount_due,due_date,notes,status) VALUES (?,?,?,?,?,?,?)",
-                [$this->tid, $s['student_id'], $invoiceNo, $route['monthly_fee'], $dueDate, "Bus Fee - {$route['name']} - {$monthLabel} {$tag}", 'unpaid']
-            );
-            $created++;
+        $pdo = $this->db->pdo();
+        $pdo->beginTransaction();
+        try {
+            foreach ($students as $s) {
+                if (isset($alreadyBilled[$s['student_id']])) { $skipped++; continue; }
+                $invoiceNo = 'BUS-'.date('Ymd').'-'.bin2hex(random_bytes(4));
+                $this->db->insert(
+                    "INSERT INTO invoices (tenant_id,student_id,invoice_no,amount_due,due_date,notes,status) VALUES (?,?,?,?,?,?,?)",
+                    [$this->tid, $s['student_id'], $invoiceNo, $route['monthly_fee'], $dueDate, "Bus Fee - {$route['name']} - {$monthLabel} {$tag}", 'unpaid']
+                );
+                $created++;
+            }
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            error_log("generateBusInvoices failed: " . $e->getMessage());
+            $this->flash('danger', 'Could not generate invoices — no changes were made. Please try again.');
+            $this->redirect('/school/finance/bus-billing');
         }
         $this->flash($created > 0 ? 'success' : 'warning', "Generated {$created} invoice(s) for {$monthLabel}." . ($skipped > 0 ? " {$skipped} student(s) were already billed for this month." : ''));
         $this->redirect('/school/finance/bus-billing');
@@ -274,5 +343,102 @@ class FinanceController extends Controller {
         $payments = $this->db->fetchAll("SELECT * FROM payments WHERE invoice_id=? AND tenant_id=? ORDER BY paid_at", [$id, $this->tid]);
         $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
         $this->view('school/finance/invoice_print', ['pageTitle'=>'Invoice','tenant'=>$tenant,'invoice'=>$invoice,'payments'=>$payments]);
+    }
+
+    // --- FINANCIAL REPORTS ---
+
+    // Resolves the ?range= filter into [from, to, human label, resolved range name].
+    // Falls back to "This Month" when a term/year filter is requested but none is
+    // marked current, so the page never renders with an impossible empty range.
+    private function resolveReportRange(): array {
+        $range = $_GET['range'] ?? 'month';
+        $now = date('Y-m-d');
+
+        if ($range === 'term') {
+            $term = $this->db->fetchOne("SELECT * FROM terms WHERE tenant_id=? AND is_current=1 LIMIT 1", [$this->tid]);
+            if ($term) { return [$term['start_date'], $term['end_date'], 'Term: '.$term['name'], 'term']; }
+            $range = 'month';
+        }
+        if ($range === 'year') {
+            $year = $this->db->fetchOne("SELECT * FROM academic_years WHERE tenant_id=? AND is_current=1 LIMIT 1", [$this->tid]);
+            if ($year) { return [$year['start_date'], $year['end_date'], 'Academic Year: '.$year['name'], 'year']; }
+            $range = 'month';
+        }
+        if ($range === 'all') {
+            return ['2000-01-01', $now, 'All Time', 'all'];
+        }
+        if ($range === 'custom' && !empty($_GET['from']) && !empty($_GET['to'])) {
+            $from = $_GET['from']; $to = $_GET['to'];
+            return [$from, $to, date('M d, Y', strtotime($from)).' – '.date('M d, Y', strtotime($to)), 'custom'];
+        }
+        return [date('Y-m-01'), $now, 'This Month ('.date('F Y').')', 'month'];
+    }
+
+    private function computeReportData(string $from, string $to): array {
+        $toEnd = $to.' 23:59:59';
+        $totalBilled = $this->db->fetchOne("SELECT COALESCE(SUM(amount_due),0) c FROM invoices WHERE tenant_id=? AND created_at BETWEEN ? AND ?", [$this->tid, $from, $toEnd])['c'];
+        $totalCollected = $this->db->fetchOne("SELECT COALESCE(SUM(amount),0) c FROM payments WHERE tenant_id=? AND paid_at BETWEEN ? AND ?", [$this->tid, $from, $toEnd])['c'];
+        $totalExpenses = $this->db->fetchOne("SELECT COALESCE(SUM(amount),0) c FROM expenses WHERE tenant_id=? AND expense_date BETWEEN ? AND ?", [$this->tid, $from, $to])['c'];
+        $netIncome = $totalCollected - $totalExpenses;
+        $collectionRate = $totalBilled > 0 ? round($totalCollected / $totalBilled * 100, 1) : 0;
+
+        $revenueByCategory = $this->db->fetchAll(
+            "SELECT CASE WHEN f.name IS NOT NULL THEN f.name WHEN i.notes LIKE 'Bus Fee%' THEN 'Bus Fees' ELSE 'Other' END AS category, SUM(i.amount_due) total
+             FROM invoices i LEFT JOIN fee_structures f ON i.fee_structure_id=f.id
+             WHERE i.tenant_id=? AND i.created_at BETWEEN ? AND ?
+             GROUP BY category ORDER BY total DESC", [$this->tid, $from, $toEnd]
+        );
+        $expensesByCategory = $this->db->fetchAll(
+            "SELECT category, SUM(amount) total FROM expenses WHERE tenant_id=? AND expense_date BETWEEN ? AND ? GROUP BY category ORDER BY total DESC",
+            [$this->tid, $from, $to]
+        );
+        $paymentsByMethod = $this->db->fetchAll(
+            "SELECT method, SUM(amount) total, COUNT(*) cnt FROM payments WHERE tenant_id=? AND paid_at BETWEEN ? AND ? GROUP BY method ORDER BY total DESC",
+            [$this->tid, $from, $toEnd]
+        );
+
+        // Trend is always the trailing 6 calendar months regardless of the filter above,
+        // to give a stable at-a-glance chart no matter which report period is selected.
+        $collectedByMonth = array_column($this->db->fetchAll(
+            "SELECT DATE_FORMAT(paid_at,'%Y-%m') ym, SUM(amount) total FROM payments WHERE tenant_id=? AND paid_at >= DATE_SUB(CURDATE(), INTERVAL 5 MONTH) GROUP BY ym",
+            [$this->tid]
+        ), 'total', 'ym');
+        $expensesByMonth = array_column($this->db->fetchAll(
+            "SELECT DATE_FORMAT(expense_date,'%Y-%m') ym, SUM(amount) total FROM expenses WHERE tenant_id=? AND expense_date >= DATE_SUB(CURDATE(), INTERVAL 5 MONTH) GROUP BY ym",
+            [$this->tid]
+        ), 'total', 'ym');
+        $monthlyTrend = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $ym = date('Y-m', strtotime("-{$i} months"));
+            $monthlyTrend[] = [
+                'label'     => date('M Y', strtotime($ym.'-01')),
+                'collected' => (float)($collectedByMonth[$ym] ?? 0),
+                'expenses'  => (float)($expensesByMonth[$ym] ?? 0),
+            ];
+        }
+
+        return compact('totalBilled','totalCollected','totalExpenses','netIncome','collectionRate','revenueByCategory','expensesByCategory','paymentsByMethod','monthlyTrend');
+    }
+
+    public function reports(): void {
+        $this->requireAuth(['School Admin','Accountant']);
+        [$from, $to, $periodLabel, $range] = $this->resolveReportRange();
+        $data = $this->computeReportData($from, $to);
+        $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
+        $this->view('school/highschool/finance/reports', array_merge($data, [
+            'pageTitle'=>'Financial Reports','panelType'=>'school','tenant'=>$tenant,
+            'periodLabel'=>$periodLabel,'range'=>$range,'from'=>$from,'to'=>$to,
+            'flash'=>$this->getFlash(),
+        ]));
+    }
+
+    public function printReport(): void {
+        $this->requireAuth(['School Admin','Accountant']);
+        [$from, $to, $periodLabel] = $this->resolveReportRange();
+        $data = $this->computeReportData($from, $to);
+        $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
+        $this->view('school/finance/report_print', array_merge($data, [
+            'pageTitle'=>'Income Statement','tenant'=>$tenant,'periodLabel'=>$periodLabel,
+        ]));
     }
 }

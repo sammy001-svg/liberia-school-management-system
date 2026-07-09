@@ -72,12 +72,15 @@ $router->get('/school/finance/payments',    ['FinanceController', 'payments']);
 $router->post('/school/finance/payments/store', ['FinanceController', 'storePayment']);
 $router->get('/school/finance/fees',        ['FinanceController', 'feeStructures']);
 $router->post('/school/finance/fees/store', ['FinanceController', 'storeFeeStructure']);
+$router->post('/school/finance/fees/{id}/generate', ['FinanceController', 'generateFeeInvoices']);
 $router->get('/school/finance/expenses',    ['FinanceController', 'expenses']);
 $router->post('/school/finance/expenses/store', ['FinanceController', 'storeExpense']);
 $router->post('/school/finance/expenses/{id}/delete', ['FinanceController', 'deleteExpense']);
 $router->get('/school/finance/collection',  ['FinanceController', 'collection']);
 $router->get('/school/finance/bus-billing',  ['FinanceController', 'busBilling']);
 $router->post('/school/finance/bus-billing/generate', ['FinanceController', 'generateBusInvoices']);
+$router->get('/school/finance/reports',      ['FinanceController', 'reports']);
+$router->get('/school/finance/reports/print', ['FinanceController', 'printReport']);
 
 // ── SCHOOL BUS / TRANSPORT ───────────────────────────────────────
 $router->get('/school/transport/buses',            ['BusController', 'buses']);
