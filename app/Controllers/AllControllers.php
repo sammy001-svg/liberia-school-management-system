@@ -500,21 +500,37 @@ class SchoolSettingsController extends Controller {
 
     public function update(): void {
         $this->requireAuth(['School Admin']);
-        $this->db->execute("UPDATE tenants SET name=?,email=?,phone=?,address=?,country=?,timezone=?,academic_year=?,currency=?,domain=?,primary_color=?,secondary_color=?,accent_color=? WHERE id=?",
+
+        $errors = [];
+        $newLogoUrl = $this->handleImageUpload('logo', 'logos', $errors, 2 * 1024 * 1024);
+        if ($errors) { $this->failValidation($errors, '/school/settings'); }
+
+        $current = $this->db->fetchOne("SELECT logo FROM tenants WHERE id=?", [$this->tid]);
+        if (!empty($_POST['remove_logo'])) {
+            $logo = null;
+        } elseif ($newLogoUrl !== null) {
+            $logo = $newLogoUrl;
+        } else {
+            $logo = $current['logo'] ?? null;
+        }
+
+        $this->db->execute("UPDATE tenants SET name=?,email=?,phone=?,address=?,country=?,timezone=?,academic_year=?,currency=?,domain=?,primary_color=?,secondary_color=?,accent_color=?,logo=? WHERE id=?",
             [
-                $_POST['name'], $_POST['email']??'', $_POST['phone']??'', $_POST['address']??'', 
+                $_POST['name'], $_POST['email']??'', $_POST['phone']??'', $_POST['address']??'',
                 $_POST['country']??'', $_POST['timezone']??'UTC', $_POST['academic_year']??'',
                 $_POST['currency']??'Ksh',
-                $_POST['domain']??null, $_POST['primary_color']??'#4F46E5', 
+                $_POST['domain']??null, $_POST['primary_color']??'#4F46E5',
                 $_POST['secondary_color']??'#7C3AED', $_POST['accent_color']??'#06B6D4',
+                $logo,
                 $this->tid
             ]);
-        
+
         // Update session branding if it's the current school
         if ($_SESSION['tenant_id'] == $this->tid) {
             $_SESSION['branding']['name']            = $_POST['name'];
             $_SESSION['branding']['primary_color']   = $_POST['primary_color'];
             $_SESSION['branding']['secondary_color']  = $_POST['secondary_color'];
+            $_SESSION['branding']['logo']             = $logo;
         }
 
         $this->flash('success','Settings and branding updated.'); $this->redirect('/school/settings');

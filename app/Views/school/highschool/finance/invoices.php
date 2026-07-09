@@ -39,11 +39,12 @@
           <td style="font-size:12px;color:var(--text-muted)"><?= $inv['due_date']?date('M d, Y',strtotime($inv['due_date'])):'—' ?></td>
           <td><span class="badge badge-<?= $inv['status']==='paid'?'success':($inv['status']==='overdue'?'danger':'warning') ?>"><?= ucfirst($inv['status']) ?></span></td>
           <td>
-            <?php if($inv['status']!=='paid' && $inv['status']!=='waived'): ?>
-              <button type="button" class="btn btn-sm btn-primary" onclick="openPaymentModal(<?= $inv['id'] ?>,'<?= htmlspecialchars(addslashes($inv['invoice_no'])) ?>',<?= number_format($balance,2,'.','') ?>)">Record Payment</button>
-            <?php else: ?>
-              <span class="text-muted" style="font-size:12px;">—</span>
-            <?php endif; ?>
+            <div style="display:flex;gap:6px;">
+              <a href="<?= $cfg['url'] ?>/school/finance/invoices/<?= $inv['id'] ?>/print" target="_blank" class="btn btn-sm btn-outline">Print</a>
+              <?php if($inv['status']!=='paid' && $inv['status']!=='waived'): ?>
+                <button type="button" class="btn btn-sm btn-primary" onclick="openPaymentModal(<?= $inv['id'] ?>,'<?= htmlspecialchars(addslashes($inv['invoice_no'])) ?>',<?= number_format($balance,2,'.','') ?>)">Record Payment</button>
+              <?php endif; ?>
+            </div>
           </td>
         </tr>
         <?php endforeach; ?>

@@ -8,7 +8,11 @@
 
 <div class="card profile-hero">
   <div class="profile-hero-body">
-    <div class="avatar avatar-xl avatar-sq"><?= strtoupper(substr($tenant['name'] ?? '?',0,1)) ?></div>
+    <?php if(!empty($tenant['logo'])): ?>
+      <div class="avatar avatar-xl avatar-sq" style="padding:0;overflow:hidden;background:#fff;"><img src="<?= htmlspecialchars($tenant['logo']) ?>" alt="Logo" style="width:100%;height:100%;object-fit:contain;"></div>
+    <?php else: ?>
+      <div class="avatar avatar-xl avatar-sq"><?= strtoupper(substr($tenant['name'] ?? '?',0,1)) ?></div>
+    <?php endif; ?>
     <div class="profile-hero-info">
       <div class="profile-hero-name"><?= htmlspecialchars($tenant['name'] ?? '') ?></div>
       <div class="profile-hero-meta">
@@ -24,7 +28,7 @@
 </div>
 
 <div style="max-width:680px;">
-<form method="POST" action="<?= $cfg['url'] ?>/school/settings/update">
+<form method="POST" action="<?= $cfg['url'] ?>/school/settings/update" enctype="multipart/form-data">
   <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
   <div class="card">
   <div class="card-header"><div class="card-title">🏫 General Information</div></div>
@@ -53,6 +57,34 @@
         </div>
         <div class="form-group"><label class="form-label">Academic Year</label><input type="text" name="academic_year" class="form-control" placeholder="2024/2025" value="<?= htmlspecialchars($tenant['academic_year']??'') ?>"></div>
         <div class="form-group"><label class="form-label">Currency Symbol</label><input type="text" name="currency" class="form-control" placeholder="e.g. Ksh, $, UGX" value="<?= htmlspecialchars($tenant['currency']??'Ksh') ?>"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-16">
+    <div class="card-header"><div class="card-title">🖼️ School Logo</div></div>
+    <div class="card-body">
+      <div class="form-group">
+        <label class="form-label">Logo</label>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <div id="logoPreviewBox" style="width:72px;height:72px;border-radius:var(--radius-sm);border:1px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">
+            <?php if(!empty($tenant['logo'])): ?>
+              <img id="logoPreviewImg" src="<?= htmlspecialchars($tenant['logo']) ?>" alt="Logo" style="width:100%;height:100%;object-fit:contain;">
+            <?php else: ?>
+              <span id="logoPreviewImg" style="color:var(--text-muted);font-size:11px;">No logo</span>
+            <?php endif; ?>
+          </div>
+          <div style="flex:1;min-width:220px;">
+            <input type="file" name="logo" id="logoInput" class="form-control" accept=".jpg,.jpeg,.png,.webp,.gif,.svg,image/*">
+            <div class="form-hint">JPG, PNG, WEBP, GIF or SVG — up to 2MB. Appears in the sidebar, login page, ID cards, report cards, payslips and invoices.</div>
+            <?php if(!empty($tenant['logo'])): ?>
+              <label style="display:flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer;font-size:12.5px;color:var(--text-muted);">
+                <input type="checkbox" name="remove_logo" value="1" onchange="document.getElementById('logoInput').disabled=this.checked;">
+                Remove current logo
+              </label>
+            <?php endif; ?>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -97,5 +129,15 @@
 document.getElementById('primaryColorInput').addEventListener('input', function(){ document.getElementById('previewPrimary').style.background = this.value; });
 document.getElementById('secondaryColorInput').addEventListener('input', function(){ document.getElementById('previewSecondary').style.background = this.value; });
 document.getElementById('accentColorInput').addEventListener('input', function(){ document.getElementById('previewAccent').style.background = this.value; });
+
+document.getElementById('logoInput').addEventListener('change', function(){
+  if (!this.files || !this.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const box = document.getElementById('logoPreviewBox');
+    box.innerHTML = '<img id="logoPreviewImg" src="' + e.target.result + '" alt="Logo" style="width:100%;height:100%;object-fit:contain;">';
+  };
+  reader.readAsDataURL(this.files[0]);
+});
 </script>
 <?php require ROOT_DIR . '/app/Views/layouts/footer.php'; ?>

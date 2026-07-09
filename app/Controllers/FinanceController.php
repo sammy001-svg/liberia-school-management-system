@@ -213,4 +213,18 @@ class FinanceController extends Controller {
             'flash'=>$this->getFlash(),
         ]);
     }
+
+    public function printInvoice(string $id): void {
+        $this->requireAuth(['School Admin','Accountant']);
+        $invoice = $this->db->fetchOne(
+            "SELECT i.*, u.name AS student_name, s.admission_no, c.name AS class_name
+             FROM invoices i JOIN students s ON i.student_id=s.id JOIN users u ON s.user_id=u.id
+             LEFT JOIN classes c ON s.class_id=c.id
+             WHERE i.id=? AND i.tenant_id=?", [$id, $this->tid]
+        );
+        if (!$invoice) { $this->redirect('/school/finance/invoices'); }
+        $payments = $this->db->fetchAll("SELECT * FROM payments WHERE invoice_id=? AND tenant_id=? ORDER BY paid_at", [$id, $this->tid]);
+        $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
+        $this->view('school/finance/invoice_print', ['pageTitle'=>'Invoice','tenant'=>$tenant,'invoice'=>$invoice,'payments'=>$payments]);
+    }
 }

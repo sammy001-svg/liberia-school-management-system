@@ -62,6 +62,7 @@ $router->get('/school/finance',             ['FinanceController', 'index']);
 $router->get('/school/finance/invoices',    ['FinanceController', 'invoices']);
 $router->get('/school/finance/invoices/create', ['FinanceController', 'createInvoice']);
 $router->post('/school/finance/invoices/store', ['FinanceController', 'storeInvoice']);
+$router->get('/school/finance/invoices/{id}/print', ['FinanceController', 'printInvoice']);
 $router->get('/school/finance/payments',    ['FinanceController', 'payments']);
 $router->post('/school/finance/payments/store', ['FinanceController', 'storePayment']);
 $router->get('/school/finance/fees',        ['FinanceController', 'feeStructures']);

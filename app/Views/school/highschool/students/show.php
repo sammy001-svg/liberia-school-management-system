@@ -185,13 +185,18 @@
     <div class="card">
       <div class="card-header"><div class="card-title">Invoices</div><a href="<?= $cfg['url'] ?>/school/finance/invoices/create" class="btn btn-sm btn-primary">+ Invoice</a></div>
       <div class="table-wrapper"><table>
-        <thead><tr><th>Invoice</th><th>Amount</th><th>Status</th></tr></thead>
+        <thead><tr><th>Invoice</th><th>Amount</th><th>Status</th><th></th></tr></thead>
         <tbody>
           <?php foreach($invoices as $inv): ?>
-          <tr><td style="font-family:monospace;font-size:12px"><?= htmlspecialchars($inv['invoice_no']) ?></td><td><?= htmlspecialchars($tenant['currency'] ?? 'Ksh') ?><?= number_format($inv['amount_due'],2) ?></td><td><span class="badge badge-<?= $inv['status']==='paid'?'success':($inv['status']==='overdue'?'danger':($inv['status']==='waived'?'muted':'warning')) ?>"><?= ucfirst($inv['status']) ?></span></td></tr>
+          <tr>
+            <td style="font-family:monospace;font-size:12px"><?= htmlspecialchars($inv['invoice_no']) ?></td>
+            <td><?= htmlspecialchars($tenant['currency'] ?? 'Ksh') ?><?= number_format($inv['amount_due'],2) ?></td>
+            <td><span class="badge badge-<?= $inv['status']==='paid'?'success':($inv['status']==='overdue'?'danger':($inv['status']==='waived'?'muted':'warning')) ?>"><?= ucfirst($inv['status']) ?></span></td>
+            <td><a href="<?= $cfg['url'] ?>/school/finance/invoices/<?= $inv['id'] ?>/print" target="_blank" class="btn btn-sm btn-outline">Print</a></td>
+          </tr>
           <?php endforeach; ?>
           <?php if(empty($invoices)): ?>
-          <tr><td colspan="3"><div class="empty-state"><div class="empty-state-icon">🧾</div><div class="empty-state-text">No invoices raised yet.</div></div></td></tr>
+          <tr><td colspan="4"><div class="empty-state"><div class="empty-state-icon">🧾</div><div class="empty-state-text">No invoices raised yet.</div></div></td></tr>
           <?php endif; ?>
         </tbody>
       </table></div>

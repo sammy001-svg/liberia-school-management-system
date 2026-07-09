@@ -4,6 +4,8 @@ config/database.php
 # Uploads
 uploads/*
 !uploads/.gitkeep
+public/uploads/*/*
+!public/uploads/*/.gitkeep
 
 # IDE and System Files
 .idea/
@@ -16,3 +18,6 @@ Thumbs.db
 
 # Temp files
 /tmp/
+
+# Data migration scripts (may contain real student/staff PII — never commit)
+/sql/migrations/

@@ -202,6 +202,61 @@ abstract class Controller {
         return $rows;
     }
 
+    /**
+     * Validates and stores an uploaded image under public/uploads/{subdir}/ so it's
+     * always web-servable regardless of document-root strategy, then returns its
+     * public URL. Returns null (and does nothing) if no file was actually chosen —
+     * that's normal, not an error. On validation failure, appends a message to
+     * $errors[$fieldName] and returns null so the caller can failValidation() as usual.
+     * Validates real image content via getimagesize() rather than trusting the
+     * client-supplied MIME type, and doesn't depend on the fileinfo extension.
+     */
+    protected function handleImageUpload(string $fieldName, string $subdir, array &$errors, int $maxBytes = 2097152): ?string {
+        if (empty($_FILES[$fieldName]) || $_FILES[$fieldName]['error'] === UPLOAD_ERR_NO_FILE) {
+            return null;
+        }
+        if ($_FILES[$fieldName]['error'] !== UPLOAD_ERR_OK) {
+            $errors[$fieldName] = 'Upload failed. Please try again.';
+            return null;
+        }
+        if ($_FILES[$fieldName]['size'] > $maxBytes) {
+            $errors[$fieldName] = 'Image must be smaller than ' . round($maxBytes / 1024 / 1024, 1) . 'MB.';
+            return null;
+        }
+        $tmpPath = $_FILES[$fieldName]['tmp_name'];
+        $origExt = strtolower(pathinfo((string)$_FILES[$fieldName]['name'], PATHINFO_EXTENSION));
+
+        if ($origExt === 'svg') {
+            $content = file_get_contents($tmpPath, false, null, 0, 4096);
+            if ($content === false || stripos($content, '<svg') === false) {
+                $errors[$fieldName] = 'That does not look like a valid SVG file.';
+                return null;
+            }
+            $ext = 'svg';
+        } else {
+            $imageInfo = @getimagesize($tmpPath);
+            $allowedTypes = [IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_WEBP => 'webp', IMAGETYPE_GIF => 'gif'];
+            if (!$imageInfo || !isset($allowedTypes[$imageInfo[2]])) {
+                $errors[$fieldName] = 'Only JPG, PNG, WEBP, GIF or SVG images are allowed.';
+                return null;
+            }
+            $ext = $allowedTypes[$imageInfo[2]];
+        }
+
+        $filename = bin2hex(random_bytes(8)) . '.' . $ext;
+        $destDir = dirname(__DIR__) . "/public/uploads/{$subdir}/";
+        if (!is_dir($destDir) && !mkdir($destDir, 0755, true) && !is_dir($destDir)) {
+            $errors[$fieldName] = 'Could not prepare the upload folder.';
+            return null;
+        }
+        if (!move_uploaded_file($tmpPath, $destDir . $filename)) {
+            $errors[$fieldName] = 'Could not save the uploaded image.';
+            return null;
+        }
+        $cfg = require dirname(__DIR__) . '/config/app.php';
+        return rtrim($cfg['url'], '/') . "/uploads/{$subdir}/{$filename}";
+    }
+
     /** Stream a downloadable CSV template with the given headers and an optional example row. */
     protected function downloadCsvTemplate(string $filename, array $headers, array $exampleRow = []): never {
         if (ob_get_level()) { ob_end_clean(); }

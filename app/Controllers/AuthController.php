@@ -19,6 +19,17 @@ class AuthController extends Controller {
         // Check if the current domain matches a custom domain in tenants
         $tenant = $this->db->fetchOne("SELECT name, primary_color, secondary_color, logo FROM tenants WHERE domain = ? AND status = 'active' LIMIT 1", [$host]);
 
+        // Single-school deployments have no custom domain configured — fall back to
+        // the one active tenant so the login page still shows real branding instead
+        // of the generic default. Only used when there's exactly one to avoid
+        // guessing wrong in a true multi-tenant setup.
+        if (!$tenant) {
+            $activeTenants = $this->db->fetchAll("SELECT name, primary_color, secondary_color, logo FROM tenants WHERE status = 'active'");
+            if (count($activeTenants) === 1) {
+                $tenant = $activeTenants[0];
+            }
+        }
+
         if ($tenant) {
             $branding['name'] = $tenant['name'];
             $branding['primary_color'] = $tenant['primary_color'];

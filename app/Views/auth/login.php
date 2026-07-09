@@ -1,6 +1,6 @@
 <?php
 $cfg      = require ROOT_DIR . '/config/app.php';
-$branding = $_SESSION['branding'] ?? null;
+$branding = $branding ?? ($_SESSION['branding'] ?? null);
 $appName  = $branding['name'] ?? $cfg['name'];
 $appLogo  = $branding['logo'] ?? null;
 $primaryColor   = $branding['primary_color']   ?? null;
