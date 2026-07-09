@@ -10,6 +10,7 @@
         <span class="meta-chip">🎓 <?= htmlspecialchars($student['admission_no']) ?></span>
         <span class="meta-chip">🏫 <?= htmlspecialchars($student['class_name'] ?? 'No Class') ?></span>
         <?php if($student['gender']): ?><span class="meta-chip"><?= $student['gender']==='female'?'♀':'♂' ?> <?= ucfirst($student['gender']) ?></span><?php endif; ?>
+        <?php if(!empty($student['admission_type'])): ?><span class="meta-chip"><?= $student['admission_type']==='new'?'🆕':'🔁' ?> <?= ucfirst($student['admission_type']) ?> Student</span><?php endif; ?>
         <span class="badge badge-<?= $student['status']==='active'?'success':($student['status']==='graduated'?'info':'danger') ?>"><?= ucfirst($student['status']) ?></span>
       </div>
     </div>
@@ -73,6 +74,18 @@
             <div class="detail-icon">📅</div>
             <div><div class="detail-label">Admission Date</div><div class="detail-value"><?= $student['admission_date'] ? date('d M Y', strtotime($student['admission_date'])) : '—' ?></div></div>
           </div>
+          <?php if(!empty($student['county']) || !empty($student['country'])): ?>
+          <div class="detail-item">
+            <div class="detail-icon">📍</div>
+            <div><div class="detail-label">County / Country</div><div class="detail-value"><?= htmlspecialchars(trim(implode(', ', array_filter([$student['county'] ?? null, $student['country'] ?? null])))) ?></div></div>
+          </div>
+          <?php endif; ?>
+          <?php if(!empty($student['religion'])): ?>
+          <div class="detail-item">
+            <div class="detail-icon">🙏</div>
+            <div><div class="detail-label">Religion</div><div class="detail-value"><?= htmlspecialchars($student['religion']) ?></div></div>
+          </div>
+          <?php endif; ?>
         </div>
       </div>
     </div>
@@ -87,21 +100,49 @@
           </div>
           <div class="detail-item">
             <div class="detail-icon">📱</div>
-            <div><div class="detail-label">Guardian Phone</div><div class="detail-value"><?= htmlspecialchars($student['guardian_phone'] ?? '—') ?></div></div>
+            <div><div class="detail-label">Contact Number 1</div><div class="detail-value"><?= htmlspecialchars($student['guardian_phone'] ?? '—') ?></div></div>
           </div>
           <div class="detail-item">
             <div class="detail-icon">🚨</div>
-            <div><div class="detail-label">Emergency Contact</div><div class="detail-value"><?= htmlspecialchars($student['emergency_contact_phone'] ?? '—') ?></div></div>
+            <div><div class="detail-label">Contact Number 2</div><div class="detail-value"><?= htmlspecialchars($student['emergency_contact_phone'] ?? '—') ?></div></div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <?php if(!empty($student['previous_school']) || !empty($student['previous_class']) || !empty($student['reason_for_leaving'])): ?>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Previous School</div></div>
+      <div class="card-body">
+        <div class="detail-list">
           <?php if(!empty($student['previous_school'])): ?>
           <div class="detail-item">
             <div class="detail-icon">🏛️</div>
-            <div><div class="detail-label">Previous School</div><div class="detail-value"><?= htmlspecialchars($student['previous_school']) ?></div></div>
+            <div><div class="detail-label">Name</div><div class="detail-value"><?= htmlspecialchars($student['previous_school']) ?></div></div>
+          </div>
+          <?php endif; ?>
+          <?php if(!empty($student['previous_school_address'])): ?>
+          <div class="detail-item">
+            <div class="detail-icon">📍</div>
+            <div><div class="detail-label">Address</div><div class="detail-value"><?= htmlspecialchars($student['previous_school_address']) ?></div></div>
+          </div>
+          <?php endif; ?>
+          <?php if(!empty($student['previous_class'])): ?>
+          <div class="detail-item">
+            <div class="detail-icon">🎒</div>
+            <div><div class="detail-label">Previous Class</div><div class="detail-value"><?= htmlspecialchars($student['previous_class']) ?></div></div>
+          </div>
+          <?php endif; ?>
+          <?php if(!empty($student['reason_for_leaving'])): ?>
+          <div class="detail-item">
+            <div class="detail-icon">📝</div>
+            <div><div class="detail-label">Reason for Leaving</div><div class="detail-value"><?= htmlspecialchars($student['reason_for_leaving']) ?></div></div>
           </div>
           <?php endif; ?>
         </div>
       </div>
     </div>
+    <?php endif; ?>
 
   </div>
 

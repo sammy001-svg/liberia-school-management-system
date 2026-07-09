@@ -13,6 +13,21 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= htmlspecialchars($pageTitle ?? 'Login') ?> — <?= htmlspecialchars($appName) ?></title>
+<meta name="description" content="<?= htmlspecialchars($pageDescription ?? 'A comprehensive and modern school management system for tracking attendance, grades, and student growth.') ?>">
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="<?= htmlspecialchars($cfg['url'] ?? '') ?>/">
+<meta property="og:title" content="<?= htmlspecialchars($pageTitle ?? 'Login') ?> — <?= htmlspecialchars($appName) ?>">
+<meta property="og:description" content="<?= htmlspecialchars($pageDescription ?? 'A comprehensive and modern school management system for tracking attendance, grades, and student growth.') ?>">
+<meta property="og:image" content="<?= htmlspecialchars($pageImage ?? ($cfg['url'] . '/assets/img/og-image.jpg')) ?>">
+
+<!-- Twitter -->
+<meta property="twitter:card" content="summary_large_image">
+<meta property="twitter:url" content="<?= htmlspecialchars($cfg['url'] ?? '') ?>/">
+<meta property="twitter:title" content="<?= htmlspecialchars($pageTitle ?? 'Login') ?> — <?= htmlspecialchars($appName) ?>">
+<meta property="twitter:description" content="<?= htmlspecialchars($pageDescription ?? 'A comprehensive and modern school management system for tracking attendance, grades, and student growth.') ?>">
+<meta property="twitter:image" content="<?= htmlspecialchars($pageImage ?? ($cfg['url'] . '/assets/img/og-image.jpg')) ?>">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<?= rawurlencode($faviconSvg) ?>">
 <script>(function(){try{if(localStorage.getItem('theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
 <link rel="stylesheet" href="<?= $cfg['url'] ?>/assets/css/style.css">

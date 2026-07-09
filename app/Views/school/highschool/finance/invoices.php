@@ -8,10 +8,18 @@
   <button type="button" class="btn btn-primary" onclick="document.getElementById('generateInvoiceModal').classList.add('open')">+ Generate Invoice</button>
 </div>
 
+<?php if(!empty($filteredStudent)): ?>
+<div class="alert alert-info" style="display:flex;justify-content:space-between;align-items:center;">
+  <span>Showing invoices for <strong><?= htmlspecialchars($filteredStudent['name']) ?></strong> only.</span>
+  <a href="<?= $cfg['url'] ?>/school/finance/invoices<?= $status ? '?status='.$status : '' ?>" class="btn btn-sm btn-outline">Clear Filter</a>
+</div>
+<?php endif; ?>
+
 <form method="GET" style="margin-bottom:20px;display:flex;gap:12px;align-items:center;">
+  <?php if($studentId): ?><input type="hidden" name="student_id" value="<?= htmlspecialchars($studentId) ?>"><?php endif; ?>
   <label style="color:var(--text-muted);font-size:13px">Status:</label>
   <?php foreach(['' => 'All','unpaid'=>'Unpaid','partial'=>'Partial','paid'=>'Paid','overdue'=>'Overdue'] as $val=>$lbl): ?>
-    <a href="?status=<?= $val ?>" class="btn btn-sm <?= $status===$val?'btn-primary':'btn-outline' ?>"><?= $lbl ?></a>
+    <a href="?status=<?= $val ?><?= $studentId ? '&student_id='.$studentId : '' ?>" class="btn btn-sm <?= $status===$val?'btn-primary':'btn-outline' ?>"><?= $lbl ?></a>
   <?php endforeach; ?>
 </form>
 <div class="card">

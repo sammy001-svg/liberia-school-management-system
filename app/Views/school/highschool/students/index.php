@@ -60,7 +60,7 @@
               <div class="avatar"><?= strtoupper(substr($s['name'],0,1)) ?></div>
               <div>
                 <div class="fw-600"><?= htmlspecialchars($s['name']) ?></div>
-                <div style="font-size:11px;color:var(--text-muted)"><?= htmlspecialchars($s['email']) ?></div>
+                <div style="font-size:11px;color:var(--text-muted)"><?= htmlspecialchars($s['email'] ?? '—') ?></div>
               </div>
             </a>
           </td>
@@ -109,12 +109,26 @@
         <div class="modal-section-title">Personal Information</div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Full Name *</label>
-            <input type="text" name="name" class="form-control" required>
+            <label class="form-label">First Name *</label>
+            <input type="text" name="first_name" class="form-control" required>
           </div>
           <div class="form-group">
-            <label class="form-label">Email Address *</label>
-            <input type="email" name="email" class="form-control" required>
+            <label class="form-label">Middle Name</label>
+            <input type="text" name="middle_name" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Last Name *</label>
+            <input type="text" name="last_name" class="form-control" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Admission / TSM No.</label>
+            <input type="text" name="admission_no" class="form-control" placeholder="Leave blank to auto-generate">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <input type="email" name="email" class="form-control" placeholder="Optional">
           </div>
         </div>
         <div class="form-row">
@@ -151,6 +165,20 @@
           <label class="form-label">Home Address</label>
           <textarea name="address" class="form-control" rows="2"></textarea>
         </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">County</label>
+            <input type="text" name="county" class="form-control" placeholder="e.g. Margibi County">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Country</label>
+            <input type="text" name="country" class="form-control" value="Liberia">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Religion</label>
+            <input type="text" name="religion" class="form-control">
+          </div>
+        </div>
 
         <div class="modal-section-title">Guardian &amp; Emergency Contact</div>
         <div class="form-row">
@@ -171,12 +199,34 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Guardian Phone</label>
+            <label class="form-label">Contact Number 1 (Guardian Phone)</label>
             <input type="text" name="guardian_phone" class="form-control">
           </div>
           <div class="form-group">
-            <label class="form-label">Emergency Contact Phone</label>
+            <label class="form-label">Contact Number 2 (Emergency)</label>
             <input type="text" name="emergency_contact_phone" class="form-control">
+          </div>
+        </div>
+
+        <div class="modal-section-title">Previous School (if transferring)</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Previous School Name</label>
+            <input type="text" name="previous_school" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Previous Class</label>
+            <input type="text" name="previous_class" class="form-control">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Previous School Address</label>
+            <input type="text" name="previous_school_address" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Reason for Leaving</label>
+            <input type="text" name="reason_for_leaving" class="form-control">
           </div>
         </div>
 
@@ -192,8 +242,11 @@
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label">Previous School</label>
-            <input type="text" name="previous_school" class="form-control">
+            <label class="form-label">Student Type</label>
+            <select name="admission_type" class="form-control">
+              <option value="new">New Student</option>
+              <option value="old">Old Student</option>
+            </select>
           </div>
         </div>
         <div class="form-row">
@@ -227,13 +280,13 @@
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
       <div class="modal-body">
         <p class="text-muted" style="font-size:13px;margin-bottom:16px;">
-          Upload a CSV file to admit multiple students at once.
+          Upload a CSV file to admit multiple students at once — including a direct export from TSM (TSM ID, First/Middle/Last Name, Class, Gender, Date of Birth, Residential Address, County, Country, Religion, Contact Number 1/2, Email, Previous School details, Admission/Transfer Date, Reason for Leaving, Student Type).
           <a href="<?= $cfg['url'] ?>/school/students/bulk-template">Download the CSV template</a> to see the expected columns.
         </p>
         <div class="form-group">
           <label class="form-label">CSV File *</label>
           <input type="file" name="csv_file" class="form-control" accept=".csv" required>
-          <div class="form-hint">New students get the default password <code>Student@123</code>. Rows with missing name/email or duplicate emails are skipped and reported.</div>
+          <div class="form-hint">New students get the default password <code>Student@123</code>. Email is optional. Classes that don't exist yet are created automatically. Rows missing TSM ID/First/Last Name, or with a duplicate TSM ID, are skipped and reported.</div>
         </div>
       </div>
       <div class="modal-footer">

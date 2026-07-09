@@ -50,9 +50,19 @@ class StudentController extends Controller {
     public function bulkTemplate(): void {
         $this->requireAuth(['School Admin']);
         $this->downloadCsvTemplate('students_template.csv',
-            ['name','email','phone','gender','dob','class_name','admission_date','guardian_name','guardian_phone','guardian_relationship','blood_group'],
-            ['Jane Doe','jane.doe@example.com','0771234567','female','2010-05-14','Grade 7A','2026-01-15','John Doe','0779876543','Father','O+']
+            ['TSM ID','First Name','Middle Name','Last Name','Class','Gender','Date of Birth','Residential Address','County','Country','Religion','Contact Number 1','Contact Number 2','Email','Previous School Name','Previous School Address','Previous Class','Admission Date','Transfer Date','Reason for Leaving','Student Type'],
+            ['CAS0001','Jane','K.','Doe','Grade 7A','Female','14/05/2010','Ben Town','Margibi County','Liberia','Christianity','0771234567','0779876543','jane.doe@example.com','','','','15/01/2026','','','New Student']
         );
+    }
+
+    /** Parses a date in DD/MM/YYYY (as exported by TSM-style systems) or falls back to any format PHP recognizes. */
+    private function parseFlexibleDate(?string $value): ?string {
+        $value = trim((string)$value);
+        if ($value === '') { return null; }
+        $d = \DateTime::createFromFormat('d/m/Y', $value);
+        if ($d && $d->format('d/m/Y') === $value) { return $d->format('Y-m-d'); }
+        $ts = strtotime($value);
+        return $ts !== false ? date('Y-m-d', $ts) : null;
     }
 
     public function bulkUpload(): void {
@@ -68,40 +78,78 @@ class StudentController extends Controller {
         foreach ($rows as $i => $row) {
             $line = $i + 2; // +1 for header row, +1 for 1-indexing
             try {
-                $name = $row['name'] ?? '';
-                $email = $row['email'] ?? '';
-                if ($name === '' || $email === '') {
-                    $rowErrors[] = "Row {$line}: name and email are required.";
+                $tsmId     = trim($row['tsm id'] ?? '');
+                $firstName = trim($row['first name'] ?? '');
+                $middleName = trim($row['middle name'] ?? '');
+                $lastName  = trim($row['last name'] ?? '');
+                if ($tsmId === '' || $firstName === '' || $lastName === '') {
+                    $rowErrors[] = "Row {$line}: TSM ID, First Name and Last Name are required.";
                     continue;
                 }
-                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $name = trim(preg_replace('/\s+/', ' ', "$firstName $middleName $lastName"));
+
+                $email = trim($row['email'] ?? '');
+                if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
                     $rowErrors[] = "Row {$line}: '{$email}' is not a valid email address.";
                     continue;
                 }
+                $email = $email !== '' ? $email : null;
+
+                $genderRaw = strtolower(trim($row['gender'] ?? ''));
+                $gender = in_array($genderRaw, ['male','female','other'], true) ? $genderRaw : null;
+
+                $dob = $this->parseFlexibleDate($row['date of birth'] ?? null);
+                $admissionDate = $this->parseFlexibleDate($row['admission date'] ?? null)
+                    ?? $this->parseFlexibleDate($row['transfer date'] ?? null)
+                    ?? date('Y-m-d');
+
+                $className = trim($row['class'] ?? '');
                 $classId = null;
-                if (!empty($row['class_name'])) {
-                    $classId = $classByName[strtolower($row['class_name'])] ?? null;
-                    if ($classId === null) {
-                        $rowErrors[] = "Row {$line}: class '{$row['class_name']}' not found — student added without a class.";
+                if ($className !== '' && strtolower($className) !== 'n/a') {
+                    $key = strtolower($className);
+                    if (!isset($classByName[$key])) {
+                        // Auto-create so a fresh school's class list doesn't block the whole import
+                        $classByName[$key] = $this->db->insert(
+                            "INSERT INTO classes (tenant_id,name,grade_level) VALUES (?,?,?)",
+                            [$this->tid, $className, $className]
+                        );
                     }
+                    $classId = $classByName[$key];
                 }
+
+                $studentTypeRaw = strtolower(trim($row['student type'] ?? ''));
+                $admissionType = str_contains($studentTypeRaw, 'old') ? 'old' : 'new';
+
                 $userId = $this->db->insert(
-                    "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,date_of_birth,status) VALUES (?,?,?,?,?,?,?,?)",
-                    [$this->tid, $roleId, $name, $email, $row['phone'] ?? '', $row['gender'] ?: null, $row['dob'] ?: null, 'active']
+                    "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,date_of_birth,address,status) VALUES (?,?,?,?,?,?,?,?,?)",
+                    [$this->tid, $roleId, $name, $email, $row['contact number 1'] ?: '', $gender, $dob, $row['residential address'] ?: '', 'active']
                 );
                 $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [password_hash('Student@123', PASSWORD_BCRYPT), $userId]);
-                $admNo = 'ADM-'.date('Y').'-'.str_pad($userId, 4, '0', STR_PAD_LEFT);
+
                 $this->db->insert(
-                    "INSERT INTO students (tenant_id,user_id,admission_no,class_id,admission_date,status,blood_group,guardian_name,guardian_phone,guardian_relationship)
-                     VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    "INSERT INTO students (
+                        tenant_id,user_id,admission_no,class_id,admission_date,status,
+                        guardian_phone,emergency_contact_phone,
+                        first_name,middle_name,last_name,county,country,religion,
+                        previous_school,previous_school_address,previous_class,reason_for_leaving,admission_type
+                     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     [
-                        $this->tid, $userId, $admNo, $classId, $row['admission_date'] ?: date('Y-m-d'), 'active',
-                        $row['blood_group'] ?: null, $row['guardian_name'] ?: null, $row['guardian_phone'] ?: null, $row['guardian_relationship'] ?: null,
+                        $this->tid, $userId, $tsmId, $classId, $admissionDate, 'active',
+                        $row['contact number 1'] ?: null, $row['contact number 2'] ?: null,
+                        $firstName, $middleName ?: null, $lastName, $row['county'] ?: null, $row['country'] ?: null, $row['religion'] ?: null,
+                        $row['previous school name'] ?: null, $row['previous school address'] ?: null, $row['previous class'] ?: null, $row['reason for leaving'] ?: null,
+                        $admissionType,
                     ]
                 );
                 $success++;
             } catch (\Throwable $e) {
-                $reason = str_contains($e->getMessage(), 'Duplicate entry') ? 'that email is already registered.' : 'could not be imported.';
+                if (str_contains($e->getMessage(), 'Duplicate entry')) {
+                    $reason = str_contains($e->getMessage(), 'unique_admission')
+                        ? "TSM ID '{$tsmId}' is already in use."
+                        : 'that email is already registered.';
+                } else {
+                    $reason = 'could not be imported.';
+                }
                 $rowErrors[] = "Row {$line}: {$reason}";
             }
         }
@@ -111,30 +159,45 @@ class StudentController extends Controller {
     public function store(): void {
         $this->requireAuth(['School Admin']);
         $errors = $this->validate($_POST, [
-            'name'  => 'required|max:150',
-            'email' => 'required|email|max:150',
-            'phone' => 'max:30',
-            'dob'   => 'date',
+            'first_name' => 'required|max:100',
+            'last_name'  => 'required|max:100',
+            'email'      => 'email|max:150',
+            'phone'      => 'max:30',
+            'dob'        => 'date',
             'admission_date' => 'date',
         ]);
+        if (!empty($_POST['admission_no'])) {
+            $taken = $this->db->fetchOne("SELECT id FROM students WHERE admission_no=? AND tenant_id=?", [$_POST['admission_no'], $this->tid]);
+            if ($taken) { $errors['admission_no'] = 'That admission/TSM ID is already in use.'; }
+        }
         if ($errors) { $this->failValidation($errors, '/school/students'); }
+
+        $name = trim(preg_replace('/\s+/', ' ', $_POST['first_name'].' '.($_POST['middle_name']??'').' '.$_POST['last_name']));
         $roleId = $this->db->fetchOne("SELECT id FROM roles WHERE name='Student' LIMIT 1")['id'] ?? 7;
-        $pw = password_hash($_POST['password'] ?? 'Student@123', PASSWORD_BCRYPT);
+        $pw = password_hash($_POST['password'] ?: 'Student@123', PASSWORD_BCRYPT);
         $userId = $this->db->insert(
             "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,date_of_birth,address,status) VALUES (?,?,?,?,?,?,?,?,?)",
-            [$this->tid, $roleId, $_POST['name'], $_POST['email'], $_POST['phone']??'', $_POST['gender']??null, $_POST['dob']??null, $_POST['address']??'', 'active']
+            [$this->tid, $roleId, $name, $_POST['email']?:null, $_POST['phone']??'', $_POST['gender']??null, $_POST['dob']??null, $_POST['address']??'', 'active']
         );
         // Update password
         $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [$pw, $userId]);
-        $admNo = 'ADM-'.date('Y').'-'.str_pad($userId, 4, '0', STR_PAD_LEFT);
+        $admNo = $_POST['admission_no'] ?: ('ADM-'.date('Y').'-'.str_pad($userId, 4, '0', STR_PAD_LEFT));
         $this->db->insert(
-            "INSERT INTO students (tenant_id,user_id,admission_no,class_id,admission_date,status,blood_group,previous_school,guardian_name,guardian_phone,guardian_relationship,emergency_contact_phone)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO students (
+                tenant_id,user_id,admission_no,class_id,admission_date,status,blood_group,previous_school,
+                guardian_name,guardian_phone,guardian_relationship,emergency_contact_phone,
+                first_name,middle_name,last_name,county,country,religion,
+                previous_school_address,previous_class,reason_for_leaving,admission_type
+             ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             [
                 $this->tid, $userId, $admNo, $_POST['class_id']?:null, $_POST['admission_date']??date('Y-m-d'), 'active',
                 $_POST['blood_group']?:null, $_POST['previous_school']??null,
                 $_POST['guardian_name']??null, $_POST['guardian_phone']??null, $_POST['guardian_relationship']??null,
                 $_POST['emergency_contact_phone']??null,
+                $_POST['first_name'], $_POST['middle_name']?:null, $_POST['last_name'],
+                $_POST['county']?:null, $_POST['country']?:null, $_POST['religion']?:null,
+                $_POST['previous_school_address']?:null, $_POST['previous_class']?:null, $_POST['reason_for_leaving']?:null,
+                $_POST['admission_type']??'new',
             ]
         );
         $this->flash('success', 'Student admitted successfully. Admission No: '.$admNo);
@@ -218,10 +281,25 @@ class StudentController extends Controller {
         $this->requireAuth(['School Admin']);
         $student = $this->db->fetchOne("SELECT user_id FROM students WHERE id=? AND tenant_id=?",[$id,$this->tid]);
         if (!$student) { $this->redirect('/school/students'); }
-        $errors = $this->validate($_POST, ['name' => 'required|max:150', 'email' => 'required|email|max:150']);
+        $errors = $this->validate($_POST, ['first_name' => 'required|max:100', 'last_name' => 'required|max:100', 'email' => 'email|max:150']);
         if ($errors) { $this->failValidation($errors, '/school/students/'.$id.'/edit'); }
-        $this->db->execute("UPDATE users SET name=?,email=?,phone=?,gender=?,date_of_birth=? WHERE id=?",[$_POST['name'],$_POST['email'],$_POST['phone']??'',$_POST['gender']??null,$_POST['dob']??null,$student['user_id']]);
-        $this->db->execute("UPDATE students SET class_id=?,status=? WHERE id=? AND tenant_id=?",[$_POST['class_id']?:null,$_POST['status']??'active',$id,$this->tid]);
+        $name = trim(preg_replace('/\s+/', ' ', $_POST['first_name'].' '.($_POST['middle_name']??'').' '.$_POST['last_name']));
+        $this->db->execute("UPDATE users SET name=?,email=?,phone=?,gender=?,date_of_birth=?,address=? WHERE id=?",
+            [$name,$_POST['email']?:null,$_POST['phone']??'',$_POST['gender']??null,$_POST['dob']??null,$_POST['address']??'',$student['user_id']]);
+        $this->db->execute(
+            "UPDATE students SET class_id=?,status=?,first_name=?,middle_name=?,last_name=?,county=?,country=?,religion=?,
+                guardian_name=?,guardian_phone=?,guardian_relationship=?,emergency_contact_phone=?,
+                previous_school=?,previous_school_address=?,previous_class=?,reason_for_leaving=?,admission_type=?
+             WHERE id=? AND tenant_id=?",
+            [
+                $_POST['class_id']?:null, $_POST['status']??'active', $_POST['first_name'], $_POST['middle_name']?:null, $_POST['last_name'],
+                $_POST['county']?:null, $_POST['country']?:null, $_POST['religion']?:null,
+                $_POST['guardian_name']?:null, $_POST['guardian_phone']?:null, $_POST['guardian_relationship']?:null, $_POST['emergency_contact_phone']?:null,
+                $_POST['previous_school']?:null, $_POST['previous_school_address']?:null, $_POST['previous_class']?:null, $_POST['reason_for_leaving']?:null,
+                $_POST['admission_type']??'new',
+                $id, $this->tid,
+            ]
+        );
         $this->flash('success','Student updated.');
         $this->redirect('/school/students/'.$id);
     }

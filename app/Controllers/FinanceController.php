@@ -12,6 +12,7 @@ class FinanceController extends Controller {
             'total_paid' => $this->db->fetchOne("SELECT COALESCE(SUM(amount_paid),0) AS c FROM invoices WHERE tenant_id=?",[$this->tid])['c']??0,
             'unpaid'     => $this->db->fetchOne("SELECT COUNT(*) AS c FROM invoices WHERE tenant_id=? AND status IN('unpaid','partial','overdue')",[$this->tid])['c']??0,
             'paid'       => $this->db->fetchOne("SELECT COUNT(*) AS c FROM invoices WHERE tenant_id=? AND status='paid'",[$this->tid])['c']??0,
+            'total_expenses' => $this->db->fetchOne("SELECT COALESCE(SUM(amount),0) AS c FROM expenses WHERE tenant_id=?",[$this->tid])['c']??0,
         ];
         $recentPayments = $this->db->fetchAll("SELECT p.*, i.invoice_no, u.name AS student_name FROM payments p JOIN invoices i ON p.invoice_id=i.id JOIN students s ON i.student_id=s.id JOIN users u ON s.user_id=u.id WHERE p.tenant_id=? ORDER BY p.paid_at DESC LIMIT 10",[$this->tid]);
         $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
@@ -21,9 +22,11 @@ class FinanceController extends Controller {
     public function invoices(): void {
         $this->requireAuth(['School Admin','Accountant']);
         $status = $_GET['status'] ?? '';
+        $studentId = $_GET['student_id'] ?? '';
         $params = [$this->tid];
         $where  = "i.tenant_id=?";
         if ($status) { $where .= " AND i.status=?"; $params[] = $status; }
+        if ($studentId) { $where .= " AND i.student_id=?"; $params[] = $studentId; }
 
         $totalCount = $this->db->fetchOne("SELECT COUNT(*) c FROM invoices i WHERE $where", $params)['c'];
         $p = $this->paginate($totalCount);
@@ -35,8 +38,9 @@ class FinanceController extends Controller {
         $tenant     = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
         $students   = $this->db->fetchAll("SELECT s.id, u.name FROM students s JOIN users u ON s.user_id=u.id WHERE s.tenant_id=? AND s.status='active' ORDER BY u.name",[$this->tid]);
         $feeStructs = $this->db->fetchAll("SELECT id,name,amount FROM fee_structures WHERE tenant_id=?",[$this->tid]);
+        $filteredStudent = $studentId ? $this->db->fetchOne("SELECT s.id, u.name FROM students s JOIN users u ON s.user_id=u.id WHERE s.id=? AND s.tenant_id=?", [$studentId, $this->tid]) : null;
         $this->view('school/highschool/finance/invoices', [
-            'pageTitle'=>'Invoices','panelType'=>'school','tenant'=>$tenant,'invoices'=>$invoices,'status'=>$status,'students'=>$students,'feeStructs'=>$feeStructs,
+            'pageTitle'=>'Invoices','panelType'=>'school','tenant'=>$tenant,'invoices'=>$invoices,'status'=>$status,'studentId'=>$studentId,'filteredStudent'=>$filteredStudent,'students'=>$students,'feeStructs'=>$feeStructs,
             'page'=>$p['page'],'totalPages'=>$p['totalPages'],'total'=>$p['total'],'perPage'=>$p['perPage'],
             'flash'=>$this->getFlash(),
         ]);
@@ -113,13 +117,100 @@ class FinanceController extends Controller {
         ]);
         if ($errors) { $this->failValidation($errors, '/school/finance/invoices'); }
         $invoiceId = $_POST['invoice_id'];
+        $invoice = $this->db->fetchOne("SELECT amount_due FROM invoices WHERE id=? AND tenant_id=?", [$invoiceId, $this->tid]);
+        if (!$invoice) { $this->redirect('/school/finance/invoices'); }
         $amount    = (float)$_POST['amount'];
         $this->db->insert("INSERT INTO payments (tenant_id,invoice_id,amount,method,reference,received_by,notes) VALUES (?,?,?,?,?,?,?)",
             [$this->tid,$invoiceId,$amount,$_POST['method']??'cash',$_POST['reference']??'',$_SESSION['user_id'],$_POST['notes']??'']);
         $paid = $this->db->fetchOne("SELECT COALESCE(SUM(amount),0) AS t FROM payments WHERE invoice_id=?",[$invoiceId])['t']??0;
-        $due  = $this->db->fetchOne("SELECT amount_due FROM invoices WHERE id=?",[$invoiceId])['amount_due']??0;
-        $newStatus = $paid >= $due ? 'paid' : ($paid > 0 ? 'partial' : 'unpaid');
-        $this->db->execute("UPDATE invoices SET amount_paid=?, status=? WHERE id=?",[$paid,$newStatus,$invoiceId]);
+        $newStatus = $paid >= $invoice['amount_due'] ? 'paid' : ($paid > 0 ? 'partial' : 'unpaid');
+        $this->db->execute("UPDATE invoices SET amount_paid=?, status=? WHERE id=? AND tenant_id=?",[$paid,$newStatus,$invoiceId,$this->tid]);
         $this->flash('success','Payment recorded.'); $this->redirect('/school/finance/invoices');
+    }
+
+    // --- EXPENSES ---
+    public function expenses(): void {
+        $this->requireAuth(['School Admin','Accountant']);
+        $category = $_GET['category'] ?? '';
+        $params = [$this->tid];
+        $where = "e.tenant_id=?";
+        if ($category) { $where .= " AND e.category=?"; $params[] = $category; }
+
+        $totalCount = $this->db->fetchOne("SELECT COUNT(*) c FROM expenses e WHERE $where", $params)['c'];
+        $p = $this->paginate($totalCount);
+        $expenses = $this->db->fetchAll(
+            "SELECT e.*, u.name AS recorded_by_name FROM expenses e LEFT JOIN users u ON e.recorded_by=u.id WHERE $where ORDER BY e.expense_date DESC, e.id DESC LIMIT {$p['perPage']} OFFSET {$p['offset']}",
+            $params
+        );
+        $categories = $this->db->fetchAll("SELECT DISTINCT category FROM expenses WHERE tenant_id=? ORDER BY category", [$this->tid]);
+        $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
+        $stats = [
+            'total' => $this->db->fetchOne("SELECT COALESCE(SUM(amount),0) c FROM expenses WHERE tenant_id=?", [$this->tid])['c'] ?? 0,
+            'thisMonth' => $this->db->fetchOne("SELECT COALESCE(SUM(amount),0) c FROM expenses WHERE tenant_id=? AND MONTH(expense_date)=MONTH(CURDATE()) AND YEAR(expense_date)=YEAR(CURDATE())", [$this->tid])['c'] ?? 0,
+            'count' => $totalCount,
+        ];
+        $this->view('school/highschool/finance/expenses', [
+            'pageTitle'=>'Expenses','panelType'=>'school','tenant'=>$tenant,'expenses'=>$expenses,'categories'=>$categories,'category'=>$category,'stats'=>$stats,
+            'page'=>$p['page'],'totalPages'=>$p['totalPages'],'total'=>$p['total'],'perPage'=>$p['perPage'],
+            'flash'=>$this->getFlash(),
+        ]);
+    }
+
+    public function storeExpense(): void {
+        $this->requireAuth(['School Admin','Accountant']);
+        $errors = $this->validate($_POST, [
+            'category'     => 'required|max:80',
+            'amount'       => 'required|numeric',
+            'expense_date' => 'required|date',
+        ]);
+        if ($errors) { $this->failValidation($errors, '/school/finance/expenses'); }
+        $this->db->insert(
+            "INSERT INTO expenses (tenant_id,category,description,amount,expense_date,payee,method,reference,recorded_by) VALUES (?,?,?,?,?,?,?,?,?)",
+            [$this->tid,$_POST['category'],$_POST['description']??'',$_POST['amount'],$_POST['expense_date'],$_POST['payee']??'',$_POST['method']??'cash',$_POST['reference']??'',$_SESSION['user_id']]
+        );
+        $this->flash('success','Expense recorded.'); $this->redirect('/school/finance/expenses');
+    }
+
+    public function deleteExpense(string $id): void {
+        $this->requireAuth(['School Admin','Accountant']);
+        $this->db->execute("DELETE FROM expenses WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        $this->flash('success','Expense removed.'); $this->redirect('/school/finance/expenses');
+    }
+
+    // --- COLLECTION ---
+    public function collection(): void {
+        $this->requireAuth(['School Admin','Accountant']);
+        $classId = $_GET['class_id'] ?? '';
+        $params = [$this->tid];
+        $where = "i.tenant_id=? AND i.status NOT IN ('paid','waived')";
+        if ($classId) { $where .= " AND s.class_id=?"; $params[] = $classId; }
+
+        $balances = $this->db->fetchAll(
+            "SELECT s.id AS student_id, u.name, u.phone, s.guardian_phone, s.guardian_name, c.name AS class_name,
+                    SUM(i.amount_due - i.amount_paid) AS balance,
+                    COUNT(i.id) AS invoice_count,
+                    MIN(i.due_date) AS oldest_due_date,
+                    MAX(CASE WHEN i.due_date IS NOT NULL THEN DATEDIFF(CURDATE(), i.due_date) ELSE NULL END) AS days_overdue
+             FROM invoices i
+             JOIN students s ON i.student_id=s.id
+             JOIN users u ON s.user_id=u.id
+             LEFT JOIN classes c ON s.class_id=c.id
+             WHERE $where
+             GROUP BY s.id
+             HAVING balance > 0
+             ORDER BY balance DESC",
+            $params
+        );
+        $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
+        $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
+        $stats = [
+            'totalOutstanding' => array_sum(array_column($balances, 'balance')),
+            'studentsOwing'    => count($balances),
+            'overdue'          => count(array_filter($balances, fn($b) => $b['days_overdue'] !== null && $b['days_overdue'] > 0)),
+        ];
+        $this->view('school/highschool/finance/collection', [
+            'pageTitle'=>'Manage Collection','panelType'=>'school','tenant'=>$tenant,'balances'=>$balances,'classes'=>$classes,'classId'=>$classId,'stats'=>$stats,
+            'flash'=>$this->getFlash(),
+        ]);
     }
 }

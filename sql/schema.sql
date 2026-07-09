@@ -130,7 +130,7 @@ CREATE TABLE users (
     reseller_id INT UNSIGNED DEFAULT NULL,
     role_id INT UNSIGNED NOT NULL,
     name VARCHAR(150) NOT NULL,
-    email VARCHAR(150) NOT NULL,
+    email VARCHAR(150) DEFAULT NULL,
     password_hash VARCHAR(255) NOT NULL,
     phone VARCHAR(30) DEFAULT NULL,
     avatar VARCHAR(255) DEFAULT NULL,
@@ -309,6 +309,16 @@ CREATE TABLE students (
     guardian_phone VARCHAR(30) DEFAULT NULL,
     guardian_relationship VARCHAR(50) DEFAULT NULL,
     emergency_contact_phone VARCHAR(30) DEFAULT NULL,
+    first_name VARCHAR(100) DEFAULT NULL,
+    middle_name VARCHAR(100) DEFAULT NULL,
+    last_name VARCHAR(100) DEFAULT NULL,
+    county VARCHAR(100) DEFAULT NULL,
+    country VARCHAR(100) DEFAULT NULL,
+    religion VARCHAR(100) DEFAULT NULL,
+    previous_school_address VARCHAR(255) DEFAULT NULL,
+    previous_class VARCHAR(50) DEFAULT NULL,
+    reason_for_leaving VARCHAR(255) DEFAULT NULL,
+    admission_type ENUM('new','old') DEFAULT 'new',
     UNIQUE KEY unique_admission (tenant_id, admission_no),
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -480,6 +490,21 @@ CREATE TABLE payments (
     notes VARCHAR(255) DEFAULT NULL,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
     FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
+);
+
+CREATE TABLE expenses (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT UNSIGNED NOT NULL,
+    category VARCHAR(80) NOT NULL,
+    description VARCHAR(255) DEFAULT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    expense_date DATE NOT NULL,
+    payee VARCHAR(150) DEFAULT NULL,
+    method ENUM('cash','mpesa','bank','cheque','online') DEFAULT 'cash',
+    reference VARCHAR(150) DEFAULT NULL,
+    recorded_by INT UNSIGNED DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 );
 
 -- ============================================================
