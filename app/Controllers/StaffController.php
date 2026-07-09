@@ -73,19 +73,19 @@ class StaffController extends Controller {
         $staff = $this->db->fetchOne("SELECT id FROM users WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         if (!$staff) { $this->redirect('/school/staff'); }
         $errors = $this->validate($_POST, [
-            'name' => 'required|max:150', 'email' => 'required|email|max:150',
+            'name' => 'required|max:150', 'email' => 'email|max:150',
             'basic_salary' => 'required|numeric', 'allowances' => 'numeric', 'deductions' => 'numeric',
         ]);
-        if ($errors) { $this->failValidation($errors, '/school/staff/'.$id.'/edit'); }
+        if ($errors) { $this->failValidation($errors, '/school/staff'); }
         $this->db->execute("UPDATE users SET name=?,email=?,phone=?,gender=?,employee_no=?,position=? WHERE id=?",
-            [$_POST['name'],$_POST['email'],$_POST['phone']??'',$_POST['gender']??null,$_POST['employee_no']?:null,$_POST['position']?:null,$id]);
+            [$_POST['name'],$_POST['email']?:null,$_POST['phone']??'',$_POST['gender']??null,$_POST['employee_no']?:null,$_POST['position']?:null,$id]);
         $existing = $this->db->fetchOne("SELECT id FROM staff_salaries WHERE user_id=? AND tenant_id=?", [$id, $this->tid]);
         if ($existing) {
-            $this->db->execute("UPDATE staff_salaries SET basic_salary=?,allowances=?,deductions=? WHERE id=?",
-                [$_POST['basic_salary'], $_POST['allowances'] ?: 0, $_POST['deductions'] ?: 0, $existing['id']]);
+            $this->db->execute("UPDATE staff_salaries SET basic_salary=?,allowances=?,deductions=?,effective_from=? WHERE id=?",
+                [$_POST['basic_salary'], $_POST['allowances'] ?: 0, $_POST['deductions'] ?: 0, $_POST['effective_from'] ?: date('Y-m-d'), $existing['id']]);
         } else {
             $this->db->insert("INSERT INTO staff_salaries (tenant_id,user_id,basic_salary,allowances,deductions,effective_from) VALUES (?,?,?,?,?,?)",
-                [$this->tid, $id, $_POST['basic_salary'], $_POST['allowances'] ?: 0, $_POST['deductions'] ?: 0, date('Y-m-d')]);
+                [$this->tid, $id, $_POST['basic_salary'], $_POST['allowances'] ?: 0, $_POST['deductions'] ?: 0, $_POST['effective_from'] ?: date('Y-m-d')]);
         }
         $this->flash('success', 'Staff details updated.');
         $this->redirect('/school/staff');

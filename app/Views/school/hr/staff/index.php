@@ -167,4 +167,68 @@
   </div>
 </div>
 
+<!-- Edit Staff / Salary Modal -->
+<div class="modal-overlay" id="editStaffModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="editStaffModalTitle">Edit Staff</div>
+      <button class="modal-close" onclick="document.getElementById('editStaffModal').classList.remove('open')">&times;</button>
+    </div>
+    <form method="POST" id="editStaffForm">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+      <input type="hidden" name="name" id="editStaffName">
+      <input type="hidden" name="email" id="editStaffEmail">
+      <input type="hidden" name="phone" id="editStaffPhone">
+      <input type="hidden" name="gender" id="editStaffGender">
+      <input type="hidden" name="employee_no" id="editStaffEmployeeNo">
+      <input type="hidden" name="position" id="editStaffPosition">
+      <div class="modal-body">
+        <div class="modal-section-title">Salary Details</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Basic Salary *</label>
+            <input type="number" name="basic_salary" id="editStaffBasicSalary" class="form-control" step="0.01" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Effective From</label>
+            <input type="date" name="effective_from" id="editStaffEffectiveFrom" class="form-control">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Allowances</label>
+            <input type="number" name="allowances" id="editStaffAllowances" class="form-control" step="0.01" value="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Deductions</label>
+            <input type="number" name="deductions" id="editStaffDeductions" class="form-control" step="0.01" value="0">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('editStaffModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Salary</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openEditSalaryModal(s) {
+  document.getElementById('editStaffForm').action = '<?= $cfg['url'] ?>/school/staff/' + s.id + '/update';
+  document.getElementById('editStaffModalTitle').textContent = 'Edit Salary — ' + s.name;
+  document.getElementById('editStaffName').value = s.name || '';
+  document.getElementById('editStaffEmail').value = s.email || '';
+  document.getElementById('editStaffPhone').value = s.phone || '';
+  document.getElementById('editStaffGender').value = s.gender || '';
+  document.getElementById('editStaffEmployeeNo').value = s.employee_no || '';
+  document.getElementById('editStaffPosition').value = s.position || '';
+  document.getElementById('editStaffBasicSalary').value = s.basic_salary || '';
+  document.getElementById('editStaffAllowances').value = s.allowances || 0;
+  document.getElementById('editStaffDeductions').value = s.deductions || 0;
+  document.getElementById('editStaffEffectiveFrom').value = s.effective_from || '<?= date('Y-m-d') ?>';
+  document.getElementById('editStaffModal').classList.add('open');
+}
+</script>
+
 <?php require ROOT_DIR . '/app/Views/layouts/footer.php'; ?>
