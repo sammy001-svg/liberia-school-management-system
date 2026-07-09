@@ -175,7 +175,13 @@ abstract class Controller {
         $rows = [];
         $handle = fopen($_FILES[$fieldName]['tmp_name'], 'r');
         if ($handle !== false) {
-            $header = fgetcsv($handle);
+            // Skip any fully-blank leading lines before the real header row
+            // (common artifact of exports from Excel/Google Sheets/school-system CSVs).
+            $header = false;
+            while (($line = fgetcsv($handle)) !== false) {
+                $nonEmpty = array_filter($line, fn($v) => trim((string)$v) !== '');
+                if (!empty($nonEmpty)) { $header = $line; break; }
+            }
             if ($header) {
                 $header = array_map(fn($h) => strtolower(trim((string)$h)), $header);
                 while (($data = fgetcsv($handle)) !== false) {
