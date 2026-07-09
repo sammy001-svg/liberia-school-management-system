@@ -43,6 +43,16 @@
           </select>
         </div>
       </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Position / Title</label>
+          <input type="text" name="position" class="form-control" value="<?= htmlspecialchars($staff['position']??'') ?>" placeholder="e.g. Principal, Business Manager">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Staff / Employee No</label>
+          <input type="text" name="employee_no" class="form-control" value="<?= htmlspecialchars($staff['employee_no']??'') ?>" placeholder="e.g. CAF0001">
+        </div>
+      </div>
     </div>
   </div>
 

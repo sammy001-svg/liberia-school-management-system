@@ -29,29 +29,38 @@
   </div>
   <div class="table-wrapper">
     <table>
-      <thead><tr><th>Name</th><th>Role</th><th>Phone</th><th>Basic Salary</th><th>Allowances</th><th>Deductions</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Staff No</th><th>Name</th><th>Role / Position</th><th>Phone</th><th>Basic Salary</th><th>Allowances</th><th>Deductions</th><th>Actions</th></tr></thead>
       <tbody>
         <?php foreach($staff as $s): ?>
+        <?php $isTeacher = !empty($s['teacher_id']); ?>
         <tr>
-          <td><div style="display:flex;align-items:center;gap:10px;"><div class="avatar"><?= strtoupper(substr($s['name'],0,1)) ?></div><div><div class="fw-600"><?= htmlspecialchars($s['name']) ?></div><div style="font-size:11px;color:var(--text-muted)"><?= htmlspecialchars($s['email']) ?></div></div></div></td>
-          <td><span class="badge badge-info"><?= htmlspecialchars($s['role_name']) ?></span></td>
+          <td style="font-family:monospace;font-size:12px"><?= htmlspecialchars($s['staff_no'] ?? '—') ?></td>
+          <td><div style="display:flex;align-items:center;gap:10px;"><div class="avatar"><?= strtoupper(substr($s['name'],0,1)) ?></div><div><div class="fw-600"><?= htmlspecialchars($s['name']) ?></div><div style="font-size:11px;color:var(--text-muted)"><?= htmlspecialchars($s['email'] ?? '—') ?></div></div></div></td>
+          <td>
+            <span class="badge badge-info"><?= htmlspecialchars($s['role_name']) ?></span>
+            <?php if(!empty($s['position'])): ?><div style="font-size:11px;color:var(--text-muted);margin-top:4px;"><?= htmlspecialchars($s['position']) ?></div><?php endif; ?>
+          </td>
           <td><?= htmlspecialchars($s['phone']??'—') ?></td>
           <td><?= $s['basic_salary']!==null ? number_format($s['basic_salary'],2) : '—' ?></td>
           <td class="text-success"><?= $s['allowances']!==null ? '+'.number_format($s['allowances'],2) : '—' ?></td>
           <td class="text-danger"><?= $s['deductions']!==null ? '-'.number_format($s['deductions'],2) : '—' ?></td>
           <td>
             <div style="display:flex;gap:6px;">
-              <a href="<?= $cfg['url'] ?>/school/staff/<?= $s['id'] ?>/edit" class="btn btn-sm btn-secondary">Edit</a>
-              <form method="POST" action="<?= $cfg['url'] ?>/school/staff/<?= $s['id'] ?>/delete" data-confirm="Remove <?= htmlspecialchars($s['name']) ?>? This cannot be undone." data-confirm-title="Remove Staff" data-confirm-label="Remove">
-                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
-                <button type="submit" class="btn btn-sm btn-danger">Del</button>
-              </form>
+              <?php if($isTeacher): ?>
+                <a href="<?= $cfg['url'] ?>/school/teachers/<?= $s['teacher_id'] ?>/edit" class="btn btn-sm btn-secondary">Edit</a>
+              <?php else: ?>
+                <a href="<?= $cfg['url'] ?>/school/staff/<?= $s['id'] ?>/edit" class="btn btn-sm btn-secondary">Edit</a>
+                <form method="POST" action="<?= $cfg['url'] ?>/school/staff/<?= $s['id'] ?>/delete" data-confirm="Remove <?= htmlspecialchars($s['name']) ?>? This cannot be undone." data-confirm-title="Remove Staff" data-confirm-label="Remove">
+                  <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+                  <button type="submit" class="btn btn-sm btn-danger">Del</button>
+                </form>
+              <?php endif; ?>
             </div>
           </td>
         </tr>
         <?php endforeach; ?>
         <?php if(empty($staff)): ?>
-        <tr><td colspan="7">
+        <tr><td colspan="8">
           <div class="empty-state">
             <div class="empty-state-icon">🧑‍💼</div>
             <div class="empty-state-text">No staff accounts yet. <a href="javascript:void(0)" onclick="document.getElementById('addStaffModal').classList.add('open')">Add the first staff member</a></div>
@@ -100,12 +109,22 @@
             </select>
           </div>
         </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Role *</label>
+            <select name="role" class="form-control" required>
+              <option value="Staff">Staff</option>
+              <option value="Accountant">Accountant</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Position / Title</label>
+            <input type="text" name="position" class="form-control" placeholder="e.g. Principal, Business Manager">
+          </div>
+        </div>
         <div class="form-group">
-          <label class="form-label">Role *</label>
-          <select name="role" class="form-control" required>
-            <option value="Staff">Staff</option>
-            <option value="Accountant">Accountant</option>
-          </select>
+          <label class="form-label">Staff / Employee No</label>
+          <input type="text" name="employee_no" class="form-control" placeholder="e.g. CAF0001">
         </div>
 
         <div class="modal-section-title">Salary Details</div>

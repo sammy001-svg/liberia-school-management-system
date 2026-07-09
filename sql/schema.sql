@@ -137,6 +137,8 @@ CREATE TABLE users (
     gender ENUM('male','female','other') DEFAULT NULL,
     date_of_birth DATE DEFAULT NULL,
     address TEXT DEFAULT NULL,
+    employee_no VARCHAR(50) DEFAULT NULL,
+    position VARCHAR(100) DEFAULT NULL,
     status ENUM('active','inactive','suspended') DEFAULT 'active',
     email_verified_at TIMESTAMP NULL DEFAULT NULL,
     last_login TIMESTAMP NULL DEFAULT NULL,
@@ -144,6 +146,7 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY unique_email_tenant (email, tenant_id),
+    UNIQUE KEY unique_employee_no_tenant (employee_no, tenant_id),
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
     FOREIGN KEY (reseller_id) REFERENCES resellers(id) ON DELETE SET NULL,
     FOREIGN KEY (role_id) REFERENCES roles(id)

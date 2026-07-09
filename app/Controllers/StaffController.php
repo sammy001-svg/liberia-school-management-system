@@ -8,11 +8,13 @@ class StaffController extends Controller {
     public function index(): void {
         $this->requireAuth(['School Admin','Accountant']);
         $staff = $this->db->fetchAll(
-            "SELECT u.*, r.name AS role_name, sal.basic_salary, sal.allowances, sal.deductions
+            "SELECT u.*, r.name AS role_name, sal.basic_salary, sal.allowances, sal.deductions,
+                    t.id AS teacher_id, COALESCE(t.employee_no, u.employee_no) AS staff_no
              FROM users u
              JOIN roles r ON u.role_id = r.id
              LEFT JOIN staff_salaries sal ON sal.user_id = u.id
-             WHERE u.tenant_id = ? AND r.name IN ('Staff','Accountant')
+             LEFT JOIN teachers t ON t.user_id = u.id
+             WHERE u.tenant_id = ? AND r.name IN ('Staff','Accountant','Teacher')
              ORDER BY u.name",
             [$this->tid]
         );
@@ -41,8 +43,8 @@ class StaffController extends Controller {
         $roleId = $this->db->fetchOne("SELECT id FROM roles WHERE name=? LIMIT 1", [$_POST['role']])['id'];
         $pw = password_hash($_POST['password'] ?: 'Staff@123', PASSWORD_BCRYPT);
         $userId = $this->db->insert(
-            "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,status) VALUES (?,?,?,?,?,?,?)",
-            [$this->tid, $roleId, $_POST['name'], $_POST['email'], $_POST['phone'] ?? '', $_POST['gender'] ?: null, 'active']
+            "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,employee_no,position,status) VALUES (?,?,?,?,?,?,?,?,?)",
+            [$this->tid, $roleId, $_POST['name'], $_POST['email'], $_POST['phone'] ?? '', $_POST['gender'] ?: null, $_POST['employee_no'] ?: null, $_POST['position'] ?: null, 'active']
         );
         $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [$pw, $userId]);
 
@@ -75,8 +77,8 @@ class StaffController extends Controller {
             'basic_salary' => 'required|numeric', 'allowances' => 'numeric', 'deductions' => 'numeric',
         ]);
         if ($errors) { $this->failValidation($errors, '/school/staff/'.$id.'/edit'); }
-        $this->db->execute("UPDATE users SET name=?,email=?,phone=?,gender=? WHERE id=?",
-            [$_POST['name'],$_POST['email'],$_POST['phone']??'',$_POST['gender']??null,$id]);
+        $this->db->execute("UPDATE users SET name=?,email=?,phone=?,gender=?,employee_no=?,position=? WHERE id=?",
+            [$_POST['name'],$_POST['email'],$_POST['phone']??'',$_POST['gender']??null,$_POST['employee_no']?:null,$_POST['position']?:null,$id]);
         $existing = $this->db->fetchOne("SELECT id FROM staff_salaries WHERE user_id=? AND tenant_id=?", [$id, $this->tid]);
         if ($existing) {
             $this->db->execute("UPDATE staff_salaries SET basic_salary=?,allowances=?,deductions=? WHERE id=?",
