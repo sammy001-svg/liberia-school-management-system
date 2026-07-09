@@ -72,14 +72,40 @@ class HRController extends Controller {
         $this->redirect('/school/hr/payroll');
     }
 
+    // Marking a payslip paid is the moment the salary actually leaves the school's
+    // account, so it also records a matching Expense (category 'Salaries', matching
+    // the preset already offered on the manual Expense form) — this is what makes
+    // Net Income and the Financial Reports reflect real payroll cost.
+    // Guarded by checking current status first so re-submitting an already-paid
+    // record (e.g. a double click) never creates a duplicate expense.
     public function markPayrollPaid(string $id): void {
-        $record = $this->db->fetchOne("SELECT month,year FROM payroll WHERE id=? AND tenant_id=?", [$id, $this->tid]);
-        if ($record) {
-            $this->db->execute("UPDATE payroll SET status='paid', paid_at=NOW() WHERE id=? AND tenant_id=?", [$id, $this->tid]);
-            $this->flash('success', 'Marked as paid.');
+        $record = $this->db->fetchOne(
+            "SELECT p.*, u.name AS staff_name FROM payroll p JOIN users u ON p.user_id=u.id WHERE p.id=? AND p.tenant_id=?",
+            [$id, $this->tid]
+        );
+        if (!$record) { $this->redirect('/school/hr/payroll'); }
+        if ($record['status'] === 'paid') {
             $this->redirect('/school/hr/payroll?month='.$record['month'].'&year='.$record['year']);
         }
-        $this->redirect('/school/hr/payroll');
+
+        $pdo = $this->db->pdo();
+        $pdo->beginTransaction();
+        try {
+            $this->db->execute("UPDATE payroll SET status='paid', paid_at=NOW() WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+            $monthLabel = date('F', mktime(0, 0, 0, (int)$record['month'], 10)) . ' ' . $record['year'];
+            $this->db->insert(
+                "INSERT INTO expenses (tenant_id,category,description,amount,expense_date,payee,method,reference,recorded_by) VALUES (?,?,?,?,?,?,?,?,?)",
+                [$this->tid, 'Salaries', "Salary - {$record['staff_name']} - {$monthLabel}", $record['net_salary'], date('Y-m-d'), $record['staff_name'], 'bank', 'payroll:'.$id, $_SESSION['user_id']]
+            );
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            error_log("markPayrollPaid failed: " . $e->getMessage());
+            $this->flash('danger', 'Could not mark payroll as paid — no changes were made. Please try again.');
+            $this->redirect('/school/hr/payroll?month='.$record['month'].'&year='.$record['year']);
+        }
+        $this->flash('success', 'Marked as paid and recorded as a Payroll expense.');
+        $this->redirect('/school/hr/payroll?month='.$record['month'].'&year='.$record['year']);
     }
 
     public function payslip(string $id): void {
