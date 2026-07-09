@@ -46,10 +46,13 @@
           <td class="text-danger"><?= $s['deductions']!==null ? '-'.number_format($s['deductions'],2) : '—' ?></td>
           <td>
             <div style="display:flex;gap:6px;">
-              <?php if($isTeacher): ?>
-                <a href="<?= $cfg['url'] ?>/school/teachers/<?= $s['teacher_id'] ?>/edit" class="btn btn-sm btn-secondary">Edit</a>
-              <?php else: ?>
-                <a href="<?= $cfg['url'] ?>/school/staff/<?= $s['id'] ?>/edit" class="btn btn-sm btn-secondary">Edit</a>
+              <button type="button" class="btn btn-sm btn-secondary" onclick='openEditSalaryModal(<?= json_encode([
+                "id" => $s['id'], "name" => $s['name'], "email" => $s['email'], "phone" => $s['phone'],
+                "gender" => $s['gender'], "employee_no" => $s['employee_no'], "position" => $s['position'],
+                "basic_salary" => $s['basic_salary'], "allowances" => $s['allowances'], "deductions" => $s['deductions'],
+                "effective_from" => $s['effective_from'],
+              ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'>Edit</button>
+              <?php if(!$isTeacher): ?>
                 <form method="POST" action="<?= $cfg['url'] ?>/school/staff/<?= $s['id'] ?>/delete" data-confirm="Remove <?= htmlspecialchars($s['name']) ?>? This cannot be undone." data-confirm-title="Remove Staff" data-confirm-label="Remove">
                   <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
                   <button type="submit" class="btn btn-sm btn-danger">Del</button>

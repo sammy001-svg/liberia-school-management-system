@@ -8,7 +8,7 @@ class StaffController extends Controller {
     public function index(): void {
         $this->requireAuth(['School Admin','Accountant']);
         $staff = $this->db->fetchAll(
-            "SELECT u.*, r.name AS role_name, sal.basic_salary, sal.allowances, sal.deductions,
+            "SELECT u.*, r.name AS role_name, sal.basic_salary, sal.allowances, sal.deductions, sal.effective_from,
                     t.id AS teacher_id, COALESCE(t.employee_no, u.employee_no) AS staff_no
              FROM users u
              JOIN roles r ON u.role_id = r.id

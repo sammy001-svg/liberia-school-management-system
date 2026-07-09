@@ -41,16 +41,17 @@
   </div>
   <div class="table-wrapper">
     <table>
-      <thead><tr><th>Parent</th><th>Phone</th><th>Occupation</th><th>Linked Children</th><th>Actions</th></tr></thead>
+      <thead><tr><th>TSM ID</th><th>Parent</th><th>Phone</th><th>Occupation</th><th>Linked Children</th><th>Status</th><th>Actions</th></tr></thead>
       <tbody>
         <?php foreach($parents as $p): ?>
         <tr>
+          <td style="font-family:monospace;font-size:12px"><?= htmlspecialchars($p['employee_no'] ?? '—') ?></td>
           <td>
             <a href="<?= $cfg['url'] ?>/school/parents/<?= $p['id'] ?>" style="display:flex;align-items:center;gap:10px;color:inherit;">
               <div class="avatar"><?= strtoupper(substr($p['name'],0,1)) ?></div>
               <div>
                 <div class="fw-600"><?= htmlspecialchars($p['name']) ?></div>
-                <div style="font-size:11px;color:var(--text-muted)"><?= htmlspecialchars($p['email']) ?></div>
+                <div style="font-size:11px;color:var(--text-muted)"><?= htmlspecialchars($p['email'] ?? '—') ?></div>
               </div>
             </a>
           </td>
@@ -63,6 +64,7 @@
               <span class="badge badge-muted">None</span>
             <?php endif; ?>
           </td>
+          <td><span class="badge badge-<?= $p['status']==='active'?'success':'danger' ?>"><?= ucfirst($p['status']) ?></span></td>
           <td>
             <div style="display:flex;gap:6px;">
               <a href="<?= $cfg['url'] ?>/school/parents/<?= $p['id'] ?>" class="btn btn-sm btn-outline">View</a>
@@ -76,7 +78,7 @@
         </tr>
         <?php endforeach; ?>
         <?php if(empty($parents)): ?>
-        <tr><td colspan="5">
+        <tr><td colspan="7">
           <div class="empty-state">
             <div class="empty-state-icon">👪</div>
             <div class="empty-state-text">No parents registered yet. <a href="javascript:void(0)" onclick="document.getElementById('addParentModal').classList.add('open')">Add the first parent</a></div>
@@ -107,8 +109,8 @@
             <input type="text" name="name" class="form-control" required>
           </div>
           <div class="form-group">
-            <label class="form-label">Email Address *</label>
-            <input type="email" name="email" class="form-control" required>
+            <label class="form-label">Email Address</label>
+            <input type="email" name="email" class="form-control">
           </div>
         </div>
         <div class="form-row">
@@ -134,6 +136,12 @@
           <div class="form-group">
             <label class="form-label">National ID / Passport No.</label>
             <input type="text" name="national_id" class="form-control">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">TSM / Parent ID</label>
+            <input type="text" name="employee_no" class="form-control" placeholder="e.g. P2841">
           </div>
         </div>
         <div class="form-group">

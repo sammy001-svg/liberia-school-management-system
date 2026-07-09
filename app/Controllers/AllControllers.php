@@ -457,7 +457,7 @@ class ParentController extends Controller {
         $totalCount = $this->db->fetchOne("SELECT COUNT(*) c FROM parents p JOIN users u ON p.user_id=u.id WHERE $where", $params)['c'];
         $p2 = $this->paginate($totalCount);
         $parents = $this->db->fetchAll(
-            "SELECT p.*,u.name,u.email,u.phone,
+            "SELECT p.*,u.name,u.email,u.phone,u.employee_no,u.status,
                     (SELECT COUNT(*) FROM parent_students ps WHERE ps.parent_id=p.id) AS children_count,
                     (SELECT GROUP_CONCAT(cu.name SEPARATOR ', ') FROM parent_students ps JOIN students cs ON ps.student_id=cs.id JOIN users cu ON cs.user_id=cu.id WHERE ps.parent_id=p.id) AS children_names
              FROM parents p JOIN users u ON p.user_id=u.id WHERE $where ORDER BY u.name LIMIT {$p2['perPage']} OFFSET {$p2['offset']}",
@@ -505,11 +505,11 @@ class ParentController extends Controller {
             try {
                 $name = $row['name'] ?? '';
                 $email = $row['email'] ?? '';
-                if ($name === '' || $email === '') {
-                    $rowErrors[] = "Row {$line}: name and email are required.";
+                if ($name === '') {
+                    $rowErrors[] = "Row {$line}: name is required.";
                     continue;
                 }
-                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
                     $rowErrors[] = "Row {$line}: '{$email}' is not a valid email address.";
                     continue;
                 }
@@ -520,7 +520,7 @@ class ParentController extends Controller {
                 }
                 $userId = $this->db->insert(
                     "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,date_of_birth,status) VALUES (?,?,?,?,?,?,?,?)",
-                    [$this->tid, $roleId, $name, $email, $row['phone'] ?? '', $row['gender'] ?: null, $row['dob'] ?: null, 'active']
+                    [$this->tid, $roleId, $name, $email ?: null, $row['phone'] ?? '', $row['gender'] ?: null, $row['dob'] ?: null, 'active']
                 );
                 $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [password_hash('Parent@123', PASSWORD_BCRYPT), $userId]);
                 $parentId = $this->db->insert(
@@ -544,7 +544,7 @@ class ParentController extends Controller {
         $this->requireAuth(['School Admin']);
         $errors = $this->validate($_POST, [
             'name'  => 'required|max:150',
-            'email' => 'required|email|max:150',
+            'email' => 'email|max:150',
             'phone' => 'required|max:30',
             'dob'   => 'date',
         ]);
@@ -552,8 +552,8 @@ class ParentController extends Controller {
         $roleId = $this->db->fetchOne("SELECT id FROM roles WHERE name='Parent' LIMIT 1")['id'] ?? 8;
         $pw = password_hash($_POST['password'] ?: 'Parent@123', PASSWORD_BCRYPT);
         $userId = $this->db->insert(
-            "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,date_of_birth,address,status) VALUES (?,?,?,?,?,?,?,?,?)",
-            [$this->tid,$roleId,$_POST['name'],$_POST['email'],$_POST['phone']??'',$_POST['gender']??null,$_POST['dob']??null,$_POST['address']??'','active']
+            "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,date_of_birth,address,employee_no,status) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            [$this->tid,$roleId,$_POST['name'],$_POST['email']?:null,$_POST['phone']??'',$_POST['gender']??null,$_POST['dob']??null,$_POST['address']??'',$_POST['employee_no']?:null,'active']
         );
         $this->db->execute("UPDATE users SET password_hash=? WHERE id=?",[$pw,$userId]);
         $parentId = $this->db->insert(
@@ -596,7 +596,7 @@ class ParentController extends Controller {
     public function edit(string $id): void {
         $this->requireAuth(['School Admin']);
         $parent = $this->db->fetchOne(
-            "SELECT p.*, u.name, u.email, u.phone, u.gender, u.date_of_birth, u.address
+            "SELECT p.*, u.name, u.email, u.phone, u.gender, u.date_of_birth, u.address, u.employee_no
              FROM parents p JOIN users u ON p.user_id=u.id WHERE p.id=? AND p.tenant_id=?", [$id, $this->tid]
         );
         if (!$parent) { $this->redirect('/school/parents'); }
@@ -607,10 +607,10 @@ class ParentController extends Controller {
         $this->requireAuth(['School Admin']);
         $parent = $this->db->fetchOne("SELECT user_id FROM parents WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         if (!$parent) { $this->redirect('/school/parents'); }
-        $errors = $this->validate($_POST, ['name' => 'required|max:150', 'email' => 'required|email|max:150']);
+        $errors = $this->validate($_POST, ['name' => 'required|max:150', 'email' => 'email|max:150']);
         if ($errors) { $this->failValidation($errors, '/school/parents/'.$id.'/edit'); }
-        $this->db->execute("UPDATE users SET name=?,email=?,phone=?,gender=?,date_of_birth=?,address=? WHERE id=?",
-            [$_POST['name'],$_POST['email'],$_POST['phone']??'',$_POST['gender']??null,$_POST['dob']??null,$_POST['address']??'',$parent['user_id']]);
+        $this->db->execute("UPDATE users SET name=?,email=?,phone=?,gender=?,date_of_birth=?,address=?,employee_no=? WHERE id=?",
+            [$_POST['name'],$_POST['email']?:null,$_POST['phone']??'',$_POST['gender']??null,$_POST['dob']??null,$_POST['address']??'',$_POST['employee_no']?:null,$parent['user_id']]);
         $this->db->execute("UPDATE parents SET occupation=?,workplace=?,national_id=?,emergency_contact_phone=? WHERE id=? AND tenant_id=?",
             [$_POST['occupation']??'',$_POST['workplace']??null,$_POST['national_id']??null,$_POST['emergency_contact_phone']??null,$id,$this->tid]);
         $this->flash('success','Parent updated.'); $this->redirect('/school/parents/'.$id);

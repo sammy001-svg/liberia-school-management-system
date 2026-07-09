@@ -25,8 +25,8 @@
           <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($parent['name']??'') ?>" required>
         </div>
         <div class="form-group">
-          <label class="form-label">Email Address *</label>
-          <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($parent['email']??'') ?>" required>
+          <label class="form-label">Email Address</label>
+          <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($parent['email']??'') ?>">
         </div>
       </div>
       <div class="form-row">
@@ -42,6 +42,12 @@
               <option value="<?= $g ?>" <?= ($parent['gender']??'')===$g?'selected':'' ?>><?= ucfirst($g) ?></option>
             <?php endforeach; ?>
           </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">TSM / Parent ID</label>
+          <input type="text" name="employee_no" class="form-control" value="<?= htmlspecialchars($parent['employee_no']??'') ?>" placeholder="e.g. P2841">
         </div>
       </div>
       <div class="form-row">
