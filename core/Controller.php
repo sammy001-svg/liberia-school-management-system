@@ -14,6 +14,16 @@ abstract class Controller {
         $cfg = require dirname(__DIR__) . '/config/app.php';
         if (session_status() === PHP_SESSION_NONE) {
             session_name($cfg['session_name']);
+            $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+                || ($_SERVER['SERVER_PORT'] ?? null) == 443
+                || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
+            session_set_cookie_params([
+                'lifetime' => 0,
+                'path'     => '/',
+                'secure'   => $isHttps,
+                'httponly' => true,
+                'samesite' => 'Lax',
+            ]);
             session_start();
         }
     }

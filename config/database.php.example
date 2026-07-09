@@ -1,4 +1,10 @@
 <?php
+// Copy this file to database.php (git-ignored) and fill in real credentials.
+//
+// On cPanel: MySQL® Database Wizard creates the database/user with your
+// account name as a prefix, e.g. database "cpaneluser_school_mgmt" and
+// username "cpaneluser_dbuser". Host is almost always "localhost" since the
+// database lives on the same server as the app.
 return [
     'host'     => 'localhost',
     'port'     => '3306',

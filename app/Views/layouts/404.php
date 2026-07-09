@@ -3,6 +3,10 @@ $cfg  = require ROOT_DIR . '/config/app.php';
 $base = $cfg['url'];
 if (session_status() === PHP_SESSION_NONE) {
     session_name($cfg['session_name']);
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || ($_SERVER['SERVER_PORT'] ?? null) == 443
+        || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
+    session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'secure' => $isHttps, 'httponly' => true, 'samesite' => 'Lax']);
     session_start();
 }
 $isLoggedIn = isset($_SESSION['user_id']);
