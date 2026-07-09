@@ -52,6 +52,24 @@
 </div>
 
 <div class="sidebar-section">
+  <div class="sidebar-section-label">Online Learning</div>
+  <nav class="sidebar-nav">
+    <a href="<?= $base ?>/school/homework">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 4.5h9a3 3 0 013 3v9a3 3 0 01-3 3h-9a3 3 0 01-3-3v-9a3 3 0 013-3z"/></svg>
+      Homework
+    </a>
+    <a href="<?= $base ?>/school/online-classes">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z"/></svg>
+      Online Classes
+    </a>
+    <a href="<?= $base ?>/school/online-exams">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg>
+      Online Exams
+    </a>
+  </nav>
+</div>
+
+<div class="sidebar-section">
   <div class="sidebar-section-label">Administration</div>
   <nav class="sidebar-nav">
     <a href="<?= $base ?>/school/staff">

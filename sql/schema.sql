@@ -709,3 +709,135 @@ CREATE TABLE library_loans (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- ============================================================
+-- HOMEWORK
+-- ============================================================
+CREATE TABLE homework (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT UNSIGNED NOT NULL,
+    class_id INT UNSIGNED NOT NULL,
+    course_id INT UNSIGNED DEFAULT NULL,
+    teacher_id INT UNSIGNED DEFAULT NULL,
+    title VARCHAR(200) NOT NULL,
+    description TEXT DEFAULT NULL,
+    attachment_path VARCHAR(255) DEFAULT NULL,
+    attachment_name VARCHAR(255) DEFAULT NULL,
+    due_date DATE NOT NULL,
+    max_score DECIMAL(6,2) DEFAULT 100.00,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE SET NULL,
+    FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL
+);
+
+CREATE TABLE homework_submissions (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT UNSIGNED NOT NULL,
+    homework_id INT UNSIGNED NOT NULL,
+    student_id INT UNSIGNED NOT NULL,
+    submission_text TEXT DEFAULT NULL,
+    attachment_path VARCHAR(255) DEFAULT NULL,
+    attachment_name VARCHAR(255) DEFAULT NULL,
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    score DECIMAL(6,2) DEFAULT NULL,
+    feedback TEXT DEFAULT NULL,
+    graded_at TIMESTAMP NULL DEFAULT NULL,
+    graded_by INT UNSIGNED DEFAULT NULL,
+    UNIQUE KEY unique_submission (homework_id, student_id),
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+    FOREIGN KEY (homework_id) REFERENCES homework(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+);
+
+-- ============================================================
+-- ONLINE CLASSES
+-- ============================================================
+CREATE TABLE online_classes (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT UNSIGNED NOT NULL,
+    class_id INT UNSIGNED NOT NULL,
+    course_id INT UNSIGNED DEFAULT NULL,
+    teacher_id INT UNSIGNED DEFAULT NULL,
+    title VARCHAR(200) NOT NULL,
+    description TEXT DEFAULT NULL,
+    meeting_link VARCHAR(500) NOT NULL,
+    platform VARCHAR(50) DEFAULT NULL,
+    scheduled_date DATE NOT NULL,
+    start_time TIME NOT NULL,
+    duration_minutes INT UNSIGNED DEFAULT 60,
+    status ENUM('scheduled','completed','cancelled') DEFAULT 'scheduled',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE SET NULL,
+    FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL
+);
+
+-- ============================================================
+-- ONLINE EXAMS (auto-graded MCQ / True-False)
+-- ============================================================
+CREATE TABLE online_exams (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT UNSIGNED NOT NULL,
+    class_id INT UNSIGNED NOT NULL,
+    course_id INT UNSIGNED DEFAULT NULL,
+    teacher_id INT UNSIGNED DEFAULT NULL,
+    title VARCHAR(200) NOT NULL,
+    description TEXT DEFAULT NULL,
+    duration_minutes INT UNSIGNED DEFAULT 30,
+    starts_at DATETIME NOT NULL,
+    ends_at DATETIME NOT NULL,
+    status ENUM('draft','published') DEFAULT 'draft',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE SET NULL,
+    FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL
+);
+
+CREATE TABLE online_exam_questions (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT UNSIGNED NOT NULL,
+    exam_id INT UNSIGNED NOT NULL,
+    question_text TEXT NOT NULL,
+    option_a VARCHAR(255) NOT NULL,
+    option_b VARCHAR(255) NOT NULL,
+    option_c VARCHAR(255) DEFAULT NULL,
+    option_d VARCHAR(255) DEFAULT NULL,
+    correct_option ENUM('a','b','c','d') NOT NULL,
+    marks DECIMAL(6,2) DEFAULT 1.00,
+    sort_order INT UNSIGNED DEFAULT 0,
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+    FOREIGN KEY (exam_id) REFERENCES online_exams(id) ON DELETE CASCADE
+);
+
+CREATE TABLE online_exam_attempts (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT UNSIGNED NOT NULL,
+    exam_id INT UNSIGNED NOT NULL,
+    student_id INT UNSIGNED NOT NULL,
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    submitted_at TIMESTAMP NULL DEFAULT NULL,
+    score DECIMAL(6,2) DEFAULT NULL,
+    total_marks DECIMAL(6,2) DEFAULT NULL,
+    status ENUM('in_progress','submitted') DEFAULT 'in_progress',
+    UNIQUE KEY unique_attempt (exam_id, student_id),
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+    FOREIGN KEY (exam_id) REFERENCES online_exams(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+);
+
+CREATE TABLE online_exam_answers (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT UNSIGNED NOT NULL,
+    attempt_id INT UNSIGNED NOT NULL,
+    question_id INT UNSIGNED NOT NULL,
+    selected_option ENUM('a','b','c','d') DEFAULT NULL,
+    is_correct TINYINT(1) DEFAULT 0,
+    UNIQUE KEY unique_answer (attempt_id, question_id),
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+    FOREIGN KEY (attempt_id) REFERENCES online_exam_attempts(id) ON DELETE CASCADE,
+    FOREIGN KEY (question_id) REFERENCES online_exam_questions(id) ON DELETE CASCADE
+);
+

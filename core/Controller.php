@@ -257,6 +257,50 @@ abstract class Controller {
         return rtrim($cfg['url'], '/') . "/uploads/{$subdir}/{$filename}";
     }
 
+    /**
+     * Validates and stores an uploaded document/attachment (PDF, Office docs, images,
+     * archives, etc.) under public/uploads/{subdir}/, keyed to a random filename so the
+     * original name never collides on disk. Unlike handleImageUpload(), this only checks
+     * the file extension against an allow-list (no fileinfo dependency) since arbitrary
+     * document formats can't be sniffed the way raster images can via getimagesize().
+     * Returns [publicUrl, originalFilename] or [null, null] if no file was chosen.
+     * On validation failure, appends to $errors[$fieldName] and returns [null, null].
+     */
+    protected function handleFileUpload(string $fieldName, string $subdir, array &$errors, int $maxBytes = 10485760): array {
+        if (empty($_FILES[$fieldName]) || $_FILES[$fieldName]['error'] === UPLOAD_ERR_NO_FILE) {
+            return [null, null];
+        }
+        if ($_FILES[$fieldName]['error'] !== UPLOAD_ERR_OK) {
+            $errors[$fieldName] = 'Upload failed. Please try again.';
+            return [null, null];
+        }
+        if ($_FILES[$fieldName]['size'] > $maxBytes) {
+            $errors[$fieldName] = 'File must be smaller than ' . round($maxBytes / 1024 / 1024, 1) . 'MB.';
+            return [null, null];
+        }
+        $origName = (string)$_FILES[$fieldName]['name'];
+        $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+        $allowedExt = ['pdf','doc','docx','xls','xlsx','ppt','pptx','txt','zip','jpg','jpeg','png','gif','webp','mp4'];
+        if (!in_array($ext, $allowedExt, true)) {
+            $errors[$fieldName] = 'File type not allowed. Accepted: ' . strtoupper(implode(', ', $allowedExt)) . '.';
+            return [null, null];
+        }
+        $tmpPath = $_FILES[$fieldName]['tmp_name'];
+        $filename = bin2hex(random_bytes(8)) . '.' . $ext;
+        $destDir = dirname(__DIR__) . "/public/uploads/{$subdir}/";
+        if (!is_dir($destDir) && !mkdir($destDir, 0755, true) && !is_dir($destDir)) {
+            $errors[$fieldName] = 'Could not prepare the upload folder.';
+            return [null, null];
+        }
+        if (!move_uploaded_file($tmpPath, $destDir . $filename)) {
+            $errors[$fieldName] = 'Could not save the uploaded file.';
+            return [null, null];
+        }
+        $cfg = require dirname(__DIR__) . '/config/app.php';
+        $publicUrl = rtrim($cfg['url'], '/') . "/uploads/{$subdir}/{$filename}";
+        return [$publicUrl, $origName];
+    }
+
     /** Stream a downloadable CSV template with the given headers and an optional example row. */
     protected function downloadCsvTemplate(string $filename, array $headers, array $exampleRow = []): never {
         if (ob_get_level()) { ob_end_clean(); }

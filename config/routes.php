@@ -117,11 +117,43 @@ $router->get('/school/academic-years',        ['AcademicController', 'index']);
 $router->post('/school/academic-years/store', ['AcademicController', 'storeYear']);
 $router->post('/school/terms/store',          ['AcademicController', 'storeTerm']);
 
+// ── HOMEWORK ─────────────────────────────────────────────────────
+$router->get('/school/homework',                       ['HomeworkController', 'index']);
+$router->post('/school/homework/store',                ['HomeworkController', 'store']);
+$router->post('/school/homework/{id}/delete',           ['HomeworkController', 'delete']);
+$router->get('/school/homework/{id}/submissions',       ['HomeworkController', 'submissions']);
+$router->post('/school/homework/submissions/{id}/grade', ['HomeworkController', 'grade']);
+
+// ── ONLINE CLASSES ───────────────────────────────────────────────
+$router->get('/school/online-classes',                     ['OnlineClassController', 'index']);
+$router->post('/school/online-classes/store',              ['OnlineClassController', 'store']);
+$router->post('/school/online-classes/{id}/delete',        ['OnlineClassController', 'delete']);
+$router->post('/school/online-classes/{id}/cancel',        ['OnlineClassController', 'cancel']);
+$router->get('/school/online-classes/{id}/attendance',     ['OnlineClassController', 'attendance']);
+$router->post('/school/online-classes/{id}/attendance/mark', ['OnlineClassController', 'markAttendance']);
+
+// ── ONLINE EXAMS ─────────────────────────────────────────────────
+$router->get('/school/online-exams',                          ['OnlineExamController', 'index']);
+$router->post('/school/online-exams/store',                   ['OnlineExamController', 'store']);
+$router->post('/school/online-exams/{id}/delete',              ['OnlineExamController', 'delete']);
+$router->post('/school/online-exams/{id}/publish',             ['OnlineExamController', 'publish']);
+$router->get('/school/online-exams/{id}/questions',            ['OnlineExamController', 'questions']);
+$router->post('/school/online-exams/{id}/questions/store',     ['OnlineExamController', 'storeQuestion']);
+$router->post('/school/online-exams/{id}/questions/{qid}/delete', ['OnlineExamController', 'deleteQuestion']);
+$router->get('/school/online-exams/{id}/results',              ['OnlineExamController', 'results']);
+
 // ── STUDENT PORTAL ──────────────────────────────────────────────
 $router->get('/student/dashboard',          ['StudentPortalController', 'dashboard']);
 $router->get('/student/timetable',          ['StudentPortalController', 'timetable']);
 $router->get('/student/grades',             ['StudentPortalController', 'grades']);
 $router->get('/student/materials',          ['StudentPortalController', 'materials']);
+$router->get('/student/homework',           ['StudentPortalController', 'homework']);
+$router->post('/student/homework/{id}/submit', ['StudentPortalController', 'submitHomework']);
+$router->get('/student/online-classes',     ['StudentPortalController', 'onlineClasses']);
+$router->get('/student/exams',              ['StudentPortalController', 'exams']);
+$router->get('/student/exams/{id}/take',    ['StudentPortalController', 'takeExam']);
+$router->post('/student/exams/{id}/submit', ['StudentPortalController', 'submitExam']);
+$router->get('/student/exams/{id}/result',  ['StudentPortalController', 'examResult']);
 
 // ── PARENT PORTAL ───────────────────────────────────────────────
 $router->get('/parent/dashboard',           ['ParentPortalController', 'dashboard']);
