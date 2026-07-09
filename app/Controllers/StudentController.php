@@ -221,6 +221,7 @@ class StudentController extends Controller {
         $grades   = $this->db->fetchAll("SELECT g.*, c.name AS course_name FROM grades g LEFT JOIN courses c ON g.course_id=c.id WHERE g.student_id=? AND g.tenant_id=? ORDER BY g.created_at DESC LIMIT 10",[$id,$this->tid]);
         $attendance = $this->db->fetchAll("SELECT * FROM attendance WHERE student_id=? AND tenant_id=? ORDER BY date DESC LIMIT 10",[$id,$this->tid]);
         $invoices = $this->db->fetchAll("SELECT * FROM invoices WHERE student_id=? AND tenant_id=? ORDER BY created_at DESC",[$id,$this->tid]);
+        $rankings = $this->db->fetchAll("SELECT * FROM student_rankings WHERE student_id=? AND tenant_id=? ORDER BY created_at",[$id,$this->tid]);
 
         $attendanceStats = $this->db->fetchOne(
             "SELECT COUNT(*) total, SUM(CASE WHEN status='present' THEN 1 ELSE 0 END) present FROM attendance WHERE student_id=? AND tenant_id=?",
@@ -241,6 +242,7 @@ class StudentController extends Controller {
 
         $this->view('school/highschool/students/show',[
             'pageTitle'=>$student['name'],'panelType'=>'school','student'=>$student,'grades'=>$grades,'attendance'=>$attendance,'invoices'=>$invoices,
+            'rankings'=>$rankings,
             'attendanceRate'=>$attendanceRate,'avgGrade'=>$avgGrade,'outstandingFees'=>$feesStats['outstanding'],
             'flash'=>$this->getFlash(),
         ]);

@@ -231,6 +231,117 @@ class GradeController extends Controller {
             'rank' => $rank, 'rankOf' => $rankOf, 'attendance' => $attendance,
         ]);
     }
+
+    // Standard order for the period types seen in TSM ranking exports —
+    // anything not in this list (e.g. a future/unknown period label) sorts after, alphabetically.
+    private const RANKING_PERIOD_ORDER = [
+        '1st Pd.', '2nd Pd.', '3rd Pd.', 'Sem. Ave. 1', 'Exam 1',
+        '4th Pd.', '5th Pd.', '6th Pd.', 'Sem. Ave. 2', 'Exam 2', 'Yearly Ave.',
+    ];
+
+    public function rankings(): void {
+        $this->requireAuth(['School Admin','Teacher']);
+        $classId = $_GET['class_id'] ?? '';
+        $period  = $_GET['period'] ?? '';
+
+        $periods = $this->db->fetchAll(
+            "SELECT DISTINCT period FROM student_rankings WHERE tenant_id=?", [$this->tid]
+        );
+        $periodNames = array_column($periods, 'period');
+        usort($periodNames, function ($a, $b) {
+            $oa = array_search($a, self::RANKING_PERIOD_ORDER);
+            $ob = array_search($b, self::RANKING_PERIOD_ORDER);
+            if ($oa === false && $ob === false) return strcmp($a, $b);
+            if ($oa === false) return 1;
+            if ($ob === false) return -1;
+            return $oa <=> $ob;
+        });
+        if (!$period && $periodNames) { $period = end($periodNames); }
+
+        $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
+
+        $rankings = [];
+        $stats = ['count' => 0, 'avg' => null, 'top' => null];
+        if ($period) {
+            $params = [$this->tid, $period];
+            $where = "r.tenant_id=? AND r.period=?";
+            if ($classId) { $where .= " AND s.class_id=?"; $params[] = $classId; }
+            $rankings = $this->db->fetchAll(
+                "SELECT r.*, u.name AS student_name, s.admission_no, c.name AS class_name
+                 FROM student_rankings r
+                 JOIN students s ON r.student_id=s.id
+                 JOIN users u ON s.user_id=u.id
+                 LEFT JOIN classes c ON s.class_id=c.id
+                 WHERE {$where}
+                 ORDER BY r.rank_position ASC, r.score DESC",
+                $params
+            );
+            if ($rankings) {
+                $stats['count'] = count($rankings);
+                $stats['avg'] = round(array_sum(array_column($rankings, 'score')) / count($rankings), 1);
+                $stats['top'] = $rankings[0];
+            }
+        }
+
+        $this->view('school/highschool/grades/rankings', [
+            'pageTitle' => 'Student Rankings', 'panelType' => 'school',
+            'rankings' => $rankings, 'periods' => $periodNames, 'classes' => $classes,
+            'selectedPeriod' => $period, 'selectedClass' => $classId, 'stats' => $stats,
+            'flash' => $this->getFlash(), 'importErrors' => $this->getImportErrors(),
+        ]);
+    }
+
+    public function bulkTemplateRankings(): void {
+        $this->requireAuth(['School Admin','Teacher']);
+        $this->downloadCsvTemplate('rankings_template.csv',
+            ['TSM ID','Name','Class','Period','Grade','Rank','Group Size'],
+            ['CAS0001','John Doe','3rd Grade','1st Pd.','88.5','4','197']
+        );
+    }
+
+    public function bulkUploadRankings(): void {
+        $this->requireAuth(['School Admin','Teacher']);
+        $rows = $this->parseCsvUpload('csv_file');
+        $students = $this->db->fetchAll("SELECT id, admission_no FROM students WHERE tenant_id=?", [$this->tid]);
+        $studentByAdmNo = [];
+        foreach ($students as $s) { $studentByAdmNo[strtolower($s['admission_no'])] = $s['id']; }
+
+        $success = 0;
+        $rowErrors = [];
+        foreach ($rows as $i => $row) {
+            $line = $i + 2;
+            try {
+                $tsmId  = $row['tsm id'] ?? '';
+                $period = trim($row['period'] ?? '');
+                $grade  = $row['grade'] ?? '';
+                if ($tsmId === '' || $period === '' || $grade === '') {
+                    $rowErrors[] = "Row {$line}: TSM ID, Period and Grade are required.";
+                    continue;
+                }
+                $studentId = $studentByAdmNo[strtolower($tsmId)] ?? null;
+                if (!$studentId) {
+                    $rowErrors[] = "Row {$line}: no student found with TSM ID '{$tsmId}'.";
+                    continue;
+                }
+                $this->db->execute(
+                    "INSERT INTO student_rankings (tenant_id,student_id,period,score,rank_position,group_size)
+                     VALUES (?,?,?,?,?,?)
+                     ON DUPLICATE KEY UPDATE score=VALUES(score),rank_position=VALUES(rank_position),group_size=VALUES(group_size)",
+                    [
+                        $this->tid, $studentId, $period, (float)$grade,
+                        $row['rank'] !== '' ? (int)$row['rank'] : null,
+                        ($row['group size'] ?? '') !== '' ? (int)$row['group size'] : null,
+                    ]
+                );
+                $success++;
+            } catch (\Throwable $e) {
+                error_log("Ranking import row {$line} failed: " . $e->getMessage());
+                $reason = substr(preg_replace('/\s+/', ' ', $e->getMessage()), 0, 120);
+                $rowErrors[] = "Row {$line}: could not be imported ({$reason}).";
+            }
+        }
+        $this->finishBulkImport($success, count($rows), $rowErrors, '/school/grades/rankings');
+    }
 }
 
 class TimetableController extends Controller {

@@ -57,6 +57,9 @@ $router->post('/school/grades/store',       ['GradeController', 'store']);
 $router->post('/school/exams/store',        ['GradeController', 'storeExam']);
 $router->get('/school/grades/report/{studentId}', ['GradeController', 'report']);
 $router->get('/school/grades/report-card/{studentId}', ['GradeController', 'reportCard']);
+$router->get('/school/grades/rankings',            ['GradeController', 'rankings']);
+$router->get('/school/grades/rankings/bulk-template', ['GradeController', 'bulkTemplateRankings']);
+$router->post('/school/grades/rankings/bulk-upload',  ['GradeController', 'bulkUploadRankings']);
 
 $router->get('/school/finance',             ['FinanceController', 'index']);
 $router->get('/school/finance/invoices',    ['FinanceController', 'invoices']);

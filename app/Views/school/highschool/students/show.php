@@ -148,6 +148,24 @@
 
   <div class="profile-stack">
 
+    <?php if(!empty($rankings)): ?>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Rankings</div><a href="<?= $cfg['url'] ?>/school/grades/rankings" class="btn btn-sm btn-outline">All Rankings</a></div>
+      <div class="table-wrapper"><table>
+        <thead><tr><th>Period</th><th>Score</th><th>Rank</th></tr></thead>
+        <tbody>
+          <?php foreach($rankings as $r): ?>
+          <tr>
+            <td><?= htmlspecialchars($r['period']) ?></td>
+            <td><span class="badge badge-<?= $r['score']>=70?'success':($r['score']>=50?'warning':'danger') ?>"><?= number_format($r['score'],1) ?>%</span></td>
+            <td><?= $r['rank_position']!==null ? '#'.$r['rank_position'].($r['group_size']?' of '.$r['group_size']:'') : '—' ?></td>
+          </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table></div>
+    </div>
+    <?php endif; ?>
+
     <div class="card">
       <div class="card-header"><div class="card-title">Recent Grades</div><a href="<?= $cfg['url'] ?>/school/grades/report/<?= $student['id'] ?>" class="btn btn-sm btn-outline">Full Report</a></div>
       <div class="table-wrapper"><table>

@@ -444,6 +444,20 @@ CREATE TABLE grades (
     FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE SET NULL
 );
 
+CREATE TABLE student_rankings (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT UNSIGNED NOT NULL,
+    student_id INT UNSIGNED NOT NULL,
+    period VARCHAR(50) NOT NULL,
+    score DECIMAL(6,2) DEFAULT NULL,
+    rank_position INT UNSIGNED DEFAULT NULL,
+    group_size INT UNSIGNED DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_student_period (tenant_id, student_id, period),
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+);
+
 -- ============================================================
 -- FINANCE
 -- ============================================================
