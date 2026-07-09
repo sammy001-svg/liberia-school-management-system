@@ -148,8 +148,13 @@ class StudentController extends Controller {
                         ? "TSM ID '{$tsmId}' is already in use."
                         : 'that email is already registered.';
                 } else {
-                    $reason = 'could not be imported.';
+                    // Surface the real reason (this is an admin-only screen) instead of a
+                    // vague message, so a bad row is self-diagnosing instead of a guessing game.
+                    $msg = $e->getMessage();
+                    if (preg_match('/SQLSTATE\[\w+\]:?\s*(?:[^:]*:\s*\d+\s*)?(.+)/s', $msg, $m)) { $msg = trim($m[1]); }
+                    $reason = mb_strlen($msg) > 160 ? mb_substr($msg, 0, 160) . '…' : $msg;
                 }
+                error_log("Student bulk import row {$line} failed: " . $e->getMessage());
                 $rowErrors[] = "Row {$line}: {$reason}";
             }
         }

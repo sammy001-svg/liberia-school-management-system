@@ -175,6 +175,12 @@ abstract class Controller {
         $rows = [];
         $handle = fopen($_FILES[$fieldName]['tmp_name'], 'r');
         if ($handle !== false) {
+            // Strip a UTF-8 BOM if present (Excel's "CSV UTF-8" export adds one silently) —
+            // otherwise it sticks to the first cell of whatever line is read first and can
+            // make a genuinely blank line look non-empty to the check below.
+            if (fread($handle, 3) !== "\xEF\xBB\xBF") {
+                rewind($handle);
+            }
             // Skip any fully-blank leading lines before the real header row
             // (common artifact of exports from Excel/Google Sheets/school-system CSVs).
             $header = false;
