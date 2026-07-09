@@ -239,14 +239,8 @@ class GradeController extends Controller {
         '4th Pd.', '5th Pd.', '6th Pd.', 'Sem. Ave. 2', 'Exam 2', 'Yearly Ave.',
     ];
 
-    public function rankings(): void {
-        $this->requireAuth(['School Admin','Teacher']);
-        $classId = $_GET['class_id'] ?? '';
-        $period  = $_GET['period'] ?? '';
-
-        $periods = $this->db->fetchAll(
-            "SELECT DISTINCT period FROM student_rankings WHERE tenant_id=?", [$this->tid]
-        );
+    private function rankingPeriodNames(): array {
+        $periods = $this->db->fetchAll("SELECT DISTINCT period FROM student_rankings WHERE tenant_id=?", [$this->tid]);
         $periodNames = array_column($periods, 'period');
         usort($periodNames, function ($a, $b) {
             $oa = array_search($a, self::RANKING_PERIOD_ORDER);
@@ -256,31 +250,42 @@ class GradeController extends Controller {
             if ($ob === false) return -1;
             return $oa <=> $ob;
         });
+        return $periodNames;
+    }
+
+    private function fetchRankings(string $period, string $classId): array {
+        if (!$period) { return []; }
+        $params = [$this->tid, $period];
+        $where = "r.tenant_id=? AND r.period=?";
+        if ($classId) { $where .= " AND s.class_id=?"; $params[] = $classId; }
+        return $this->db->fetchAll(
+            "SELECT r.*, u.name AS student_name, s.admission_no, c.name AS class_name
+             FROM student_rankings r
+             JOIN students s ON r.student_id=s.id
+             JOIN users u ON s.user_id=u.id
+             LEFT JOIN classes c ON s.class_id=c.id
+             WHERE {$where}
+             ORDER BY r.rank_position ASC, r.score DESC",
+            $params
+        );
+    }
+
+    public function rankings(): void {
+        $this->requireAuth(['School Admin','Teacher']);
+        $classId = $_GET['class_id'] ?? '';
+        $period  = $_GET['period'] ?? '';
+
+        $periodNames = $this->rankingPeriodNames();
         if (!$period && $periodNames) { $period = end($periodNames); }
 
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
 
-        $rankings = [];
+        $rankings = $this->fetchRankings($period, $classId);
         $stats = ['count' => 0, 'avg' => null, 'top' => null];
-        if ($period) {
-            $params = [$this->tid, $period];
-            $where = "r.tenant_id=? AND r.period=?";
-            if ($classId) { $where .= " AND s.class_id=?"; $params[] = $classId; }
-            $rankings = $this->db->fetchAll(
-                "SELECT r.*, u.name AS student_name, s.admission_no, c.name AS class_name
-                 FROM student_rankings r
-                 JOIN students s ON r.student_id=s.id
-                 JOIN users u ON s.user_id=u.id
-                 LEFT JOIN classes c ON s.class_id=c.id
-                 WHERE {$where}
-                 ORDER BY r.rank_position ASC, r.score DESC",
-                $params
-            );
-            if ($rankings) {
-                $stats['count'] = count($rankings);
-                $stats['avg'] = round(array_sum(array_column($rankings, 'score')) / count($rankings), 1);
-                $stats['top'] = $rankings[0];
-            }
+        if ($rankings) {
+            $stats['count'] = count($rankings);
+            $stats['avg'] = round(array_sum(array_column($rankings, 'score')) / count($rankings), 1);
+            $stats['top'] = $rankings[0];
         }
 
         $this->view('school/highschool/grades/rankings', [
@@ -288,6 +293,44 @@ class GradeController extends Controller {
             'rankings' => $rankings, 'periods' => $periodNames, 'classes' => $classes,
             'selectedPeriod' => $period, 'selectedClass' => $classId, 'stats' => $stats,
             'flash' => $this->getFlash(), 'importErrors' => $this->getImportErrors(),
+        ]);
+    }
+
+    public function exportRankingsCsv(): void {
+        $this->requireAuth(['School Admin','Teacher']);
+        $classId = $_GET['class_id'] ?? '';
+        $period  = $_GET['period'] ?? '';
+        if (!$period) {
+            $periodNames = $this->rankingPeriodNames();
+            $period = end($periodNames) ?: '';
+        }
+        $rankings = $this->fetchRankings($period, $classId);
+        $rows = array_map(fn($r) => [
+            $r['rank_position'] ?? '', $r['student_name'], $r['admission_no'], $r['class_name'] ?? '',
+            $period, number_format((float)$r['score'], 1), $r['group_size'] ?? '',
+        ], $rankings);
+        $safePeriod = preg_replace('/[^a-z0-9]+/i', '_', $period ?: 'rankings');
+        $this->downloadCsv("rankings_{$safePeriod}.csv", ['Rank','Student','Admission No','Class','Period','Score','Group Size'], $rows);
+    }
+
+    public function printRankings(): void {
+        $this->requireAuth(['School Admin','Teacher']);
+        $classId = $_GET['class_id'] ?? '';
+        $period  = $_GET['period'] ?? '';
+        if (!$period) {
+            $periodNames = $this->rankingPeriodNames();
+            $period = end($periodNames) ?: '';
+        }
+        $rankings = $this->fetchRankings($period, $classId);
+        $className = null;
+        if ($classId) {
+            $cls = $this->db->fetchOne("SELECT name FROM classes WHERE id=? AND tenant_id=?", [$classId, $this->tid]);
+            $className = $cls['name'] ?? null;
+        }
+        $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
+        $this->view('school/rankings_print', [
+            'pageTitle' => 'Rankings', 'tenant' => $tenant,
+            'rankings' => $rankings, 'period' => $period, 'className' => $className,
         ]);
     }
 

@@ -6,7 +6,13 @@
     <div class="page-header-title">Student Rankings</div>
     <div class="page-header-sub">Composite period scores and class/school position</div>
   </div>
-  <button type="button" class="btn btn-primary" onclick="document.getElementById('bulkUploadModal').classList.add('open')">Bulk Upload</button>
+  <div style="display:flex;gap:10px;">
+    <?php if (!empty($periods)): ?>
+    <a href="<?= $cfg['url'] ?>/school/grades/rankings/export?period=<?= urlencode($selectedPeriod) ?>&class_id=<?= urlencode($selectedClass) ?>" class="btn btn-outline">⬇️ CSV</a>
+    <a href="<?= $cfg['url'] ?>/school/grades/rankings/print?period=<?= urlencode($selectedPeriod) ?>&class_id=<?= urlencode($selectedClass) ?>" target="_blank" class="btn btn-outline">🖨️ PDF</a>
+    <?php endif; ?>
+    <button type="button" class="btn btn-primary" onclick="document.getElementById('bulkUploadModal').classList.add('open')">Bulk Upload</button>
+  </div>
 </div>
 
 <?php if (empty($periods)): ?>

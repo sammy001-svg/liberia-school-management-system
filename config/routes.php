@@ -60,6 +60,8 @@ $router->get('/school/grades/report-card/{studentId}', ['GradeController', 'repo
 $router->get('/school/grades/rankings',            ['GradeController', 'rankings']);
 $router->get('/school/grades/rankings/bulk-template', ['GradeController', 'bulkTemplateRankings']);
 $router->post('/school/grades/rankings/bulk-upload',  ['GradeController', 'bulkUploadRankings']);
+$router->get('/school/grades/rankings/export',      ['GradeController', 'exportRankingsCsv']);
+$router->get('/school/grades/rankings/print',       ['GradeController', 'printRankings']);
 
 $router->get('/school/finance',             ['FinanceController', 'index']);
 $router->get('/school/finance/invoices',    ['FinanceController', 'invoices']);

@@ -269,6 +269,18 @@ abstract class Controller {
         exit;
     }
 
+    /** Stream a downloadable CSV export with the given headers and data rows (each row an assoc array or list matching $headers order). */
+    protected function downloadCsv(string $filename, array $headers, array $rows): never {
+        if (ob_get_level()) { ob_end_clean(); }
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        $out = fopen('php://output', 'w');
+        fputcsv($out, $headers);
+        foreach ($rows as $row) { fputcsv($out, array_is_list($row) ? $row : array_values($row)); }
+        fclose($out);
+        exit;
+    }
+
     /**
      * Flash a summary of a bulk import (X of Y rows imported), stash any
      * per-row error details for display on the next page, then redirect.
