@@ -1,22 +1,54 @@
 <?php require ROOT_DIR . '/app/Views/layouts/header.php'; ?>
 <div class="page-header">
-  <div class="page-header-title">Announcements</div>
+  <div>
+    <div class="page-header-title">Announcements</div>
+    <div class="page-header-sub">Post school-wide or targeted updates</div>
+  </div>
   <button type="button" class="btn btn-primary" onclick="document.getElementById('addAnnouncementModal').classList.add('open')">+ Post Announcement</button>
 </div>
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Total Announcements</div>
+    <div class="stat-value"><?= (int)($stats['total'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--warning);">
+    <div class="stat-label">Pinned</div>
+    <div class="stat-value"><?= (int)($stats['pinned'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--danger);">
+    <div class="stat-label">Expired</div>
+    <div class="stat-value"><?= (int)($stats['expired'] ?? 0) ?></div>
+  </div>
+</div>
+
 <div class="card">
   <?php foreach($announcements as $a): ?>
+  <?php $isExpired = $a['expires_at'] && strtotime($a['expires_at']) < time(); $truncated = strlen($a['body']) > 200; ?>
   <div style="padding:16px 20px;border-bottom:1px solid var(--border);">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
       <div>
-        <?php if($a['is_pinned']): ?><span class="badge badge-warning" style="margin-bottom:4px">📌 Pinned</span><?php endif; ?>
+        <div style="display:flex;gap:6px;margin-bottom:4px;">
+          <?php if($a['is_pinned']): ?><span class="badge badge-warning">📌 Pinned</span><?php endif; ?>
+          <?php if($isExpired): ?><span class="badge badge-muted">Expired</span><?php endif; ?>
+        </div>
         <div class="fw-600" style="font-size:14px"><?= htmlspecialchars($a['title']) ?></div>
-        <div style="margin-top:4px;color:var(--text-light);font-size:13px"><?= nl2br(htmlspecialchars(substr($a['body'],0,200))) ?>…</div>
+        <div style="margin-top:4px;color:var(--text-light);font-size:13px"><?= nl2br(htmlspecialchars(substr($a['body'],0,200))) ?><?= $truncated ? '…' : '' ?></div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:6px"><?= htmlspecialchars($a['author']) ?> · <?= htmlspecialchars(ucfirst($a['audience'])) ?> · <?= date('M d, Y', strtotime($a['published_at'])) ?></div>
       </div>
+      <form method="POST" action="<?= $cfg['url'] ?>/school/announcements/<?= $a['id'] ?>/delete" data-confirm="Delete this announcement?" data-confirm-label="Delete">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+        <button type="submit" class="btn btn-sm btn-outline" style="flex-shrink:0;">Delete</button>
+      </form>
     </div>
   </div>
   <?php endforeach; ?>
-  <?php if(empty($announcements)): ?><div class="text-center text-muted" style="padding:40px">No announcements yet. <a href="javascript:void(0)" onclick="document.getElementById('addAnnouncementModal').classList.add('open')">Post the first one</a></div><?php endif; ?>
+  <?php if(empty($announcements)): ?>
+  <div class="empty-state">
+    <div class="empty-state-icon">📢</div>
+    <div class="empty-state-text">No announcements yet. <a href="javascript:void(0)" onclick="document.getElementById('addAnnouncementModal').classList.add('open')">Post the first one</a></div>
+  </div>
+  <?php endif; ?>
 </div>
 
 <!-- Post Announcement Modal -->

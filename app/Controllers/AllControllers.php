@@ -7,9 +7,14 @@ class AnnouncementController extends Controller {
 
     public function index(): void {
         $this->requireAuth(['School Admin','Teacher']);
-        $announcements = $this->db->fetchAll("SELECT a.*, u.name AS author FROM announcements a JOIN users u ON a.author_id=u.id WHERE a.tenant_id=? ORDER BY a.published_at DESC", [$this->tid]);
+        $announcements = $this->db->fetchAll("SELECT a.*, u.name AS author FROM announcements a JOIN users u ON a.author_id=u.id WHERE a.tenant_id=? ORDER BY a.is_pinned DESC, a.published_at DESC", [$this->tid]);
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?", [$this->tid]);
-        $this->view('school/highschool/announcements/index', ['pageTitle'=>'Announcements','panelType'=>'school','announcements'=>$announcements,'classes'=>$classes,'flash'=>$this->getFlash()]);
+        $stats = [
+            'total'  => count($announcements),
+            'pinned' => count(array_filter($announcements, fn($a) => $a['is_pinned'])),
+            'expired' => count(array_filter($announcements, fn($a) => $a['expires_at'] && strtotime($a['expires_at']) < time())),
+        ];
+        $this->view('school/highschool/announcements/index', ['pageTitle'=>'Announcements','panelType'=>'school','announcements'=>$announcements,'classes'=>$classes,'stats'=>$stats,'flash'=>$this->getFlash()]);
     }
 
     public function create(): void {
@@ -31,6 +36,12 @@ class AnnouncementController extends Controller {
         );
         $this->flash('success','Announcement posted.'); $this->redirect('/school/announcements');
     }
+
+    public function delete(string $id): void {
+        $this->requireAuth(['School Admin','Teacher']);
+        $this->db->execute("DELETE FROM announcements WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        $this->flash('success','Announcement removed.'); $this->redirect('/school/announcements');
+    }
 }
 
 class MessageController extends Controller {
@@ -40,17 +51,29 @@ class MessageController extends Controller {
     public function index(): void {
         $this->requireAuth();
         $msgs = $this->db->fetchAll("SELECT m.*, u.name AS sender_name FROM messages m JOIN users u ON m.sender_id=u.id WHERE m.recipient_id=? AND m.tenant_id=? ORDER BY m.created_at DESC", [$_SESSION['user_id'],$this->tid]);
-        $this->view('school/highschool/messages/index', ['pageTitle'=>'Messages','panelType'=>'school','messages'=>$msgs,'flash'=>$this->getFlash()]);
+        $stats = [
+            'total'  => count($msgs),
+            'unread' => count(array_filter($msgs, fn($m) => !$m['is_read'])),
+        ];
+        $this->view('school/highschool/messages/index', ['pageTitle'=>'Messages','panelType'=>'school','messages'=>$msgs,'stats'=>$stats,'flash'=>$this->getFlash()]);
     }
 
     public function compose(): void {
         $this->requireAuth();
         $users = $this->db->fetchAll("SELECT id,name FROM users WHERE tenant_id=? AND id!=? ORDER BY name", [$this->tid,$_SESSION['user_id']]);
-        $this->view('school/highschool/messages/compose', ['pageTitle'=>'Compose','panelType'=>'school','users'=>$users,'flash'=>$this->getFlash()]);
+        $replyTo = null;
+        $prefillSubject = '';
+        if (!empty($_GET['reply_to'])) {
+            $replyTo = $this->db->fetchOne("SELECT id,name FROM users WHERE id=? AND tenant_id=?", [$_GET['reply_to'], $this->tid]);
+            if (!empty($_GET['subject'])) { $prefillSubject = 'Re: ' . $_GET['subject']; }
+        }
+        $this->view('school/highschool/messages/compose', ['pageTitle'=>'Compose','panelType'=>'school','users'=>$users,'replyTo'=>$replyTo,'prefillSubject'=>$prefillSubject,'flash'=>$this->getFlash()]);
     }
 
     public function send(): void {
         $this->requireAuth();
+        $errors = $this->validate($_POST, ['recipient_id' => 'required', 'body' => 'required']);
+        if ($errors) { $this->failValidation($errors, '/school/messages/compose'); }
         $this->db->insert("INSERT INTO messages (tenant_id,sender_id,recipient_id,subject,body) VALUES (?,?,?,?,?)",
             [$this->tid,$_SESSION['user_id'],$_POST['recipient_id'],$_POST['subject']??'',$_POST['body']]);
         $this->flash('success','Message sent.'); $this->redirect('/school/messages');
@@ -58,10 +81,16 @@ class MessageController extends Controller {
 
     public function show(string $id): void {
         $this->requireAuth();
-        $msg = $this->db->fetchOne("SELECT m.*,u.name AS sender_name FROM messages m JOIN users u ON m.sender_id=u.id WHERE m.id=? AND m.tenant_id=?",[$id,$this->tid]);
+        $msg = $this->db->fetchOne("SELECT m.*,u.name AS sender_name FROM messages m JOIN users u ON m.sender_id=u.id WHERE m.id=? AND m.tenant_id=? AND m.recipient_id=?",[$id,$this->tid,$_SESSION['user_id']]);
         if (!$msg) { $this->redirect('/school/messages'); }
         if (!$msg['is_read']) { $this->db->execute("UPDATE messages SET is_read=1,read_at=NOW() WHERE id=?",[$id]); }
         $this->view('school/highschool/messages/show', ['pageTitle'=>'Message','panelType'=>'school','message'=>$msg,'flash'=>$this->getFlash()]);
+    }
+
+    public function delete(string $id): void {
+        $this->requireAuth();
+        $this->db->execute("DELETE FROM messages WHERE id=? AND tenant_id=? AND recipient_id=?", [$id, $this->tid, $_SESSION['user_id']]);
+        $this->flash('success','Message deleted.'); $this->redirect('/school/messages');
     }
 }
 

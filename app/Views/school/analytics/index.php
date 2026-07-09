@@ -2,19 +2,25 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <div class="page-header">
-    <div class="page-header-title">Advanced Academic Analytics</div>
-    <div class="text-muted">High-density data visualization for school performance.</div>
+    <div>
+        <div class="page-header-title">Advanced Academic Analytics</div>
+        <div class="page-header-sub">School-wide performance and attendance data</div>
+    </div>
 </div>
 
 <div class="stat-grid">
     <div class="stat-card">
+        <div class="stat-label">Active Students</div>
+        <div class="stat-value"><?= (int)($stats['totalStudents'] ?? 0) ?></div>
+    </div>
+    <div class="stat-card" style="--card-color: var(--success);">
         <div class="stat-label">Global Avg Score</div>
-        <div class="stat-value">72.4%</div>
-        <div class="stat-sub">+2.1% from last term</div>
+        <div class="stat-value"><?= $stats['globalAvg'] !== null ? $stats['globalAvg'].'%' : '—' ?></div>
+        <div class="stat-sub"><?= $stats['globalAvg'] !== null ? 'Across all recorded grades' : 'No grades recorded yet' ?></div>
     </div>
     <div class="stat-card" style="--card-color: var(--warning);">
         <div class="stat-label">Critical Attendance</div>
-        <div class="stat-value"><?= count($subjectPerformance) ?></div>
+        <div class="stat-value"><?= (int)($stats['criticalAttendance'] ?? 0) ?></div>
         <div class="stat-sub">Students below 75% threshold</div>
     </div>
 </div>
@@ -23,28 +29,37 @@
     <div class="card">
         <div class="card-header"><div class="card-title">Subject Performance Comparison</div></div>
         <div class="card-body">
-            <canvas id="subjectChart"></canvas>
+            <?php if(empty($subjectPerformance)): ?>
+              <div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-text">No graded subjects yet.</div></div>
+            <?php else: ?>
+              <canvas id="subjectChart"></canvas>
+            <?php endif; ?>
         </div>
     </div>
     <div class="card">
-        <div class="card-header"><div class="card-title">School-wide Attendance Trend</div></div>
+        <div class="card-header"><div class="card-title">School-wide Attendance Trend (Last 7 Days)</div></div>
         <div class="card-body">
-            <canvas id="attendanceChart"></canvas>
+            <?php if(empty($attendanceTrend)): ?>
+              <div class="empty-state"><div class="empty-state-icon">📈</div><div class="empty-state-text">No attendance recorded in the last 7 days.</div></div>
+            <?php else: ?>
+              <canvas id="attendanceChart"></canvas>
+            <?php endif; ?>
         </div>
     </div>
 </div>
 
 <script>
-const ctxSubject = document.getElementById('subjectChart').getContext('2d');
-new Chart(ctxSubject, {
+const subjectCanvas = document.getElementById('subjectChart');
+if (subjectCanvas) {
+new Chart(subjectCanvas.getContext('2d'), {
     type: 'bar',
     data: {
         labels: <?= json_encode(array_column($subjectPerformance, 'subject')) ?>,
         datasets: [{
             label: 'Average Score (%)',
             data: <?= json_encode(array_column($subjectPerformance, 'avg_score')) ?>,
-            backgroundColor: 'rgba(79, 70, 229, 0.6)',
-            borderColor: 'rgba(79, 70, 229, 1)',
+            backgroundColor: 'rgba(16, 185, 129, 0.6)',
+            borderColor: 'rgba(16, 185, 129, 1)',
             borderWidth: 1
         }]
     },
@@ -54,9 +69,11 @@ new Chart(ctxSubject, {
         scales: { y: { beginAtZero: true, max: 100 } }
     }
 });
+}
 
-const ctxAttendance = document.getElementById('attendanceChart').getContext('2d');
-new Chart(ctxAttendance, {
+const attendanceCanvas = document.getElementById('attendanceChart');
+if (attendanceCanvas) {
+new Chart(attendanceCanvas.getContext('2d'), {
     type: 'line',
     data: {
         labels: <?= json_encode(array_column($attendanceTrend, 'date')) ?>,
@@ -74,5 +91,6 @@ new Chart(ctxAttendance, {
         scales: { y: { beginAtZero: false } }
     }
 });
+}
 </script>
 <?php require ROOT_DIR . '/app/Views/layouts/footer.php'; ?>

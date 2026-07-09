@@ -82,11 +82,13 @@ $router->post('/school/parents/{id}/children/{studentId}/unlink', ['ParentContro
 $router->get('/school/announcements',       ['AnnouncementController', 'index']);
 $router->get('/school/announcements/create', ['AnnouncementController', 'create']);
 $router->post('/school/announcements/store', ['AnnouncementController', 'store']);
+$router->post('/school/announcements/{id}/delete', ['AnnouncementController', 'delete']);
 
 $router->get('/school/messages',            ['MessageController', 'index']);
 $router->get('/school/messages/compose',    ['MessageController', 'compose']);
 $router->post('/school/messages/send',      ['MessageController', 'send']);
 $router->get('/school/messages/{id}',       ['MessageController', 'show']);
+$router->post('/school/messages/{id}/delete', ['MessageController', 'delete']);
 
 $router->get('/school/settings',            ['SchoolSettingsController', 'index']);
 $router->post('/school/settings/update',    ['SchoolSettingsController', 'update']);
@@ -119,8 +121,13 @@ $router->get('/parent/finance',             ['ParentPortalController', 'finance'
 // ── HR & PAYROLL ────────────────────────────────────────────────
 $router->get('/school/staff',               ['StaffController', 'index']);
 $router->post('/school/staff/store',        ['StaffController', 'store']);
+$router->get('/school/staff/{id}/edit',     ['StaffController', 'edit']);
+$router->post('/school/staff/{id}/update',  ['StaffController', 'update']);
+$router->post('/school/staff/{id}/delete',  ['StaffController', 'delete']);
 $router->get('/school/hr/payroll',          ['HRController', 'payroll']);
 $router->post('/school/hr/payroll/generate', ['HRController', 'generatePayroll']);
+$router->post('/school/hr/payroll/{id}/pay', ['HRController', 'markPayrollPaid']);
+$router->get('/school/hr/payroll/{id}/payslip', ['HRController', 'payslip']);
 $router->get('/school/hr/leaves',           ['HRController', 'leaves']);
 $router->post('/school/hr/leaves/approve',  ['HRController', 'approveLeave']);
 

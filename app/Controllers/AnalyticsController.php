@@ -23,20 +23,38 @@ class AnalyticsController extends Controller {
 
         // Attendance trend (last 7 days)
         $attendanceTrend = $this->db->fetchAll(
-            "SELECT date, 
-                    COUNT(*) as total, 
-                    SUM(CASE WHEN status='present' THEN 1 ELSE 0 END) as present 
-             FROM attendance 
-             WHERE tenant_id = ? AND date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) 
-             GROUP BY date ORDER BY date ASC", 
+            "SELECT date,
+                    COUNT(*) as total,
+                    SUM(CASE WHEN status='present' THEN 1 ELSE 0 END) as present
+             FROM attendance
+             WHERE tenant_id = ? AND date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+             GROUP BY date ORDER BY date ASC",
             [$this->tid]
         );
+
+        $globalAvg = $this->db->fetchOne(
+            "SELECT AVG(marks_obtained/total_marks*100) avg_pct FROM grades WHERE tenant_id=? AND total_marks>0", [$this->tid]
+        );
+        $criticalAttendance = $this->db->fetchOne(
+            "SELECT COUNT(*) c FROM (
+                SELECT s.id, (SUM(CASE WHEN a.status='present' THEN 1 ELSE 0 END)/COUNT(a.id)*100) AS pct
+                FROM students s JOIN attendance a ON s.id=a.student_id
+                WHERE s.tenant_id=? GROUP BY s.id HAVING pct < 75
+             ) sub", [$this->tid]
+        );
+        $totalStudents = $this->db->fetchOne("SELECT COUNT(*) c FROM students WHERE tenant_id=? AND status='active'", [$this->tid]);
+        $stats = [
+            'globalAvg'          => $globalAvg['avg_pct'] !== null ? round($globalAvg['avg_pct'], 1) : null,
+            'criticalAttendance' => (int)($criticalAttendance['c'] ?? 0),
+            'totalStudents'      => (int)($totalStudents['c'] ?? 0),
+        ];
 
         $this->view('school/analytics/index', [
             'pageTitle' => 'Academic Analytics',
             'panelType' => 'school',
             'subjectPerformance' => $subjectPerformance,
-            'attendanceTrend' => $attendanceTrend
+            'attendanceTrend' => $attendanceTrend,
+            'stats' => $stats,
         ]);
     }
 
@@ -79,10 +97,17 @@ class AnalyticsController extends Controller {
             [$this->tid]
         );
 
+        $stats = [
+            'flagged' => count($chronicAbsentees),
+            'avgPct'  => count($chronicAbsentees) > 0 ? round(array_sum(array_column($chronicAbsentees, 'percentage')) / count($chronicAbsentees), 1) : null,
+            'critical' => count(array_filter($chronicAbsentees, fn($s) => $s['percentage'] < 50)),
+        ];
+
         $this->view('school/analytics/attendance', [
             'pageTitle' => 'Attendance Heatmap',
             'panelType' => 'school',
-            'chronicAbsentees' => $chronicAbsentees
+            'chronicAbsentees' => $chronicAbsentees,
+            'stats' => $stats,
         ]);
     }
 }

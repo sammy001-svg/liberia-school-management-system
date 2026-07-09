@@ -3,7 +3,7 @@
   <a href="<?= $cfg['url'] ?>/school/messages">Messages</a>
   <span>/</span><span>Compose</span>
 </div>
-<div class="page-header"><div class="page-header-title">Compose Message</div></div>
+<div class="page-header"><div class="page-header-title"><?= $replyTo ? 'Reply to ' . htmlspecialchars($replyTo['name']) : 'Compose Message' ?></div></div>
 <div style="max-width:680px;">
 <form method="POST" action="<?= $cfg['url'] ?>/school/messages/send">
   <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
@@ -13,13 +13,13 @@
       <select name="recipient_id" class="form-control" required>
         <option value="">— Select Recipient —</option>
         <?php foreach($users as $u): ?>
-          <option value="<?= $u['id'] ?>"><?= htmlspecialchars($u['name']) ?></option>
+          <option value="<?= $u['id'] ?>" <?= $replyTo && $replyTo['id']==$u['id'] ? 'selected' : '' ?>><?= htmlspecialchars($u['name']) ?></option>
         <?php endforeach; ?>
       </select>
     </div>
     <div class="form-group">
       <label class="form-label">Subject</label>
-      <input type="text" name="subject" class="form-control">
+      <input type="text" name="subject" class="form-control" value="<?= htmlspecialchars($prefillSubject ?? '') ?>">
     </div>
     <div class="form-group">
       <label class="form-label">Message *</label>
