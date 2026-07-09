@@ -841,3 +841,61 @@ CREATE TABLE online_exam_answers (
     FOREIGN KEY (question_id) REFERENCES online_exam_questions(id) ON DELETE CASCADE
 );
 
+-- ============================================================
+-- SCHOOL BUS / TRANSPORT
+-- ============================================================
+CREATE TABLE buses (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT UNSIGNED NOT NULL,
+    bus_number VARCHAR(50) NOT NULL,
+    plate_number VARCHAR(50) DEFAULT NULL,
+    capacity INT UNSIGNED DEFAULT 40,
+    model VARCHAR(100) DEFAULT NULL,
+    status ENUM('active','maintenance','inactive') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
+);
+
+CREATE TABLE bus_drivers (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT UNSIGNED NOT NULL,
+    name VARCHAR(150) NOT NULL,
+    phone VARCHAR(30) DEFAULT NULL,
+    license_no VARCHAR(50) DEFAULT NULL,
+    address VARCHAR(255) DEFAULT NULL,
+    status ENUM('active','inactive') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
+);
+
+CREATE TABLE bus_routes (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT UNSIGNED NOT NULL,
+    name VARCHAR(150) NOT NULL,
+    bus_id INT UNSIGNED DEFAULT NULL,
+    driver_id INT UNSIGNED DEFAULT NULL,
+    stops TEXT DEFAULT NULL,
+    monthly_fee DECIMAL(10,2) DEFAULT 0.00,
+    departure_time TIME DEFAULT NULL,
+    return_time TIME DEFAULT NULL,
+    status ENUM('active','inactive') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+    FOREIGN KEY (bus_id) REFERENCES buses(id) ON DELETE SET NULL,
+    FOREIGN KEY (driver_id) REFERENCES bus_drivers(id) ON DELETE SET NULL
+);
+
+CREATE TABLE bus_students (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT UNSIGNED NOT NULL,
+    route_id INT UNSIGNED NOT NULL,
+    student_id INT UNSIGNED NOT NULL,
+    pickup_stop VARCHAR(150) DEFAULT NULL,
+    status ENUM('active','inactive') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_student (tenant_id, student_id),
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+    FOREIGN KEY (route_id) REFERENCES bus_routes(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+);
+

@@ -32,6 +32,7 @@
   <a href="<?= $cfg['url'] ?>/school/finance/collection" class="btn btn-secondary">📥 Manage Collection</a>
   <a href="<?= $cfg['url'] ?>/school/finance/expenses" class="btn btn-secondary">🧮 Expenses</a>
   <a href="<?= $cfg['url'] ?>/school/finance/fees" class="btn btn-secondary">📋 Fee Structures</a>
+  <a href="<?= $cfg['url'] ?>/school/finance/bus-billing" class="btn btn-secondary">🚌 Bus Billing</a>
 </div>
 <div class="card">
   <div class="card-header"><div class="card-title">Recent Payments</div></div>

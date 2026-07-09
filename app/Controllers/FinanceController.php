@@ -214,6 +214,54 @@ class FinanceController extends Controller {
         ]);
     }
 
+    // --- BUS BILLING (bills students on active bus routes; creates normal invoices) ---
+    public function busBilling(): void {
+        $this->requireAuth(['School Admin','Accountant']);
+        $routes = $this->db->fetchAll(
+            "SELECT r.*, b.bus_number,
+                    (SELECT COUNT(*) FROM bus_students bs WHERE bs.route_id=r.id AND bs.status='active') AS student_count
+             FROM bus_routes r LEFT JOIN buses b ON r.bus_id=b.id
+             WHERE r.tenant_id=? AND r.status='active' ORDER BY r.name", [$this->tid]
+        );
+        $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
+        $stats = [
+            'totalRoutes'   => count($routes),
+            'totalStudents' => array_sum(array_column($routes, 'student_count')),
+            'monthlyPotential' => array_sum(array_map(fn($r) => $r['monthly_fee'] * $r['student_count'], $routes)),
+        ];
+        $this->view('school/highschool/finance/bus_billing', [
+            'pageTitle'=>'Bus Billing','panelType'=>'school','tenant'=>$tenant,'routes'=>$routes,'stats'=>$stats,'flash'=>$this->getFlash(),
+        ]);
+    }
+
+    public function generateBusInvoices(): void {
+        $this->requireAuth(['School Admin','Accountant']);
+        $errors = $this->validate($_POST, ['route_id' => 'required', 'month' => 'required']);
+        if ($errors) { $this->failValidation($errors, '/school/finance/bus-billing'); }
+        $route = $this->db->fetchOne("SELECT * FROM bus_routes WHERE id=? AND tenant_id=?", [$_POST['route_id'], $this->tid]);
+        if (!$route) { $this->redirect('/school/finance/bus-billing'); }
+
+        $month = $_POST['month']; // YYYY-MM
+        $monthLabel = date('F Y', strtotime($month.'-01'));
+        $tag = '[BUS-ROUTE:'.$route['id'].':'.$month.']';
+        $dueDate = $_POST['due_date'] ?: date('Y-m-d', strtotime($month.'-01 +14 days'));
+
+        $students = $this->db->fetchAll("SELECT student_id FROM bus_students WHERE route_id=? AND status='active'", [$route['id']]);
+        $created = 0; $skipped = 0;
+        foreach ($students as $s) {
+            $exists = $this->db->fetchOne("SELECT id FROM invoices WHERE tenant_id=? AND student_id=? AND notes LIKE ?", [$this->tid, $s['student_id'], '%'.$tag]);
+            if ($exists) { $skipped++; continue; }
+            $invoiceNo = 'BUS-'.date('Ymd').'-'.rand(1000,9999);
+            $this->db->insert(
+                "INSERT INTO invoices (tenant_id,student_id,invoice_no,amount_due,due_date,notes,status) VALUES (?,?,?,?,?,?,?)",
+                [$this->tid, $s['student_id'], $invoiceNo, $route['monthly_fee'], $dueDate, "Bus Fee - {$route['name']} - {$monthLabel} {$tag}", 'unpaid']
+            );
+            $created++;
+        }
+        $this->flash($created > 0 ? 'success' : 'warning', "Generated {$created} invoice(s) for {$monthLabel}." . ($skipped > 0 ? " {$skipped} student(s) were already billed for this month." : ''));
+        $this->redirect('/school/finance/bus-billing');
+    }
+
     public function printInvoice(string $id): void {
         $this->requireAuth(['School Admin','Accountant']);
         $invoice = $this->db->fetchOne(

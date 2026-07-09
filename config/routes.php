@@ -76,6 +76,27 @@ $router->get('/school/finance/expenses',    ['FinanceController', 'expenses']);
 $router->post('/school/finance/expenses/store', ['FinanceController', 'storeExpense']);
 $router->post('/school/finance/expenses/{id}/delete', ['FinanceController', 'deleteExpense']);
 $router->get('/school/finance/collection',  ['FinanceController', 'collection']);
+$router->get('/school/finance/bus-billing',  ['FinanceController', 'busBilling']);
+$router->post('/school/finance/bus-billing/generate', ['FinanceController', 'generateBusInvoices']);
+
+// ── SCHOOL BUS / TRANSPORT ───────────────────────────────────────
+$router->get('/school/transport/buses',            ['BusController', 'buses']);
+$router->post('/school/transport/buses/store',      ['BusController', 'storeBus']);
+$router->post('/school/transport/buses/{id}/update', ['BusController', 'updateBus']);
+$router->post('/school/transport/buses/{id}/delete', ['BusController', 'deleteBus']);
+
+$router->get('/school/transport/drivers',            ['BusController', 'drivers']);
+$router->post('/school/transport/drivers/store',      ['BusController', 'storeDriver']);
+$router->post('/school/transport/drivers/{id}/update', ['BusController', 'updateDriver']);
+$router->post('/school/transport/drivers/{id}/delete', ['BusController', 'deleteDriver']);
+
+$router->get('/school/transport/routes',            ['BusController', 'routes']);
+$router->post('/school/transport/routes/store',      ['BusController', 'storeRoute']);
+$router->post('/school/transport/routes/{id}/update', ['BusController', 'updateRoute']);
+$router->post('/school/transport/routes/{id}/delete', ['BusController', 'deleteRoute']);
+$router->get('/school/transport/routes/{id}/students', ['BusController', 'routeStudents']);
+$router->post('/school/transport/routes/{id}/students/assign', ['BusController', 'assignStudent']);
+$router->post('/school/transport/routes/{id}/students/{studentId}/unassign', ['BusController', 'unassignStudent']);
 
 $router->get('/school/parents',             ['ParentController', 'index']);
 $router->get('/school/parents/create',      ['ParentController', 'create']);
