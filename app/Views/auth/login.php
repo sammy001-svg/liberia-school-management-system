@@ -53,7 +53,7 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
       <span><?= htmlspecialchars($appName) ?></span>
     </div>
 
-    <div class="carousel-slide active" style="background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);">
+    <div class="carousel-slide active" style="background: linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.8)), url('https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80&w=1600') center/cover no-repeat;">
       <div class="carousel-icon">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M12 6.5c-1.5-1-4-1.5-6-1.2v11c2-.3 4.5.2 6 1.2c1.5-1 4-1.5 6-1.2v-11c-2-.3-4.5.2-6 1.2z" stroke-linejoin="round" stroke-linecap="round"/>
@@ -66,7 +66,7 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
       </div>
     </div>
 
-    <div class="carousel-slide" style="background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);">
+    <div class="carousel-slide" style="background: linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.8)), url('https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&q=80&w=1600') center/cover no-repeat;">
       <div class="carousel-icon">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <circle cx="9" cy="8" r="3"/>
@@ -81,7 +81,7 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
       </div>
     </div>
 
-    <div class="carousel-slide" style="background: linear-gradient(135deg, var(--accent) 0%, var(--primary) 100%);">
+    <div class="carousel-slide" style="background: linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.8)), url('https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?auto=format&fit=crop&q=80&w=1600') center/cover no-repeat;">
       <div class="carousel-icon">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M4 19V13M9 19V9M14 19v-4M19 19V6" stroke-linecap="round"/>
