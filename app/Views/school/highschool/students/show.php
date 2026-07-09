@@ -17,6 +17,7 @@
     <div class="profile-hero-actions">
       <a href="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/id-card" target="_blank" class="btn btn-outline">🪪 ID Card</a>
       <a href="<?= $cfg['url'] ?>/school/grades/report-card/<?= $student['id'] ?>" target="_blank" class="btn btn-outline">📄 Report Card</a>
+      <a href="<?= $cfg['url'] ?>/school/certificates" class="btn btn-outline">🎓 Certificates</a>
       <a href="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/edit" class="btn btn-secondary">Edit Profile</a>
     </div>
   </div>

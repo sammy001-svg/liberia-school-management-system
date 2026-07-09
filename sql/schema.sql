@@ -899,3 +899,25 @@ CREATE TABLE bus_students (
     FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
 );
 
+-- ============================================================
+-- CERTIFICATES
+-- ============================================================
+CREATE TABLE certificates (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT UNSIGNED NOT NULL,
+    student_id INT UNSIGNED NOT NULL,
+    academic_year_id INT UNSIGNED DEFAULT NULL,
+    certificate_no VARCHAR(50) NOT NULL,
+    type ENUM('completion','promotion','graduation','achievement') DEFAULT 'completion',
+    title VARCHAR(200) DEFAULT NULL,
+    remarks VARCHAR(255) DEFAULT NULL,
+    issued_date DATE NOT NULL,
+    issued_by INT UNSIGNED DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_certificate_no (tenant_id, certificate_no),
+    UNIQUE KEY unique_student_year_type (tenant_id, student_id, academic_year_id, type),
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+    FOREIGN KEY (academic_year_id) REFERENCES academic_years(id) ON DELETE SET NULL
+);
+

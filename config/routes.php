@@ -63,6 +63,13 @@ $router->post('/school/grades/rankings/bulk-upload',  ['GradeController', 'bulkU
 $router->get('/school/grades/rankings/export',      ['GradeController', 'exportRankingsCsv']);
 $router->get('/school/grades/rankings/print',       ['GradeController', 'printRankings']);
 
+// ── CERTIFICATES ─────────────────────────────────────────────────
+$router->get('/school/certificates',              ['CertificateController', 'index']);
+$router->post('/school/certificates/generate',     ['CertificateController', 'generate']);
+$router->post('/school/certificates/bulk-generate', ['CertificateController', 'bulkGenerate']);
+$router->get('/school/certificates/{id}/print',    ['CertificateController', 'printCertificate']);
+$router->post('/school/certificates/{id}/delete',  ['CertificateController', 'delete']);
+
 $router->get('/school/finance',             ['FinanceController', 'index']);
 $router->get('/school/finance/invoices',    ['FinanceController', 'invoices']);
 $router->get('/school/finance/invoices/create', ['FinanceController', 'createInvoice']);
