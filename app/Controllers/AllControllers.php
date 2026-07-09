@@ -71,11 +71,19 @@ class GradeController extends Controller {
 
     public function index(): void {
         $this->requireAuth(['School Admin','Teacher']);
-        $exams = $this->db->fetchAll("SELECT e.*, c.name AS class_name FROM exams e LEFT JOIN classes c ON e.class_id=c.id WHERE e.tenant_id=? ORDER BY e.exam_date DESC", [$this->tid]);
+        $exams = $this->db->fetchAll(
+            "SELECT e.*, c.name AS class_name, (SELECT COUNT(DISTINCT student_id) FROM grades g WHERE g.exam_id=e.id) AS graded_count
+             FROM exams e LEFT JOIN classes c ON e.class_id=c.id WHERE e.tenant_id=? ORDER BY e.exam_date DESC", [$this->tid]
+        );
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
         $terms = $this->db->fetchAll("SELECT id,name FROM terms WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]);
         $academicYears = $this->db->fetchAll("SELECT id,name FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]);
-        $this->view('school/highschool/grades/index', ['pageTitle'=>'Grades & Exams','panelType'=>'school','exams'=>$exams,'classes'=>$classes,'terms'=>$terms,'academicYears'=>$academicYears,'flash'=>$this->getFlash()]);
+        $stats = [
+            'total'    => count($exams),
+            'upcoming' => count(array_filter($exams, fn($e) => $e['exam_date'] && strtotime($e['exam_date']) >= strtotime(date('Y-m-d')))),
+            'graded'   => count(array_filter($exams, fn($e) => $e['graded_count'] > 0)),
+        ];
+        $this->view('school/highschool/grades/index', ['pageTitle'=>'Grades & Exams','panelType'=>'school','exams'=>$exams,'classes'=>$classes,'terms'=>$terms,'academicYears'=>$academicYears,'stats'=>$stats,'flash'=>$this->getFlash()]);
     }
 
     public function storeExam(): void {
@@ -240,6 +248,16 @@ class TimetableController extends Controller {
         );
         $this->flash('success','Timetable entry added.'); $this->redirect('/school/timetable?class_id='.$_POST['class_id']);
     }
+
+    public function deleteEntry(string $id): void {
+        $this->requireAuth(['School Admin']);
+        $entry = $this->db->fetchOne("SELECT class_id FROM timetable WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        if ($entry) {
+            $this->db->execute("DELETE FROM timetable WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        }
+        $this->flash('success','Timetable entry removed.');
+        $this->redirect('/school/timetable?class_id='.($entry['class_id'] ?? ''));
+    }
 }
 
 class ParentController extends Controller {
@@ -248,15 +266,29 @@ class ParentController extends Controller {
 
     public function index(): void {
         $this->requireAuth(['School Admin']);
-        $totalCount = $this->db->fetchOne("SELECT COUNT(*) c FROM parents p WHERE p.tenant_id=?", [$this->tid])['c'];
+        $search = $_GET['q'] ?? '';
+        $params = [$this->tid];
+        $where = "p.tenant_id=?";
+        if ($search) { $where .= " AND (u.name LIKE ? OR u.email LIKE ?)"; $params[] = "%$search%"; $params[] = "%$search%"; }
+
+        $totalCount = $this->db->fetchOne("SELECT COUNT(*) c FROM parents p JOIN users u ON p.user_id=u.id WHERE $where", $params)['c'];
         $p2 = $this->paginate($totalCount);
         $parents = $this->db->fetchAll(
-            "SELECT p.*,u.name,u.email,u.phone FROM parents p JOIN users u ON p.user_id=u.id WHERE p.tenant_id=? ORDER BY u.name LIMIT {$p2['perPage']} OFFSET {$p2['offset']}",
-            [$this->tid]
+            "SELECT p.*,u.name,u.email,u.phone,
+                    (SELECT COUNT(*) FROM parent_students ps WHERE ps.parent_id=p.id) AS children_count,
+                    (SELECT GROUP_CONCAT(cu.name SEPARATOR ', ') FROM parent_students ps JOIN students cs ON ps.student_id=cs.id JOIN users cu ON cs.user_id=cu.id WHERE ps.parent_id=p.id) AS children_names
+             FROM parents p JOIN users u ON p.user_id=u.id WHERE $where ORDER BY u.name LIMIT {$p2['perPage']} OFFSET {$p2['offset']}",
+            $params
         );
         $students = $this->db->fetchAll("SELECT s.id,u.name FROM students s JOIN users u ON s.user_id=u.id WHERE s.tenant_id=? AND s.status='active' ORDER BY u.name", [$this->tid]);
+        $stats = $this->db->fetchOne(
+            "SELECT COUNT(*) total,
+                    SUM(CASE WHEN EXISTS(SELECT 1 FROM parent_students ps WHERE ps.parent_id=p.id) THEN 1 ELSE 0 END) linked,
+                    SUM(CASE WHEN NOT EXISTS(SELECT 1 FROM parent_students ps WHERE ps.parent_id=p.id) THEN 1 ELSE 0 END) unlinked
+             FROM parents p WHERE p.tenant_id=?", [$this->tid]
+        );
         $this->view('school/highschool/parents/index', [
-            'pageTitle'=>'Parents','panelType'=>'school','parents'=>$parents,'students'=>$students,
+            'pageTitle'=>'Parents','panelType'=>'school','parents'=>$parents,'students'=>$students,'search'=>$search,'stats'=>$stats,
             'page'=>$p2['page'],'totalPages'=>$p2['totalPages'],'total'=>$p2['total'],'perPage'=>$p2['perPage'],
             'flash'=>$this->getFlash(), 'importErrors'=>$this->getImportErrors(),
         ]);
@@ -350,6 +382,80 @@ class ParentController extends Controller {
                 [$parentId,$_POST['student_id'],$_POST['relationship']??'parent']);
         }
         $this->flash('success','Parent account created.'); $this->redirect('/school/parents');
+    }
+
+    public function show(string $id): void {
+        $this->requireAuth(['School Admin']);
+        $parent = $this->db->fetchOne(
+            "SELECT p.*, u.name, u.email, u.phone, u.gender, u.date_of_birth, u.address
+             FROM parents p JOIN users u ON p.user_id=u.id WHERE p.id=? AND p.tenant_id=?", [$id, $this->tid]
+        );
+        if (!$parent) { $this->redirect('/school/parents'); }
+        $children = $this->db->fetchAll(
+            "SELECT s.id, s.admission_no, s.status, ps.relationship, u.name, c.name AS class_name
+             FROM parent_students ps JOIN students s ON ps.student_id=s.id JOIN users u ON s.user_id=u.id
+             LEFT JOIN classes c ON s.class_id=c.id
+             WHERE ps.parent_id=? ORDER BY u.name", [$id]
+        );
+        $linkedIds = array_column($children, 'id');
+        $availableStudents = $this->db->fetchAll(
+            "SELECT s.id, u.name FROM students s JOIN users u ON s.user_id=u.id WHERE s.tenant_id=? AND s.status='active'"
+            . (!empty($linkedIds) ? " AND s.id NOT IN (" . implode(',', array_map('intval', $linkedIds)) . ")" : "")
+            . " ORDER BY u.name", [$this->tid]
+        );
+        $this->view('school/highschool/parents/show', [
+            'pageTitle'=>$parent['name'],'panelType'=>'school','parent'=>$parent,
+            'children'=>$children,'availableStudents'=>$availableStudents,
+            'flash'=>$this->getFlash(),
+        ]);
+    }
+
+    public function edit(string $id): void {
+        $this->requireAuth(['School Admin']);
+        $parent = $this->db->fetchOne(
+            "SELECT p.*, u.name, u.email, u.phone, u.gender, u.date_of_birth, u.address
+             FROM parents p JOIN users u ON p.user_id=u.id WHERE p.id=? AND p.tenant_id=?", [$id, $this->tid]
+        );
+        if (!$parent) { $this->redirect('/school/parents'); }
+        $this->view('school/highschool/parents/form', ['pageTitle'=>'Edit Parent','panelType'=>'school','parent'=>$parent,'flash'=>$this->getFlash()]);
+    }
+
+    public function update(string $id): void {
+        $this->requireAuth(['School Admin']);
+        $parent = $this->db->fetchOne("SELECT user_id FROM parents WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        if (!$parent) { $this->redirect('/school/parents'); }
+        $errors = $this->validate($_POST, ['name' => 'required|max:150', 'email' => 'required|email|max:150']);
+        if ($errors) { $this->failValidation($errors, '/school/parents/'.$id.'/edit'); }
+        $this->db->execute("UPDATE users SET name=?,email=?,phone=?,gender=?,date_of_birth=?,address=? WHERE id=?",
+            [$_POST['name'],$_POST['email'],$_POST['phone']??'',$_POST['gender']??null,$_POST['dob']??null,$_POST['address']??'',$parent['user_id']]);
+        $this->db->execute("UPDATE parents SET occupation=?,workplace=?,national_id=?,emergency_contact_phone=? WHERE id=? AND tenant_id=?",
+            [$_POST['occupation']??'',$_POST['workplace']??null,$_POST['national_id']??null,$_POST['emergency_contact_phone']??null,$id,$this->tid]);
+        $this->flash('success','Parent updated.'); $this->redirect('/school/parents/'.$id);
+    }
+
+    public function delete(string $id): void {
+        $this->requireAuth(['School Admin']);
+        $parent = $this->db->fetchOne("SELECT user_id FROM parents WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        if ($parent) {
+            $this->db->execute("DELETE FROM parents WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+            $this->db->execute("DELETE FROM users WHERE id=?", [$parent['user_id']]);
+        }
+        $this->flash('success','Parent removed.'); $this->redirect('/school/parents');
+    }
+
+    public function linkChild(string $id): void {
+        $this->requireAuth(['School Admin']);
+        $errors = $this->validate($_POST, ['student_id' => 'required']);
+        if ($errors) { $this->failValidation($errors, '/school/parents/'.$id); }
+        $this->db->insert("INSERT INTO parent_students (parent_id,student_id,relationship) VALUES (?,?,?)",
+            [$id, $_POST['student_id'], $_POST['relationship'] ?: 'parent']);
+        $this->flash('success','Child linked.'); $this->redirect('/school/parents/'.$id);
+    }
+
+    public function unlinkChild(string $id, string $studentId): void {
+        $this->requireAuth(['School Admin']);
+        $this->db->execute("DELETE FROM parent_students WHERE parent_id=? AND student_id=?", [$id, $studentId]);
+        $this->flash('success','Child unlinked.'); $this->redirect('/school/parents/'.$id);
     }
 }
 

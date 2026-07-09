@@ -41,10 +41,20 @@ class AttendanceController extends Controller {
         $to      = $_GET['to']   ?? date('Y-m-d');
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?", [$this->tid]);
         $report  = [];
+        $stats   = null;
         if ($classId) {
             $report = $this->db->fetchAll("SELECT u.name, a.status, COUNT(*) AS cnt FROM attendance a JOIN students s ON a.student_id=s.id JOIN users u ON s.user_id=u.id WHERE a.tenant_id=? AND a.class_id=? AND a.date BETWEEN ? AND ? GROUP BY a.student_id, a.status ORDER BY u.name",
                 [$this->tid,$classId,$from,$to]);
+            $agg = $this->db->fetchOne(
+                "SELECT COUNT(*) total, SUM(CASE WHEN status='present' THEN 1 ELSE 0 END) present, COUNT(DISTINCT date) days
+                 FROM attendance WHERE tenant_id=? AND class_id=? AND date BETWEEN ? AND ?", [$this->tid,$classId,$from,$to]
+            );
+            $stats = [
+                'total' => $agg['total'] ?? 0,
+                'days'  => $agg['days'] ?? 0,
+                'rate'  => $agg['total'] > 0 ? round($agg['present'] / $agg['total'] * 100) : null,
+            ];
         }
-        $this->view('school/highschool/attendance/report', ['pageTitle'=>'Attendance Report','panelType'=>'school','classes'=>$classes,'report'=>$report,'classId'=>$classId,'from'=>$from,'to'=>$to,'flash'=>$this->getFlash()]);
+        $this->view('school/highschool/attendance/report', ['pageTitle'=>'Attendance Report','panelType'=>'school','classes'=>$classes,'report'=>$report,'classId'=>$classId,'from'=>$from,'to'=>$to,'stats'=>$stats,'flash'=>$this->getFlash()]);
     }
 }

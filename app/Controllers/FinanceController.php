@@ -71,7 +71,12 @@ class FinanceController extends Controller {
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
         $academicYears = $this->db->fetchAll("SELECT id,name FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]);
         $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
-        $this->view('school/highschool/finance/fee_structures', ['pageTitle'=>'Fee Structures','panelType'=>'school','tenant'=>$tenant,'fees'=>$fees,'classes'=>$classes,'academicYears'=>$academicYears,'flash'=>$this->getFlash()]);
+        $stats = [
+            'total' => count($fees),
+            'classSpecific' => count(array_filter($fees, fn($f) => !empty($f['class_id']))),
+            'schoolWide' => count(array_filter($fees, fn($f) => empty($f['class_id']))),
+        ];
+        $this->view('school/highschool/finance/fee_structures', ['pageTitle'=>'Fee Structures','panelType'=>'school','tenant'=>$tenant,'fees'=>$fees,'classes'=>$classes,'academicYears'=>$academicYears,'stats'=>$stats,'flash'=>$this->getFlash()]);
     }
 
     public function storeFeeStructure(): void {
@@ -92,7 +97,12 @@ class FinanceController extends Controller {
         $this->requireAuth(['School Admin','Accountant']);
         $payments = $this->db->fetchAll("SELECT p.*, i.invoice_no, u.name AS student_name FROM payments p JOIN invoices i ON p.invoice_id=i.id JOIN students s ON i.student_id=s.id JOIN users u ON s.user_id=u.id WHERE p.tenant_id=? ORDER BY p.paid_at DESC",[$this->tid]);
         $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
-        $this->view('school/highschool/finance/payments', ['pageTitle'=>'Payments','panelType'=>'school','tenant'=>$tenant,'payments'=>$payments,'flash'=>$this->getFlash()]);
+        $stats = $this->db->fetchOne(
+            "SELECT COUNT(*) total, COALESCE(SUM(amount),0) totalAmount,
+                    SUM(CASE WHEN DATE(paid_at)=CURDATE() THEN 1 ELSE 0 END) today
+             FROM payments WHERE tenant_id=?", [$this->tid]
+        );
+        $this->view('school/highschool/finance/payments', ['pageTitle'=>'Payments','panelType'=>'school','tenant'=>$tenant,'payments'=>$payments,'stats'=>$stats,'flash'=>$this->getFlash()]);
     }
 
     public function storePayment(): void {

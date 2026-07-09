@@ -1,19 +1,62 @@
 <?php require ROOT_DIR . '/app/Views/layouts/header.php'; ?>
 <div class="page-header">
-  <div class="page-header-title">Grades &amp; Exams</div>
+  <div>
+    <div class="page-header-title">Grades &amp; Exams</div>
+    <div class="page-header-sub">Create exams and manage grading</div>
+  </div>
   <div style="display:flex;gap:10px;">
     <button type="button" class="btn btn-secondary" onclick="document.getElementById('addExamModal').classList.add('open')">+ Add Exam</button>
     <a href="<?= $cfg['url'] ?>/school/grades/enter" class="btn btn-primary">Enter Grades</a>
   </div>
 </div>
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Total Exams</div>
+    <div class="stat-value"><?= (int)($stats['total'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--info);">
+    <div class="stat-label">Upcoming</div>
+    <div class="stat-value"><?= (int)($stats['upcoming'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--success);">
+    <div class="stat-label">Grading Started</div>
+    <div class="stat-value"><?= (int)($stats['graded'] ?? 0) ?></div>
+  </div>
+</div>
+
 <div class="card">
+  <div class="card-header"><div class="card-title">All Exams (<?= count($exams) ?>)</div></div>
   <div class="table-wrapper"><table>
-    <thead><tr><th>Exam</th><th>Class</th><th>Date</th><th>Total Marks</th><th>Pass Marks</th></tr></thead>
+    <thead><tr><th>Exam</th><th>Class</th><th>Date</th><th>Total Marks</th><th>Pass Marks</th><th>Status</th></tr></thead>
     <tbody>
       <?php foreach($exams as $e): ?>
-      <tr><td class="fw-600"><?= htmlspecialchars($e['name']) ?></td><td><?= htmlspecialchars($e['class_name']??'—') ?></td><td><?= $e['exam_date']?date('M d, Y',strtotime($e['exam_date'])):'—' ?></td><td><?= $e['total_marks'] ?></td><td><?= $e['pass_marks'] ?></td></tr>
+      <?php $isUpcoming = $e['exam_date'] && strtotime($e['exam_date']) >= strtotime(date('Y-m-d')); ?>
+      <tr>
+        <td class="fw-600"><?= htmlspecialchars($e['name']) ?></td>
+        <td><?= htmlspecialchars($e['class_name']??'All Classes') ?></td>
+        <td><?= $e['exam_date']?date('M d, Y',strtotime($e['exam_date'])):'—' ?></td>
+        <td><?= $e['total_marks'] ?></td>
+        <td><?= $e['pass_marks'] ?></td>
+        <td>
+          <?php if($e['graded_count'] > 0): ?>
+            <span class="badge badge-success"><?= $e['graded_count'] ?> graded</span>
+          <?php elseif($isUpcoming): ?>
+            <span class="badge badge-info">Upcoming</span>
+          <?php else: ?>
+            <span class="badge badge-warning">Not graded</span>
+          <?php endif; ?>
+        </td>
+      </tr>
       <?php endforeach; ?>
-      <?php if(empty($exams)): ?><tr><td colspan="5" class="text-center text-muted" style="padding:32px">No exams created yet. <a href="javascript:void(0)" onclick="document.getElementById('addExamModal').classList.add('open')">Add one</a></td></tr><?php endif; ?>
+      <?php if(empty($exams)): ?>
+      <tr><td colspan="6">
+        <div class="empty-state">
+          <div class="empty-state-icon">📝</div>
+          <div class="empty-state-text">No exams created yet. <a href="javascript:void(0)" onclick="document.getElementById('addExamModal').classList.add('open')">Add one</a></div>
+        </div>
+      </td></tr>
+      <?php endif; ?>
     </tbody>
   </table></div>
 </div>

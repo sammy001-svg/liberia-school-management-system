@@ -33,7 +33,11 @@
       "PowerShell(Get-Process | Where-Object { $_.Name -match \"httpd\" } | Select-Object Id,StartTime)",
       "Bash(\"/c/xampp/mysql/bin/mysql.exe\" -u root school_mgmt -e \"DESCRIBE tenants;\")",
       "Bash(\"/c/xampp/mysql/bin/mysql.exe\" -u root -e \"DROP DATABASE school_mgmt; CREATE DATABASE school_mgmt CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\")",
-      "Bash(curl -s -b /tmp/cookies2.txt -o /dev/null -w \"final http_code=%{http_code}\\\\n\" \"http://liberia-school.local/school/dashboard\")"
+      "Bash(curl -s -b /tmp/cookies2.txt -o /dev/null -w \"final http_code=%{http_code}\\\\n\" \"http://liberia-school.local/school/dashboard\")",
+      "Bash(/c/xampp/mysql/bin/mysql.exe -u root -N -e \"SELECT id, invoice_no, amount_due, amount_paid, status FROM school_mgmt.invoices LIMIT 3;\")",
+      "Bash(curl -s -o /dev/null -w \"Login page: %{http_code}\\\\n\" http://localhost:8080/login)",
+      "Bash(curl -s http://localhost:8080/login)",
+      "PowerShell(Start-Process \"http://localhost:8080/\")"
     ],
     "additionalDirectories": [
       "C:\\xampp\\apache\\conf",

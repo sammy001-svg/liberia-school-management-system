@@ -8,26 +8,63 @@
   <button type="button" class="btn btn-primary" onclick="document.getElementById('addClassModal').classList.add('open')">+ Add Class</button>
 </div>
 
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Total Classes</div>
+    <div class="stat-value"><?= (int)($stats['total'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--success);">
+    <div class="stat-label">Enrolled Students</div>
+    <div class="stat-value"><?= (int)($stats['enrolled'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--info);">
+    <div class="stat-label">Total Capacity</div>
+    <div class="stat-value"><?= (int)($stats['totalCapacity'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--warning);">
+    <div class="stat-label">Without a Class Teacher</div>
+    <div class="stat-value"><?= (int)($stats['unassigned'] ?? 0) ?></div>
+  </div>
+</div>
+
 <div class="card">
   <div class="card-header">
     <div class="card-title">All Classes (<?= count($classes) ?>)</div>
   </div>
   <div class="table-wrapper">
     <table>
-      <thead><tr><th>Class</th><th>Grade</th><th>Section</th><th>Room</th><th>Class Teacher</th><th>Students</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Class</th><th>Grade</th><th>Section</th><th>Room</th><th>Class Teacher</th><th>Enrolment</th><th>Actions</th></tr></thead>
       <tbody>
         <?php foreach($classes as $c): ?>
+        <?php $fillPct = $c['capacity'] > 0 ? min(100, round($c['student_count'] / $c['capacity'] * 100)) : 0; ?>
         <tr>
-          <td class="fw-600"><?= htmlspecialchars($c['name']) ?></td>
+          <td><a href="<?= $cfg['url'] ?>/school/classes/<?= $c['id'] ?>" class="fw-600"><?= htmlspecialchars($c['name']) ?></a></td>
           <td><?= htmlspecialchars($c['grade_level']) ?></td>
           <td><?= htmlspecialchars($c['section']??'—') ?></td>
           <td><?= htmlspecialchars($c['room_number']??'—') ?></td>
           <td><?= htmlspecialchars($c['teacher_name']??'—') ?></td>
-          <td><span class="badge badge-info"><?= $c['student_count'] ?> students</span></td>
-          <td><a href="<?= $cfg['url'] ?>/school/classes/<?= $c['id'] ?>/edit" class="btn btn-sm btn-secondary">Edit</a></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="progress-track" style="width:70px;"><div class="progress-fill" style="width:<?= $fillPct ?>%;--card-color:<?= $fillPct>=90?'var(--danger)':($fillPct>=70?'var(--warning)':'var(--success)') ?>;"></div></div>
+              <span style="font-size:12px;color:var(--text-muted);white-space:nowrap;"><?= $c['student_count'] ?>/<?= $c['capacity'] ?></span>
+            </div>
+          </td>
+          <td>
+            <div style="display:flex;gap:6px;">
+              <a href="<?= $cfg['url'] ?>/school/classes/<?= $c['id'] ?>" class="btn btn-sm btn-outline">View</a>
+              <a href="<?= $cfg['url'] ?>/school/classes/<?= $c['id'] ?>/edit" class="btn btn-sm btn-secondary">Edit</a>
+            </div>
+          </td>
         </tr>
         <?php endforeach; ?>
-        <?php if(empty($classes)): ?><tr><td colspan="7" class="text-center text-muted" style="padding:32px">No classes. <a href="javascript:void(0)" onclick="document.getElementById('addClassModal').classList.add('open')">Create one</a></td></tr><?php endif; ?>
+        <?php if(empty($classes)): ?>
+        <tr><td colspan="7">
+          <div class="empty-state">
+            <div class="empty-state-icon">🏫</div>
+            <div class="empty-state-text">No classes yet. <a href="javascript:void(0)" onclick="document.getElementById('addClassModal').classList.add('open')">Create one</a></div>
+          </div>
+        </td></tr>
+        <?php endif; ?>
       </tbody>
     </table>
   </div>

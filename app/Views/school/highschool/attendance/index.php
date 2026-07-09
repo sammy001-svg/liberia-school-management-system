@@ -1,6 +1,10 @@
 <?php require ROOT_DIR . '/app/Views/layouts/header.php'; ?>
 <div class="page-header">
-  <div class="page-header-title">Attendance</div>
+  <div>
+    <div class="page-header-title">Attendance</div>
+    <div class="page-header-sub">Mark daily attendance by class</div>
+  </div>
+  <a href="<?= $cfg['url'] ?>/school/attendance/report" class="btn btn-outline">📊 View Report</a>
 </div>
 <form method="GET" class="card" style="padding:16px 20px;margin-bottom:20px;">
   <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
@@ -21,22 +25,30 @@
   <input type="hidden" name="date" value="<?= htmlspecialchars($date) ?>">
   <div class="card">
     <div class="card-header">
-      <div class="card-title">Attendance for <?= date('F j, Y', strtotime($date)) ?></div>
-      <button type="submit" class="btn btn-primary btn-sm">Save Attendance</button>
+      <div class="card-title">Attendance for <?= date('F j, Y', strtotime($date)) ?> (<?= count($students) ?> students)</div>
+      <div style="display:flex;gap:8px;">
+        <button type="button" class="btn btn-sm btn-outline" onclick="markAll('present')">Mark All Present</button>
+        <button type="submit" class="btn btn-sm btn-primary">Save Attendance</button>
+      </div>
     </div>
     <div class="table-wrapper">
       <table>
-        <thead><tr><th>Student</th><th>Present</th><th>Absent</th><th>Late</th><th>Excused</th></tr></thead>
+        <thead><tr><th>Student</th><th>Status</th></tr></thead>
         <tbody>
           <?php foreach($students as $s): ?>
           <?php $cur = $records[$s['id']] ?? 'present'; ?>
           <tr>
             <td class="fw-600"><?= htmlspecialchars($s['name']) ?></td>
-            <?php foreach(['present','absent','late','excused'] as $st): ?>
-            <td style="text-align:center">
-              <input type="radio" name="status[<?= $s['id'] ?>]" value="<?= $st ?>" <?= $cur===$st?'checked':'' ?>>
+            <td>
+              <div class="status-pills">
+                <?php foreach(['present'=>'Present','absent'=>'Absent','late'=>'Late','excused'=>'Excused'] as $st=>$lbl): ?>
+                <label class="status-pill status-pill-<?= $st ?>">
+                  <input type="radio" name="status[<?= $s['id'] ?>]" value="<?= $st ?>" <?= $cur===$st?'checked':'' ?>>
+                  <span><?= $lbl ?></span>
+                </label>
+                <?php endforeach; ?>
+              </div>
             </td>
-            <?php endforeach; ?>
           </tr>
           <?php endforeach; ?>
         </tbody>
@@ -44,10 +56,15 @@
     </div>
   </div>
 </form>
+<script>
+function markAll(status){
+  document.querySelectorAll('.status-pill-' + status + ' input').forEach(function(input){ input.checked = true; });
+}
+</script>
 <?php else: ?>
-<div class="card"><div class="card-body text-center text-muted">Select a class and date to mark attendance.</div></div>
+<div class="card"><div class="empty-state">
+  <div class="empty-state-icon">📋</div>
+  <div class="empty-state-text">Select a class and date above to mark attendance.</div>
+</div></div>
 <?php endif; ?>
-<div style="margin-top:16px;">
-  <a href="<?= $cfg['url'] ?>/school/attendance/report" class="btn btn-outline">View Attendance Report</a>
-</div>
 <?php require ROOT_DIR . '/app/Views/layouts/footer.php'; ?>

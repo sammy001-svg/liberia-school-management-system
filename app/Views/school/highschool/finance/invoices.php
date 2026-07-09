@@ -15,11 +15,13 @@
   <?php endforeach; ?>
 </form>
 <div class="card">
+  <div class="card-header"><div class="card-title">Invoices (<?= $total ?>)</div></div>
   <div class="table-wrapper">
     <table>
-      <thead><tr><th>Invoice No</th><th>Student</th><th>Class</th><th>Amount</th><th>Paid</th><th>Due Date</th><th>Status</th></tr></thead>
+      <thead><tr><th>Invoice No</th><th>Student</th><th>Class</th><th>Amount</th><th>Paid</th><th>Due Date</th><th>Status</th><th>Actions</th></tr></thead>
       <tbody>
         <?php foreach($invoices as $inv): ?>
+        <?php $balance = $inv['amount_due'] - $inv['amount_paid']; ?>
         <tr>
           <td style="font-family:monospace;font-size:12px"><?= htmlspecialchars($inv['invoice_no']) ?></td>
           <td class="fw-600"><?= htmlspecialchars($inv['student_name']) ?></td>
@@ -28,9 +30,23 @@
           <td class="text-success"><?= htmlspecialchars($tenant['currency'] ?? 'Ksh') ?><?= number_format($inv['amount_paid'],2) ?></td>
           <td style="font-size:12px;color:var(--text-muted)"><?= $inv['due_date']?date('M d, Y',strtotime($inv['due_date'])):'—' ?></td>
           <td><span class="badge badge-<?= $inv['status']==='paid'?'success':($inv['status']==='overdue'?'danger':'warning') ?>"><?= ucfirst($inv['status']) ?></span></td>
+          <td>
+            <?php if($inv['status']!=='paid' && $inv['status']!=='waived'): ?>
+              <button type="button" class="btn btn-sm btn-primary" onclick="openPaymentModal(<?= $inv['id'] ?>,'<?= htmlspecialchars(addslashes($inv['invoice_no'])) ?>',<?= number_format($balance,2,'.','') ?>)">Record Payment</button>
+            <?php else: ?>
+              <span class="text-muted" style="font-size:12px;">—</span>
+            <?php endif; ?>
+          </td>
         </tr>
         <?php endforeach; ?>
-        <?php if(empty($invoices)): ?><tr><td colspan="7" class="text-center text-muted" style="padding:40px">No invoices found. <a href="javascript:void(0)" onclick="document.getElementById('generateInvoiceModal').classList.add('open')">Generate one</a></td></tr><?php endif; ?>
+        <?php if(empty($invoices)): ?>
+        <tr><td colspan="8">
+          <div class="empty-state">
+            <div class="empty-state-icon">🧾</div>
+            <div class="empty-state-text">No invoices found. <a href="javascript:void(0)" onclick="document.getElementById('generateInvoiceModal').classList.add('open')">Generate one</a></div>
+          </div>
+        </td></tr>
+        <?php endif; ?>
       </tbody>
     </table>
   </div>
@@ -96,5 +112,61 @@
   </div>
 </div>
 
-<script>function loadAmount(sel){const opt=sel.options[sel.selectedIndex];const amt=opt.dataset.amount;if(amt) document.getElementById('amountInput').value=amt;}</script>
+<!-- Record Payment Modal -->
+<div class="modal-overlay" id="recordPaymentModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Record Payment</div>
+      <button class="modal-close" onclick="document.getElementById('recordPaymentModal').classList.remove('open')">&times;</button>
+    </div>
+    <form method="POST" action="<?= $cfg['url'] ?>/school/finance/payments/store">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+      <input type="hidden" name="invoice_id" id="paymentInvoiceId">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Invoice</label>
+          <input type="text" id="paymentInvoiceLabel" class="form-control" disabled>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Amount (<?= htmlspecialchars($tenant['currency'] ?? 'Ksh') ?>) *</label>
+            <input type="number" name="amount" id="paymentAmountInput" class="form-control" step="0.01" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Method</label>
+            <select name="method" class="form-control">
+              <option value="cash">Cash</option>
+              <option value="mpesa">M-Pesa</option>
+              <option value="bank">Bank Transfer</option>
+              <option value="cheque">Cheque</option>
+              <option value="online">Online</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Reference No.</label>
+          <input type="text" name="reference" class="form-control" placeholder="Transaction / receipt reference">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notes</label>
+          <textarea name="notes" class="form-control" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('recordPaymentModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Record Payment</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function loadAmount(sel){const opt=sel.options[sel.selectedIndex];const amt=opt.dataset.amount;if(amt) document.getElementById('amountInput').value=amt;}
+function openPaymentModal(invoiceId, invoiceNo, balance){
+  document.getElementById('paymentInvoiceId').value = invoiceId;
+  document.getElementById('paymentInvoiceLabel').value = invoiceNo + ' — Balance: <?= htmlspecialchars($tenant['currency'] ?? 'Ksh') ?>' + balance.toFixed(2);
+  document.getElementById('paymentAmountInput').value = balance;
+  document.getElementById('recordPaymentModal').classList.add('open');
+}
+</script>
 <?php require ROOT_DIR . '/app/Views/layouts/footer.php'; ?>

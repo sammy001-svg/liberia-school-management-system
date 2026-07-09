@@ -40,6 +40,7 @@ $router->get('/school/classes/create',      ['ClassController', 'create']);
 $router->post('/school/classes/store',      ['ClassController', 'store']);
 $router->get('/school/classes/{id}/edit',   ['ClassController', 'edit']);
 $router->post('/school/classes/{id}/update', ['ClassController', 'update']);
+$router->get('/school/classes/{id}',        ['ClassController', 'show']);
 
 $router->get('/school/attendance',          ['AttendanceController', 'index']);
 $router->post('/school/attendance/mark',    ['AttendanceController', 'mark']);
@@ -48,6 +49,7 @@ $router->get('/school/attendance/report',   ['AttendanceController', 'report']);
 $router->get('/school/timetable',           ['TimetableController', 'index']);
 $router->get('/school/timetable/create',    ['TimetableController', 'create']);
 $router->post('/school/timetable/store',    ['TimetableController', 'store']);
+$router->post('/school/timetable/{id}/delete', ['TimetableController', 'deleteEntry']);
 
 $router->get('/school/grades',              ['GradeController', 'index']);
 $router->get('/school/grades/enter',        ['GradeController', 'enter']);
@@ -70,6 +72,12 @@ $router->get('/school/parents/create',      ['ParentController', 'create']);
 $router->post('/school/parents/store',      ['ParentController', 'store']);
 $router->get('/school/parents/bulk-template', ['ParentController', 'bulkTemplate']);
 $router->post('/school/parents/bulk-upload',  ['ParentController', 'bulkUpload']);
+$router->get('/school/parents/{id}',        ['ParentController', 'show']);
+$router->get('/school/parents/{id}/edit',   ['ParentController', 'edit']);
+$router->post('/school/parents/{id}/update', ['ParentController', 'update']);
+$router->post('/school/parents/{id}/delete', ['ParentController', 'delete']);
+$router->post('/school/parents/{id}/children/link', ['ParentController', 'linkChild']);
+$router->post('/school/parents/{id}/children/{studentId}/unlink', ['ParentController', 'unlinkChild']);
 
 $router->get('/school/announcements',       ['AnnouncementController', 'index']);
 $router->get('/school/announcements/create', ['AnnouncementController', 'create']);
@@ -125,6 +133,7 @@ $router->get('/school/library/bulk-template', ['InventoryController', 'bulkTempl
 $router->post('/school/library/bulk-upload',  ['InventoryController', 'bulkUploadBooks']);
 $router->get('/school/library/loans',       ['InventoryController', 'loans']);
 $router->post('/school/library/issue',      ['InventoryController', 'issueBook']);
+$router->post('/school/library/loans/{id}/return', ['InventoryController', 'returnBook']);
 
 // ── ANALYTICS ───────────────────────────────────────────────────
 $router->get('/school/analytics',           ['AnalyticsController', 'index']);

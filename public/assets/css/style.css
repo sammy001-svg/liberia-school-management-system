@@ -444,6 +444,22 @@ textarea.form-control { resize: vertical; min-height: 100px; }
 .empty-state-icon { font-size: 32px; margin-bottom: 10px; opacity: 0.6; }
 .empty-state-text { font-size: 13px; }
 
+/* ── STATUS PILLS (segmented radio control, e.g. attendance marking) ── */
+.status-pills { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.status-pill { cursor: pointer; }
+.status-pill input { position: absolute; opacity: 0; width: 0; height: 0; }
+.status-pill span {
+  display: inline-block; padding: 5px 13px; border-radius: 20px;
+  font-size: 11.5px; font-weight: 700; letter-spacing: 0.2px;
+  border: 1px solid var(--border); color: var(--text-muted);
+  transition: all 0.15s ease; user-select: none;
+}
+.status-pill input:focus-visible + span { box-shadow: 0 0 0 2px var(--border-focus); }
+.status-pill-present input:checked + span { background: var(--success); border-color: var(--success); color: #fff; }
+.status-pill-absent  input:checked + span { background: var(--danger);  border-color: var(--danger);  color: #fff; }
+.status-pill-late    input:checked + span { background: var(--warning); border-color: var(--warning); color: #1a1a1a; }
+.status-pill-excused input:checked + span { background: var(--info);    border-color: var(--info);    color: #fff; }
+
 /* ── BREADCRUMB ── */
 .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
 .breadcrumb a:hover { color: var(--primary-light); }
@@ -567,6 +583,100 @@ textarea.form-control { resize: vertical; min-height: 100px; }
 .login-logo img { width: 56px; margin: 0 auto 12px; border-radius: var(--radius-sm); }
 .login-logo h1 { font-size: 22px; font-weight: 800; }
 .login-logo p  { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+/* ── SPLIT LOGIN LAYOUT (form + carousel) ── */
+.login-split { min-height: 100vh; display: flex; }
+.login-form-panel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: var(--bg);
+}
+.login-carousel {
+  position: relative;
+  width: 54%;
+  min-height: 100vh;
+  overflow: hidden;
+}
+.carousel-slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+  text-align: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.9s ease;
+}
+.carousel-slide.active { opacity: 1; visibility: visible; }
+.carousel-slide::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 22% 22%, rgba(255,255,255,0.14) 0%, transparent 45%),
+    radial-gradient(circle at 82% 78%, rgba(255,255,255,0.10) 0%, transparent 45%);
+}
+.carousel-icon {
+  position: relative;
+  z-index: 1;
+  width: 116px;
+  height: 116px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.14);
+  border: 1px solid rgba(255,255,255,0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 32px;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.carousel-icon svg { width: 56px; height: 56px; color: #fff; }
+.carousel-caption { position: relative; z-index: 1; max-width: 420px; }
+.carousel-caption h2 { font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 12px; line-height: 1.3; }
+.carousel-caption p { font-size: 14.5px; color: rgba(255,255,255,0.88); line-height: 1.65; }
+.carousel-dots {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 2;
+}
+.carousel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.4);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+.carousel-dot.active { background: #fff; width: 22px; border-radius: 4px; }
+.carousel-brand {
+  position: absolute;
+  top: 32px;
+  left: 40px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+}
+.carousel-brand img { width: 30px; height: 30px; border-radius: 8px; }
+@media (max-width: 900px) {
+  .login-carousel { display: none; }
+}
 
 /* ── THEME TOGGLE ── */
 .theme-toggle {

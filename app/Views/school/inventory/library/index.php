@@ -1,6 +1,9 @@
 <?php require ROOT_DIR . '/app/Views/layouts/header.php'; ?>
 <div class="page-header">
-    <div class="page-header-title">Library Books</div>
+    <div>
+        <div class="page-header-title">Library Books</div>
+        <div class="page-header-sub">Manage the school's book catalog</div>
+    </div>
     <div style="display:flex;gap:10px;">
         <a href="<?= $cfg['url'] ?>/school/library/loans" class="btn btn-outline">View Loans</a>
         <button type="button" class="btn btn-secondary" onclick="document.getElementById('bulkUploadModal').classList.add('open')">Bulk Upload</button>
@@ -8,7 +11,27 @@
     </div>
 </div>
 
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Total Books</div>
+    <div class="stat-value"><?= (int)($stats['total'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--success);">
+    <div class="stat-label">Available</div>
+    <div class="stat-value"><?= (int)($stats['available'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--info);">
+    <div class="stat-label">Issued</div>
+    <div class="stat-value"><?= (int)($stats['issued'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--danger);">
+    <div class="stat-label">Lost / Damaged</div>
+    <div class="stat-value"><?= (int)($stats['lostDamaged'] ?? 0) ?></div>
+  </div>
+</div>
+
 <div class="card">
+    <div class="card-header"><div class="card-title">All Books (<?= count($books) ?>)</div></div>
     <div class="table-wrapper">
         <table>
             <thead>
@@ -22,21 +45,22 @@
             </thead>
             <tbody>
                 <?php foreach($books as $b): ?>
+                <?php $badgeMap = ['available'=>'badge-success','issued'=>'badge-info','lost'=>'badge-danger','damaged'=>'badge-warning']; ?>
                 <tr>
                     <td class="fw-600"><?= htmlspecialchars($b['title']) ?></td>
-                    <td><?= htmlspecialchars($b['author']) ?></td>
-                    <td><?= htmlspecialchars($b['isbn']) ?></td>
-                    <td><?= htmlspecialchars($b['category']) ?></td>
-                    <td>
-                        <?php
-                        $badge = $b['status'] === 'available' ? 'badge-success' : 'badge-danger';
-                        ?>
-                        <span class="badge <?= $badge ?>"><?= strtoupper($b['status']) ?></span>
-                    </td>
+                    <td><?= htmlspecialchars($b['author'] ?: '—') ?></td>
+                    <td style="font-family:monospace;font-size:12px"><?= htmlspecialchars($b['isbn'] ?: '—') ?></td>
+                    <td><?= htmlspecialchars($b['category'] ?: '—') ?></td>
+                    <td><span class="badge <?= $badgeMap[$b['status']] ?? 'badge-muted' ?>"><?= strtoupper($b['status']) ?></span></td>
                 </tr>
                 <?php endforeach; ?>
                 <?php if(empty($books)): ?>
-                <tr><td colspan="5" class="text-center text-muted" style="padding:40px;">No books in library catalog. <a href="javascript:void(0)" onclick="document.getElementById('addBookModal').classList.add('open')">Add one</a></td></tr>
+                <tr><td colspan="5">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📚</div>
+                        <div class="empty-state-text">No books in library catalog. <a href="javascript:void(0)" onclick="document.getElementById('addBookModal').classList.add('open')">Add one</a></div>
+                    </div>
+                </td></tr>
                 <?php endif; ?>
             </tbody>
         </table>

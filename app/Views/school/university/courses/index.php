@@ -1,10 +1,31 @@
 <?php require ROOT_DIR . '/app/Views/layouts/header.php'; ?>
 <div class="page-header">
-    <div class="page-header-title">Courses / Subjects</div>
+    <div>
+        <div class="page-header-title">Courses / Subjects</div>
+        <div class="page-header-sub">Manage the subject catalog and teacher assignments</div>
+    </div>
     <button type="button" class="btn btn-primary" onclick="document.getElementById('addCourseModal').classList.add('open')">+ Add Course</button>
 </div>
 
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Total Courses</div>
+    <div class="stat-value"><?= (int)($stats['total'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--info);">
+    <div class="stat-label">Total Credit Hours</div>
+    <div class="stat-value"><?= (int)($stats['totalCredits'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--warning);">
+    <div class="stat-label">Without a Teacher</div>
+    <div class="stat-value"><?= (int)($stats['unassigned'] ?? 0) ?></div>
+  </div>
+</div>
+
 <div class="card">
+    <div class="card-header">
+        <div class="card-title">All Courses (<?= count($courses) ?>)</div>
+    </div>
     <div class="table-wrapper">
         <table>
             <thead>
@@ -13,19 +34,34 @@
                     <th>Code</th>
                     <th>Credits</th>
                     <th>Sem No</th>
+                    <th>Class</th>
+                    <th>Teachers</th>
                 </tr>
             </thead>
             <tbody>
                 <?php foreach($courses as $c): ?>
                 <tr>
                     <td class="fw-600"><?= htmlspecialchars($c['name']) ?></td>
-                    <td><span class="badge badge-primary"><?= htmlspecialchars($c['code']) ?></span></td>
+                    <td><?php if($c['code']): ?><span class="badge badge-primary"><?= htmlspecialchars($c['code']) ?></span><?php else: ?><span class="text-muted">—</span><?php endif; ?></td>
                     <td><?= $c['credit_hours'] ?> Units</td>
                     <td>Semester <?= $c['semester_no'] ?></td>
+                    <td><?= htmlspecialchars($c['class_name'] ?? '—') ?></td>
+                    <td>
+                        <?php if($c['teacher_count'] > 0): ?>
+                            <span class="badge badge-success" title="<?= htmlspecialchars($c['teacher_names']) ?>"><?= $c['teacher_count'] ?> teacher<?= $c['teacher_count']>1?'s':'' ?></span>
+                        <?php else: ?>
+                            <span class="badge badge-warning">Unassigned</span>
+                        <?php endif; ?>
+                    </td>
                 </tr>
                 <?php endforeach; ?>
                 <?php if(empty($courses)): ?>
-                <tr><td colspan="4" class="text-center text-muted" style="padding:40px;">No courses found. <a href="javascript:void(0)" onclick="document.getElementById('addCourseModal').classList.add('open')">Add one</a></td></tr>
+                <tr><td colspan="6">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📚</div>
+                        <div class="empty-state-text">No courses found. <a href="javascript:void(0)" onclick="document.getElementById('addCourseModal').classList.add('open')">Add the first course</a></div>
+                    </div>
+                </td></tr>
                 <?php endif; ?>
             </tbody>
         </table>

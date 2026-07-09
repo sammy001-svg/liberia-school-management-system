@@ -10,7 +10,13 @@ class ClassController extends Controller {
         $classes = $this->db->fetchAll("SELECT c.*, u.name AS teacher_name, (SELECT COUNT(*) FROM students s WHERE s.class_id=c.id) AS student_count FROM classes c LEFT JOIN teachers t ON c.class_teacher_id=t.id LEFT JOIN users u ON t.user_id=u.id WHERE c.tenant_id=? ORDER BY c.grade_level, c.section", [$this->tid]);
         $teachers = $this->db->fetchAll("SELECT t.id, u.name FROM teachers t JOIN users u ON t.user_id=u.id WHERE t.tenant_id=? ORDER BY u.name", [$this->tid]);
         $academicYears = $this->db->fetchAll("SELECT id,name FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]);
-        $this->view('school/highschool/classes/index', ['pageTitle'=>'Classes','panelType'=>'school','classes'=>$classes,'teachers'=>$teachers,'academicYears'=>$academicYears,'flash'=>$this->getFlash()]);
+        $stats = $this->db->fetchOne(
+            "SELECT COUNT(*) total, COALESCE(SUM(capacity),0) totalCapacity,
+                    (SELECT COUNT(*) FROM students s WHERE s.tenant_id=? AND s.class_id IN (SELECT id FROM classes WHERE tenant_id=?)) enrolled,
+                    SUM(CASE WHEN class_teacher_id IS NULL THEN 1 ELSE 0 END) unassigned
+             FROM classes WHERE tenant_id=?", [$this->tid, $this->tid, $this->tid]
+        );
+        $this->view('school/highschool/classes/index', ['pageTitle'=>'Classes','panelType'=>'school','classes'=>$classes,'teachers'=>$teachers,'academicYears'=>$academicYears,'stats'=>$stats,'flash'=>$this->getFlash()]);
     }
 
     public function create(): void {
@@ -52,5 +58,33 @@ class ClassController extends Controller {
             [$_POST['name'],$_POST['grade_level'],$_POST['section']??'',(int)$_POST['capacity'],$_POST['teacher_id']?:null,$_POST['room_number']??null,$_POST['description']??null,$id,$this->tid]
         );
         $this->flash('success','Class updated.'); $this->redirect('/school/classes');
+    }
+
+    public function show(string $id): void {
+        $this->requireAuth(['School Admin','Teacher']);
+        $class = $this->db->fetchOne(
+            "SELECT c.*, u.name AS teacher_name, ay.name AS academic_year_name
+             FROM classes c LEFT JOIN teachers t ON c.class_teacher_id=t.id LEFT JOIN users u ON t.user_id=u.id
+             LEFT JOIN academic_years ay ON c.academic_year_id=ay.id
+             WHERE c.id=? AND c.tenant_id=?", [$id, $this->tid]
+        );
+        if (!$class) { $this->redirect('/school/classes'); }
+        $roster = $this->db->fetchAll(
+            "SELECT s.id, s.admission_no, s.status, u.name, u.gender
+             FROM students s JOIN users u ON s.user_id=u.id
+             WHERE s.class_id=? AND s.tenant_id=? ORDER BY u.name", [$id, $this->tid]
+        );
+        $gradeStats = $this->db->fetchOne(
+            "SELECT AVG(g.marks_obtained/g.total_marks*100) avg_pct
+             FROM grades g JOIN students s ON g.student_id=s.id
+             WHERE s.class_id=? AND g.tenant_id=? AND g.total_marks>0", [$id, $this->tid]
+        );
+        $avgGrade = $gradeStats['avg_pct'] !== null ? round($gradeStats['avg_pct']) : null;
+        $courses = $this->db->fetchAll("SELECT id,name,code FROM courses WHERE class_id=? AND tenant_id=? ORDER BY name", [$id, $this->tid]);
+
+        $this->view('school/highschool/classes/show', [
+            'pageTitle'=>$class['name'],'panelType'=>'school','class'=>$class,'roster'=>$roster,
+            'avgGrade'=>$avgGrade,'courses'=>$courses,'flash'=>$this->getFlash(),
+        ]);
     }
 }

@@ -11,22 +11,78 @@
   </div>
 </div>
 
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Total Parents</div>
+    <div class="stat-value"><?= (int)($stats['total'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--success);">
+    <div class="stat-label">Linked to a Student</div>
+    <div class="stat-value"><?= (int)($stats['linked'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--warning);">
+    <div class="stat-label">Not Linked</div>
+    <div class="stat-value"><?= (int)($stats['unlinked'] ?? 0) ?></div>
+  </div>
+</div>
+
+<!-- FILTERS -->
+<form method="GET" class="card" style="padding:16px 20px;margin-bottom:20px;">
+  <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+    <input type="text" name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Search name or email…" class="form-control" style="max-width:280px;">
+    <button type="submit" class="btn btn-secondary">Filter</button>
+    <a href="<?= $cfg['url'] ?>/school/parents" class="btn btn-outline">Reset</a>
+  </div>
+</form>
+
 <div class="card">
   <div class="card-header">
     <div class="card-title">All Parents (<?= $total ?>)</div>
   </div>
   <div class="table-wrapper">
     <table>
-      <thead><tr><th>Parent</th><th>Phone</th><th>Occupation</th></tr></thead>
+      <thead><tr><th>Parent</th><th>Phone</th><th>Occupation</th><th>Linked Children</th><th>Actions</th></tr></thead>
       <tbody>
         <?php foreach($parents as $p): ?>
         <tr>
-          <td><div class="fw-600"><?= htmlspecialchars($p['name']) ?></div><div style="font-size:11px;color:var(--text-muted)"><?= htmlspecialchars($p['email']) ?></div></td>
+          <td>
+            <a href="<?= $cfg['url'] ?>/school/parents/<?= $p['id'] ?>" style="display:flex;align-items:center;gap:10px;color:inherit;">
+              <div class="avatar"><?= strtoupper(substr($p['name'],0,1)) ?></div>
+              <div>
+                <div class="fw-600"><?= htmlspecialchars($p['name']) ?></div>
+                <div style="font-size:11px;color:var(--text-muted)"><?= htmlspecialchars($p['email']) ?></div>
+              </div>
+            </a>
+          </td>
           <td><?= htmlspecialchars($p['phone']??'—') ?></td>
           <td><?= htmlspecialchars($p['occupation']??'—') ?></td>
+          <td>
+            <?php if($p['children_count'] > 0): ?>
+              <span class="badge badge-info" title="<?= htmlspecialchars($p['children_names']) ?>"><?= $p['children_count'] ?> child<?= $p['children_count']>1?'ren':'' ?></span>
+            <?php else: ?>
+              <span class="badge badge-muted">None</span>
+            <?php endif; ?>
+          </td>
+          <td>
+            <div style="display:flex;gap:6px;">
+              <a href="<?= $cfg['url'] ?>/school/parents/<?= $p['id'] ?>" class="btn btn-sm btn-outline">View</a>
+              <a href="<?= $cfg['url'] ?>/school/parents/<?= $p['id'] ?>/edit" class="btn btn-sm btn-secondary">Edit</a>
+              <form method="POST" action="<?= $cfg['url'] ?>/school/parents/<?= $p['id'] ?>/delete" data-confirm="Remove <?= htmlspecialchars($p['name']) ?>? This cannot be undone." data-confirm-title="Remove Parent" data-confirm-label="Remove">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+                <button type="submit" class="btn btn-sm btn-danger">Del</button>
+              </form>
+            </div>
+          </td>
         </tr>
         <?php endforeach; ?>
-        <?php if(empty($parents)): ?><tr><td colspan="3" class="text-center text-muted" style="padding:32px">No parents registered yet. <a href="javascript:void(0)" onclick="document.getElementById('addParentModal').classList.add('open')">Add first parent</a></td></tr><?php endif; ?>
+        <?php if(empty($parents)): ?>
+        <tr><td colspan="5">
+          <div class="empty-state">
+            <div class="empty-state-icon">👪</div>
+            <div class="empty-state-text">No parents registered yet. <a href="javascript:void(0)" onclick="document.getElementById('addParentModal').classList.add('open')">Add the first parent</a></div>
+          </div>
+        </td></tr>
+        <?php endif; ?>
       </tbody>
     </table>
   </div>

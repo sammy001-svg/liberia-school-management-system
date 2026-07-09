@@ -1,9 +1,18 @@
 <?php require ROOT_DIR . '/app/Views/layouts/header.php'; ?>
 <div class="breadcrumb">
   <a href="<?= $cfg['url'] ?>/school/classes">Classes</a>
-  <span>/</span><span><?= htmlspecialchars($class['name']) ?></span>
+  <span>/</span><a href="<?= $cfg['url'] ?>/school/classes/<?= $class['id'] ?>"><?= htmlspecialchars($class['name']) ?></a>
+  <span>/</span><span>Edit</span>
 </div>
-<div class="page-header"><div class="page-header-title">Edit Class</div></div>
+<div class="page-header">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <div class="avatar avatar-lg avatar-sq"><?= strtoupper(substr($class['name'] ?? '?',0,2)) ?></div>
+    <div>
+      <div class="page-header-title">Edit Class</div>
+      <div class="page-header-sub"><?= htmlspecialchars($class['name'] ?? '') ?></div>
+    </div>
+  </div>
+</div>
 <div style="max-width:600px;">
 <form method="POST" action="<?= $cfg['url'] ?>/school/classes/<?= $class['id'] ?>/update">
   <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">

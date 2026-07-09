@@ -1,10 +1,29 @@
 <?php require ROOT_DIR . '/app/Views/layouts/header.php'; ?>
 <div class="page-header">
-    <div class="page-header-title">Payments</div>
-    <a href="<?= $cfg['url'] ?>/school/finance/invoices" class="btn btn-primary">Make Payment</a>
+    <div>
+        <div class="page-header-title">Payments</div>
+        <div class="page-header-sub">All payments recorded against student invoices</div>
+    </div>
+    <a href="<?= $cfg['url'] ?>/school/finance/invoices?status=unpaid" class="btn btn-primary">+ Record a Payment</a>
+</div>
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Total Payments</div>
+    <div class="stat-value"><?= (int)($stats['total'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--success);">
+    <div class="stat-label">Total Collected</div>
+    <div class="stat-value"><?= htmlspecialchars($tenant['currency'] ?? 'Ksh') ?><?= number_format($stats['totalAmount'] ?? 0,2) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--info);">
+    <div class="stat-label">Recorded Today</div>
+    <div class="stat-value"><?= (int)($stats['today'] ?? 0) ?></div>
+  </div>
 </div>
 
 <div class="card">
+    <div class="card-header"><div class="card-title">All Payments (<?= count($payments) ?>)</div></div>
     <div class="table-wrapper">
         <table>
             <thead>
@@ -31,9 +50,12 @@
                 </tr>
                 <?php endforeach; ?>
                 <?php if(empty($payments)): ?>
-                <tr>
-                    <td colspan="7" class="text-center text-muted" style="padding:40px;">No payments recorded yet.</td>
-                </tr>
+                <tr><td colspan="7">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">💳</div>
+                        <div class="empty-state-text">No payments recorded yet. <a href="<?= $cfg['url'] ?>/school/finance/invoices?status=unpaid">Record one</a></div>
+                    </div>
+                </td></tr>
                 <?php endif; ?>
             </tbody>
         </table>

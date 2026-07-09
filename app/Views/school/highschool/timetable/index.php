@@ -17,29 +17,55 @@
     <button type="submit" class="btn btn-secondary">Load</button>
   </div>
 </form>
-<?php $days = ['monday','tuesday','wednesday','thursday','friday']; ?>
+<?php $days = ['monday','tuesday','wednesday','thursday','friday','saturday']; ?>
 <?php if (!empty($timetable)): ?>
-<?php foreach($days as $day): ?>
-<?php if (!empty($timetable[$day])): ?>
-<div class="card mb-16">
-  <div class="card-header"><div class="card-title"><?= ucfirst($day) ?></div></div>
-  <div class="table-wrapper"><table>
-    <thead><tr><th>Time</th><th>Subject</th><th>Teacher</th><th>Room</th></tr></thead>
-    <tbody>
-      <?php foreach($timetable[$day] as $slot): ?>
-      <tr>
-        <td style="font-family:monospace;font-size:12px"><?= substr($slot['start_time'],0,5) ?> – <?= substr($slot['end_time'],0,5) ?></td>
-        <td class="fw-600"><?= htmlspecialchars($slot['course_name']??'—') ?></td>
-        <td><?= htmlspecialchars($slot['teacher_name']??'—') ?></td>
-        <td><?= htmlspecialchars($slot['room']??'—') ?></td>
-      </tr>
-      <?php endforeach; ?>
-    </tbody>
-  </table></div>
+<?php $slotCount = array_sum(array_map('count', $timetable)); ?>
+<div class="stat-grid" style="grid-template-columns:repeat(3,1fr);">
+  <div class="stat-card">
+    <div class="stat-label">Scheduled Slots</div>
+    <div class="stat-value"><?= $slotCount ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--info);">
+    <div class="stat-label">Days With Lessons</div>
+    <div class="stat-value"><?= count($timetable) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--warning);">
+    <div class="stat-label">Slots Without a Teacher</div>
+    <div class="stat-value"><?= array_sum(array_map(fn($slots) => count(array_filter($slots, fn($s) => empty($s['teacher_name']))), $timetable)) ?></div>
+  </div>
 </div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;align-items:start;">
+  <?php foreach($days as $day): ?>
+  <?php if (!empty($timetable[$day])): ?>
+  <div class="card">
+    <div class="card-header"><div class="card-title"><?= ucfirst($day) ?></div></div>
+    <div class="card-body" style="padding:12px;">
+      <?php foreach($timetable[$day] as $slot): ?>
+      <div style="padding:10px 8px;border-bottom:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+          <div>
+            <div class="fw-600" style="font-size:13px;"><?= htmlspecialchars($slot['course_name'] ?? 'Free Period') ?></div>
+            <div class="text-muted" style="font-size:11px;margin-top:2px;"><?= htmlspecialchars($slot['teacher_name'] ?? 'No teacher assigned') ?><?= $slot['room'] ? ' · '.htmlspecialchars($slot['room']) : '' ?></div>
+            <div class="text-muted" style="font-size:11px;font-family:monospace;margin-top:4px;"><?= substr($slot['start_time'],0,5) ?>–<?= substr($slot['end_time'],0,5) ?></div>
+          </div>
+          <form method="POST" action="<?= $cfg['url'] ?>/school/timetable/<?= $slot['id'] ?>/delete" data-confirm="Remove this <?= htmlspecialchars($slot['course_name'] ?? 'slot') ?> entry?" data-confirm-label="Remove">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+            <button type="submit" class="btn btn-sm btn-outline" style="padding:2px 8px;font-size:11px;" title="Remove">&times;</button>
+          </form>
+        </div>
+      </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+  <?php endif; ?>
+  <?php endforeach; ?>
+</div>
+<?php else: ?>
+<div class="card"><div class="empty-state">
+  <div class="empty-state-icon">🗓️</div>
+  <div class="empty-state-text"><?= $classId ? 'No timetable entries for this class yet. Use "+ Add Entry" to schedule one.' : 'Select a class above to view its timetable.' ?></div>
+</div></div>
 <?php endif; ?>
-<?php endforeach; ?>
-<?php else: ?><div class="card"><div class="card-body text-center text-muted">Select a class to view timetable.</div></div><?php endif; ?>
 
 <!-- Add Timetable Entry Modal -->
 <div class="modal-overlay" id="addTimetableModal">

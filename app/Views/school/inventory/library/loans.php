@@ -1,10 +1,29 @@
 <?php require ROOT_DIR . '/app/Views/layouts/header.php'; ?>
 <div class="page-header">
-    <div class="page-header-title">Book Loans &amp; Circulation</div>
+    <div>
+        <div class="page-header-title">Book Loans &amp; Circulation</div>
+        <div class="page-header-sub">Track issued, overdue and returned books</div>
+    </div>
     <button type="button" class="btn btn-primary" onclick="document.getElementById('loanModal').classList.add('open')">Issue Book</button>
 </div>
 
+<div class="stat-grid">
+  <div class="stat-card" style="--card-color: var(--info);">
+    <div class="stat-label">Active Loans</div>
+    <div class="stat-value"><?= (int)($stats['active'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--danger);">
+    <div class="stat-label">Overdue</div>
+    <div class="stat-value"><?= (int)($stats['overdue'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--success);">
+    <div class="stat-label">Returned</div>
+    <div class="stat-value"><?= (int)($stats['returned'] ?? 0) ?></div>
+  </div>
+</div>
+
 <div class="card">
+    <div class="card-header"><div class="card-title">Circulation History (<?= count($loans) ?>)</div></div>
     <div class="table-wrapper">
         <table>
             <thead>
@@ -14,6 +33,7 @@
                     <th>Issued Date</th>
                     <th>Due Date</th>
                     <th>Status</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -34,10 +54,25 @@
                             <span class="badge badge-info">ISSUED</span>
                         <?php endif; ?>
                     </td>
+                    <td>
+                        <?php if(!$l['returned_at']): ?>
+                        <form method="POST" action="<?= $cfg['url'] ?>/school/library/loans/<?= $l['id'] ?>/return" data-confirm="Mark '<?= htmlspecialchars(addslashes($l['book_title'])) ?>' as returned?" data-confirm-label="Mark Returned">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+                            <button type="submit" class="btn btn-sm btn-outline">Return</button>
+                        </form>
+                        <?php else: ?>
+                            <span class="text-muted" style="font-size:12px;">—</span>
+                        <?php endif; ?>
+                    </td>
                 </tr>
                 <?php endforeach; ?>
                 <?php if(empty($loans)): ?>
-                <tr><td colspan="5" class="text-center text-muted" style="padding:40px;">No circulation history.</td></tr>
+                <tr><td colspan="6">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📖</div>
+                        <div class="empty-state-text">No circulation history yet.</div>
+                    </div>
+                </td></tr>
                 <?php endif; ?>
             </tbody>
         </table>

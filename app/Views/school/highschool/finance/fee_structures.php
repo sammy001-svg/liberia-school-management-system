@@ -8,6 +8,21 @@
   <button type="button" class="btn btn-primary" onclick="document.getElementById('addFeeModal').classList.add('open')">+ Add Fee Structure</button>
 </div>
 
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Total Fee Structures</div>
+    <div class="stat-value"><?= (int)($stats['total'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--info);">
+    <div class="stat-label">Class-Specific</div>
+    <div class="stat-value"><?= (int)($stats['classSpecific'] ?? 0) ?></div>
+  </div>
+  <div class="stat-card" style="--card-color: var(--success);">
+    <div class="stat-label">School-Wide</div>
+    <div class="stat-value"><?= (int)($stats['schoolWide'] ?? 0) ?></div>
+  </div>
+</div>
+
 <div class="card">
   <div class="card-header">
     <div class="card-title">All Fee Structures (<?= count($fees) ?>)</div>
@@ -20,12 +35,19 @@
         <tr>
           <td class="fw-600"><?= htmlspecialchars($f['name']) ?></td>
           <td><?= htmlspecialchars($tenant['currency'] ?? 'Ksh') ?><?= number_format($f['amount'],2) ?></td>
-          <td style="text-transform:capitalize;"><?= htmlspecialchars($f['frequency']) ?></td>
+          <td><span class="badge badge-muted" style="text-transform:capitalize;"><?= htmlspecialchars($f['frequency']) ?></span></td>
           <td><?= htmlspecialchars($f['class_name'] ?? 'All Classes') ?></td>
           <td class="text-muted" style="font-size:12px"><?= htmlspecialchars($f['description'] ?? '—') ?></td>
         </tr>
         <?php endforeach; ?>
-        <?php if(empty($fees)): ?><tr><td colspan="5" class="text-center text-muted" style="padding:40px">No fee structures yet. <a href="javascript:void(0)" onclick="document.getElementById('addFeeModal').classList.add('open')">Add one</a></td></tr><?php endif; ?>
+        <?php if(empty($fees)): ?>
+        <tr><td colspan="5">
+          <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <div class="empty-state-text">No fee structures yet. <a href="javascript:void(0)" onclick="document.getElementById('addFeeModal').classList.add('open')">Add one</a></div>
+          </div>
+        </td></tr>
+        <?php endif; ?>
       </tbody>
     </table>
   </div>

@@ -24,7 +24,16 @@
     </select>
   </div>
   <div class="card">
-    <div class="card-header"><div class="card-title">Enter Marks (out of 100)</div><button type="submit" class="btn btn-sm btn-primary">Save Grades</button></div>
+    <div class="card-header">
+      <div class="card-title">Enter Marks (out of 100) — <?= count($students) ?> students</div>
+      <button type="submit" class="btn btn-sm btn-primary">Save Grades</button>
+    </div>
+    <?php if(empty($courses)): ?>
+    <div class="empty-state">
+      <div class="empty-state-icon">📚</div>
+      <div class="empty-state-text">This class has no subjects assigned yet. Add subjects on the <a href="<?= $cfg['url'] ?>/school/courses">Courses</a> page first.</div>
+    </div>
+    <?php else: ?>
     <div class="table-wrapper"><table>
       <thead><tr><th>Student</th><?php foreach($courses as $c): ?><th><?= htmlspecialchars($c['name']) ?></th><?php endforeach; ?></tr></thead>
       <tbody>
@@ -32,13 +41,33 @@
         <tr>
           <td class="fw-600"><?= htmlspecialchars($s['name']) ?></td>
           <?php foreach($courses as $c): ?>
-          <td><input type="number" name="grades[<?= $s['id'] ?>][<?= $c['id'] ?>]" class="form-control" min="0" max="100" style="width:70px;padding:6px;"></td>
+          <td><input type="number" name="grades[<?= $s['id'] ?>][<?= $c['id'] ?>]" class="form-control mark-input" min="0" max="100" style="width:70px;padding:6px;"></td>
           <?php endforeach; ?>
         </tr>
         <?php endforeach; ?>
       </tbody>
     </table></div>
+    <?php endif; ?>
   </div>
 </form>
-<?php else: ?><div class="card"><div class="card-body text-center text-muted">Select a class to enter grades.</div></div><?php endif; ?>
+<script>
+document.querySelectorAll('.mark-input').forEach(function(input){
+  input.addEventListener('input', function(){
+    const v = parseFloat(this.value);
+    this.style.color = '';
+    this.style.borderColor = '';
+    if (!isNaN(v)) {
+      if (v < 40) { this.style.color = 'var(--danger)'; this.style.borderColor = 'var(--danger)'; }
+      else if (v < 60) { this.style.color = 'var(--warning)'; this.style.borderColor = 'var(--warning)'; }
+      else { this.style.color = 'var(--success)'; this.style.borderColor = 'var(--success)'; }
+    }
+  });
+});
+</script>
+<?php else: ?>
+<div class="card"><div class="empty-state">
+  <div class="empty-state-icon">✏️</div>
+  <div class="empty-state-text">Select a class above to enter grades for its students.</div>
+</div></div>
+<?php endif; ?>
 <?php require ROOT_DIR . '/app/Views/layouts/footer.php'; ?>

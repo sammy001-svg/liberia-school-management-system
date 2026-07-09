@@ -38,10 +38,17 @@ class InventoryController extends Controller {
     // --- LIBRARY ---
     public function library(): void {
         $books = $this->db->fetchAll("SELECT * FROM library_books WHERE tenant_id = ?", [$this->tid]);
+        $stats = [
+            'total' => count($books),
+            'available' => count(array_filter($books, fn($b) => $b['status'] === 'available')),
+            'issued' => count(array_filter($books, fn($b) => $b['status'] === 'issued')),
+            'lostDamaged' => count(array_filter($books, fn($b) => in_array($b['status'], ['lost','damaged'], true))),
+        ];
         $this->view('school/inventory/library/index', [
             'pageTitle' => 'Library Books',
             'panelType' => 'school',
             'books' => $books,
+            'stats' => $stats,
             'flash' => $this->getFlash(),
             'importErrors' => $this->getImportErrors(),
         ]);
@@ -100,12 +107,18 @@ class InventoryController extends Controller {
         );
         $availableBooks = $this->db->fetchAll("SELECT id, title FROM library_books WHERE tenant_id = ? AND status = 'available' ORDER BY title", [$this->tid]);
         $borrowers = $this->db->fetchAll("SELECT id, name FROM users WHERE tenant_id = ? AND status = 'active' ORDER BY name", [$this->tid]);
+        $stats = [
+            'active' => count(array_filter($loans, fn($l) => !$l['returned_at'])),
+            'overdue' => count(array_filter($loans, fn($l) => !$l['returned_at'] && strtotime($l['due_date']) < time())),
+            'returned' => count(array_filter($loans, fn($l) => $l['returned_at'])),
+        ];
         $this->view('school/inventory/library/loans', [
             'pageTitle' => 'Book Loans',
             'panelType' => 'school',
             'loans' => $loans,
             'availableBooks' => $availableBooks,
             'borrowers' => $borrowers,
+            'stats' => $stats,
             'flash' => $this->getFlash()
         ]);
     }
@@ -128,6 +141,19 @@ class InventoryController extends Controller {
         );
         $this->db->execute("UPDATE library_books SET status = 'issued' WHERE id = ?", [$_POST['book_id']]);
         $this->flash('success', 'Book issued successfully.');
+        $this->redirect('/school/library/loans');
+    }
+
+    public function returnBook(string $id): void {
+        $loan = $this->db->fetchOne("SELECT * FROM library_loans WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        if (!$loan) { $this->redirect('/school/library/loans'); }
+        if ($loan['returned_at']) {
+            $this->flash('danger', 'That loan has already been returned.');
+            $this->redirect('/school/library/loans');
+        }
+        $this->db->execute("UPDATE library_loans SET returned_at=NOW() WHERE id=?", [$id]);
+        $this->db->execute("UPDATE library_books SET status='available' WHERE id=?", [$loan['book_id']]);
+        $this->flash('success', 'Book marked as returned.');
         $this->redirect('/school/library/loans');
     }
 }
