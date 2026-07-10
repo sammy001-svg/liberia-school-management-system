@@ -17,11 +17,13 @@ $router->get('/school/students/create',     ['StudentController', 'create']);
 $router->post('/school/students/store',     ['StudentController', 'store']);
 $router->get('/school/students/bulk-template', ['StudentController', 'bulkTemplate']);
 $router->post('/school/students/bulk-upload',  ['StudentController', 'bulkUpload']);
+$router->get('/school/students/bulk-credentials', ['StudentController', 'downloadCredentials']);
 $router->get('/school/students/{id}',       ['StudentController', 'show']);
 $router->get('/school/students/{id}/id-card', ['StudentController', 'idCard']);
 $router->get('/school/students/{id}/edit',  ['StudentController', 'edit']);
 $router->post('/school/students/{id}/update', ['StudentController', 'update']);
 $router->post('/school/students/{id}/delete', ['StudentController', 'delete']);
+$router->post('/school/students/{id}/reset-pin', ['StudentController', 'resetPin']);
 
 $router->get('/school/teachers',            ['TeacherController', 'index']);
 $router->get('/school/teachers/create',     ['TeacherController', 'create']);

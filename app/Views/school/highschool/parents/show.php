@@ -7,7 +7,8 @@
     <div class="profile-hero-info">
       <div class="profile-hero-name"><?= htmlspecialchars($parent['name']) ?></div>
       <div class="profile-hero-meta">
-        <span class="meta-chip">✉️ <?= htmlspecialchars($parent['email']) ?></span>
+        <span class="meta-chip">✉️ <?= htmlspecialchars($parent['email'] ?? '—') ?></span>
+        <?php if(!empty($parent['username'])): ?><span class="meta-chip">👤 <?= htmlspecialchars($parent['username']) ?></span><?php endif; ?>
         <?php if($parent['occupation']): ?><span class="meta-chip">💼 <?= htmlspecialchars($parent['occupation']) ?></span><?php endif; ?>
         <span class="badge badge-info"><?= count($children) ?> Linked Child<?= count($children)===1?'':'ren' ?></span>
       </div>
@@ -27,7 +28,11 @@
         <div class="detail-list">
           <div class="detail-item">
             <div class="detail-icon">✉️</div>
-            <div><div class="detail-label">Email</div><div class="detail-value"><?= htmlspecialchars($parent['email']) ?></div></div>
+            <div><div class="detail-label">Email</div><div class="detail-value"><?= htmlspecialchars($parent['email'] ?? '—') ?></div></div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-icon">👤</div>
+            <div><div class="detail-label">Login Username</div><div class="detail-value"><?= htmlspecialchars($parent['username'] ?? '—') ?></div></div>
           </div>
           <div class="detail-item">
             <div class="detail-icon">📞</div>

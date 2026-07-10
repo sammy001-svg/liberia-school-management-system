@@ -121,5 +121,15 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
   </div>
   <?php endif; ?>
 
+  <!-- BULK-GENERATED CREDENTIALS -->
+  <?php if (!empty($bulkCredentialsUrl)): ?>
+  <div style="padding:0 24px;margin-top:16px;">
+    <div class="alert alert-info">
+      Login PINs were generated for the students just imported.
+      <a href="<?= $cfg['url'] ?><?= htmlspecialchars($bulkCredentialsUrl) ?>">Download the generated PINs</a> before they're lost — this link only works once.
+    </div>
+  </div>
+  <?php endif; ?>
+
   <!-- PAGE BODY -->
   <main class="page-body">

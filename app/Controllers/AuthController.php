@@ -3,33 +3,34 @@ require_once ROOT_DIR . '/core/Controller.php';
 
 class AuthController extends Controller {
     
+    // Resolves the current tenant from a custom domain, falling back to "the one active
+    // tenant" for single-school deployments (there's no way to know which school a bare,
+    // shared login page belongs to otherwise). Returns the full row — callers needing only
+    // branding fields can just ignore the rest — so login-mode columns come along for free.
+    private function resolveTenant(): ?array {
+        $host = $_SERVER['HTTP_HOST'] ?? '';
+        $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE domain = ? AND status = 'active' LIMIT 1", [$host]);
+        if (!$tenant) {
+            $activeTenants = $this->db->fetchAll("SELECT * FROM tenants WHERE status = 'active'");
+            if (count($activeTenants) === 1) {
+                $tenant = $activeTenants[0];
+            }
+        }
+        return $tenant ?: null;
+    }
+
     public function loginPage(): void {
         if ($this->isLoggedIn()) {
             $this->redirectByRole();
         }
 
-        $host = $_SERVER['HTTP_HOST'] ?? '';
         $branding = [
             'name' => 'Liberia School Management System',
             'primary_color' => '#10B981',
             'secondary_color' => '#059669',
             'logo' => null
         ];
-
-        // Check if the current domain matches a custom domain in tenants
-        $tenant = $this->db->fetchOne("SELECT name, primary_color, secondary_color, logo FROM tenants WHERE domain = ? AND status = 'active' LIMIT 1", [$host]);
-
-        // Single-school deployments have no custom domain configured — fall back to
-        // the one active tenant so the login page still shows real branding instead
-        // of the generic default. Only used when there's exactly one to avoid
-        // guessing wrong in a true multi-tenant setup.
-        if (!$tenant) {
-            $activeTenants = $this->db->fetchAll("SELECT name, primary_color, secondary_color, logo FROM tenants WHERE status = 'active'");
-            if (count($activeTenants) === 1) {
-                $tenant = $activeTenants[0];
-            }
-        }
-
+        $tenant = $this->resolveTenant();
         if ($tenant) {
             $branding['name'] = $tenant['name'];
             $branding['primary_color'] = $tenant['primary_color'];
@@ -40,28 +41,47 @@ class AuthController extends Controller {
         $this->view('auth/login', [
             'pageTitle' => 'Login',
             'branding' => $branding,
+            'studentLoginMode' => $tenant['student_login_mode'] ?? 'admission_pin',
+            'parentLoginMode' => $tenant['parent_login_mode'] ?? 'username_password',
             'flash' => $this->getFlash()
         ]);
     }
 
     public function loginPost(): void {
-        $email = $_POST['email'] ?? '';
-        $password = $_POST['password'] ?? '';
+        $loginType = $_POST['login_type'] ?? 'staff'; // staff | student | parent
+        $identifier = trim($_POST['identifier'] ?? '');
+        $secret = $_POST['secret'] ?? '';
 
-        if (!$email || !$password) {
-            $this->flash('danger', 'Please enter email and password.');
+        if (!$identifier || !$secret) {
+            $this->flash('danger', 'Please fill in both fields.');
             $this->redirect('/login');
         }
 
-        $user = $this->db->fetchOne(
-            "SELECT u.*, r.name as role_name 
-             FROM users u 
-             JOIN roles r ON u.role_id = r.id 
-             WHERE u.email = ? AND u.status = 'active'", 
-            [$email]
-        );
+        $tenant = $this->resolveTenant();
+        $tenantId = $tenant['id'] ?? null;
+        $studentLoginMode = $tenant['student_login_mode'] ?? 'admission_pin';
+        $parentLoginMode = $tenant['parent_login_mode'] ?? 'username_password';
 
-        if ($user && password_verify($password, $user['password_hash'])) {
+        if ($loginType === 'student' && $studentLoginMode === 'admission_pin') {
+            $sql = "SELECT u.*, r.name as role_name FROM users u
+                    JOIN roles r ON u.role_id = r.id
+                    JOIN students s ON s.user_id = u.id
+                    WHERE s.admission_no = ? AND u.status = 'active'";
+        } elseif ($loginType === 'parent' && $parentLoginMode === 'username_password') {
+            $sql = "SELECT u.*, r.name as role_name FROM users u
+                    JOIN roles r ON u.role_id = r.id
+                    WHERE u.username = ? AND u.status = 'active'";
+        } else {
+            $sql = "SELECT u.*, r.name as role_name FROM users u
+                    JOIN roles r ON u.role_id = r.id
+                    WHERE u.email = ? AND u.status = 'active'";
+        }
+        $params = [$identifier];
+        if ($tenantId) { $sql .= " AND u.tenant_id = ?"; $params[] = $tenantId; }
+
+        $user = $this->db->fetchOne($sql, $params);
+
+        if ($user && password_verify($secret, $user['password_hash'])) {
             // Set session
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['role'] = $user['role_name'];

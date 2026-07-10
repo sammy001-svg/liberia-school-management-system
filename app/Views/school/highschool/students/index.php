@@ -254,11 +254,8 @@
             <label class="form-label">Admission Date</label>
             <input type="date" name="admission_date" class="form-control" value="<?= date('Y-m-d') ?>">
           </div>
-          <div class="form-group">
-            <label class="form-label">Login Password</label>
-            <input type="password" name="password" class="form-control" placeholder="Default: Student@123">
-          </div>
         </div>
+        <div class="form-hint">A login PIN is generated automatically once the student is admitted — it's shown once, so make a note of it.</div>
 
       </div>
       <div class="modal-footer">
@@ -286,7 +283,7 @@
         <div class="form-group">
           <label class="form-label">CSV File *</label>
           <input type="file" name="csv_file" class="form-control" accept=".csv" required>
-          <div class="form-hint">New students get the default password <code>Student@123</code>. Email is optional. Classes that don't exist yet are created automatically. Rows missing TSM ID/First/Last Name, or with a duplicate TSM ID, are skipped and reported.</div>
+          <div class="form-hint">Each new student gets a random login PIN generated automatically — <a href="<?= $cfg['url'] ?>/school/students/bulk-credentials">download the generated PINs</a> after uploading. Email is optional. Classes that don't exist yet are created automatically. Rows missing TSM ID/First/Last Name, or with a duplicate TSM ID, are skipped and reported.</div>
         </div>
       </div>
       <div class="modal-footer">

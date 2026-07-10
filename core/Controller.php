@@ -369,6 +369,24 @@ abstract class Controller {
         return $errors;
     }
 
+    /** Random 4-digit login PIN (zero-padded), hashed/verified the same way a password is. */
+    protected function generateUniquePin(): string {
+        return str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+    }
+
+    /** Slugifies $name into a login username, appending a numeric suffix until it's unique within the tenant. */
+    protected function generateUniqueUsername(string $name, int $tenantId): string {
+        $base = trim(strtolower(preg_replace('/[^a-z0-9]+/i', '.', $name)), '.');
+        $base = $base !== '' ? $base : 'user';
+        $username = $base;
+        $i = 1;
+        while ($this->db->fetchOne("SELECT id FROM users WHERE username=? AND tenant_id=?", [$username, $tenantId])) {
+            $username = $base . $i;
+            $i++;
+        }
+        return $username;
+    }
+
     /**
      * Pagination helper: given a total row count, works out the current
      * page (from $_GET['page']), page size, and SQL OFFSET.

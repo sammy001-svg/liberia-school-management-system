@@ -457,7 +457,7 @@ class ParentController extends Controller {
         $totalCount = $this->db->fetchOne("SELECT COUNT(*) c FROM parents p JOIN users u ON p.user_id=u.id WHERE $where", $params)['c'];
         $p2 = $this->paginate($totalCount);
         $parents = $this->db->fetchAll(
-            "SELECT p.*,u.name,u.email,u.phone,u.employee_no,u.status,
+            "SELECT p.*,u.name,u.email,u.username,u.phone,u.employee_no,u.status,
                     (SELECT COUNT(*) FROM parent_students ps WHERE ps.parent_id=p.id) AS children_count,
                     (SELECT GROUP_CONCAT(cu.name SEPARATOR ', ') FROM parent_students ps JOIN students cs ON ps.student_id=cs.id JOIN users cu ON cs.user_id=cu.id WHERE ps.parent_id=p.id) AS children_names
              FROM parents p JOIN users u ON p.user_id=u.id WHERE $where ORDER BY u.name LIMIT {$p2['perPage']} OFFSET {$p2['offset']}",
@@ -518,9 +518,10 @@ class ParentController extends Controller {
                     $studentId = $studentByAdmNo[strtolower($row['student_admission_no'])] ?? null;
                     if ($studentId === null) { $rowErrors[] = "Row {$line}: student with admission no '{$row['student_admission_no']}' not found — parent added without a linked student."; }
                 }
+                $username = $this->generateUniqueUsername($name, $this->tid);
                 $userId = $this->db->insert(
-                    "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,date_of_birth,status) VALUES (?,?,?,?,?,?,?,?)",
-                    [$this->tid, $roleId, $name, $email ?: null, $row['phone'] ?? '', $row['gender'] ?: null, $row['dob'] ?: null, 'active']
+                    "INSERT INTO users (tenant_id,role_id,name,email,username,phone,gender,date_of_birth,status) VALUES (?,?,?,?,?,?,?,?,?)",
+                    [$this->tid, $roleId, $name, $email ?: null, $username, $row['phone'] ?? '', $row['gender'] ?: null, $row['dob'] ?: null, 'active']
                 );
                 $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [password_hash('Parent@123', PASSWORD_BCRYPT), $userId]);
                 $parentId = $this->db->insert(
@@ -551,9 +552,10 @@ class ParentController extends Controller {
         if ($errors) { $this->failValidation($errors, '/school/parents'); }
         $roleId = $this->db->fetchOne("SELECT id FROM roles WHERE name='Parent' LIMIT 1")['id'] ?? 8;
         $pw = password_hash($_POST['password'] ?: 'Parent@123', PASSWORD_BCRYPT);
+        $username = $this->generateUniqueUsername($_POST['name'], $this->tid);
         $userId = $this->db->insert(
-            "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,date_of_birth,address,employee_no,status) VALUES (?,?,?,?,?,?,?,?,?,?)",
-            [$this->tid,$roleId,$_POST['name'],$_POST['email']?:null,$_POST['phone']??'',$_POST['gender']??null,$_POST['dob']??null,$_POST['address']??'',$_POST['employee_no']?:null,'active']
+            "INSERT INTO users (tenant_id,role_id,name,email,username,phone,gender,date_of_birth,address,employee_no,status) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            [$this->tid,$roleId,$_POST['name'],$_POST['email']?:null,$username,$_POST['phone']??'',$_POST['gender']??null,$_POST['dob']??null,$_POST['address']??'',$_POST['employee_no']?:null,'active']
         );
         $this->db->execute("UPDATE users SET password_hash=? WHERE id=?",[$pw,$userId]);
         $parentId = $this->db->insert(
@@ -564,13 +566,13 @@ class ParentController extends Controller {
             $this->db->insert("INSERT INTO parent_students (parent_id,student_id,relationship) VALUES (?,?,?)",
                 [$parentId,$_POST['student_id'],$_POST['relationship']??'parent']);
         }
-        $this->flash('success','Parent account created.'); $this->redirect('/school/parents');
+        $this->flash('success',"Parent account created. Username: {$username}."); $this->redirect('/school/parents');
     }
 
     public function show(string $id): void {
         $this->requirePermission(['parents.manage']);
         $parent = $this->db->fetchOne(
-            "SELECT p.*, u.name, u.email, u.phone, u.gender, u.date_of_birth, u.address
+            "SELECT p.*, u.name, u.email, u.username, u.phone, u.gender, u.date_of_birth, u.address
              FROM parents p JOIN users u ON p.user_id=u.id WHERE p.id=? AND p.tenant_id=?", [$id, $this->tid]
         );
         if (!$parent) { $this->redirect('/school/parents'); }
@@ -596,7 +598,7 @@ class ParentController extends Controller {
     public function edit(string $id): void {
         $this->requirePermission(['parents.manage']);
         $parent = $this->db->fetchOne(
-            "SELECT p.*, u.name, u.email, u.phone, u.gender, u.date_of_birth, u.address, u.employee_no
+            "SELECT p.*, u.name, u.email, u.username, u.phone, u.gender, u.date_of_birth, u.address, u.employee_no
              FROM parents p JOIN users u ON p.user_id=u.id WHERE p.id=? AND p.tenant_id=?", [$id, $this->tid]
         );
         if (!$parent) { $this->redirect('/school/parents'); }
@@ -607,10 +609,15 @@ class ParentController extends Controller {
         $this->requirePermission(['parents.manage']);
         $parent = $this->db->fetchOne("SELECT user_id FROM parents WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         if (!$parent) { $this->redirect('/school/parents'); }
-        $errors = $this->validate($_POST, ['name' => 'required|max:150', 'email' => 'email|max:150']);
+        $errors = $this->validate($_POST, ['name' => 'required|max:150', 'email' => 'email|max:150', 'username' => 'required|max:60']);
+        $username = trim($_POST['username'] ?? '');
+        if (!$errors) {
+            $taken = $this->db->fetchOne("SELECT id FROM users WHERE username=? AND tenant_id=? AND id!=?", [$username, $this->tid, $parent['user_id']]);
+            if ($taken) { $errors['username'] = 'That username is already taken.'; }
+        }
         if ($errors) { $this->failValidation($errors, '/school/parents/'.$id.'/edit'); }
-        $this->db->execute("UPDATE users SET name=?,email=?,phone=?,gender=?,date_of_birth=?,address=?,employee_no=? WHERE id=?",
-            [$_POST['name'],$_POST['email']?:null,$_POST['phone']??'',$_POST['gender']??null,$_POST['dob']??null,$_POST['address']??'',$_POST['employee_no']?:null,$parent['user_id']]);
+        $this->db->execute("UPDATE users SET name=?,email=?,username=?,phone=?,gender=?,date_of_birth=?,address=?,employee_no=? WHERE id=?",
+            [$_POST['name'],$_POST['email']?:null,$username,$_POST['phone']??'',$_POST['gender']??null,$_POST['dob']??null,$_POST['address']??'',$_POST['employee_no']?:null,$parent['user_id']]);
         $this->db->execute("UPDATE parents SET occupation=?,workplace=?,national_id=?,emergency_contact_phone=? WHERE id=? AND tenant_id=?",
             [$_POST['occupation']??'',$_POST['workplace']??null,$_POST['national_id']??null,$_POST['emergency_contact_phone']??null,$id,$this->tid]);
         $this->flash('success','Parent updated.'); $this->redirect('/school/parents/'.$id);
@@ -668,14 +675,17 @@ class SchoolSettingsController extends Controller {
             $logo = $current['logo'] ?? null;
         }
 
-        $this->db->execute("UPDATE tenants SET name=?,email=?,phone=?,address=?,country=?,timezone=?,academic_year=?,currency=?,domain=?,primary_color=?,secondary_color=?,accent_color=?,logo=? WHERE id=?",
+        $studentLoginMode = in_array($_POST['student_login_mode'] ?? '', ['email_password','admission_pin'], true) ? $_POST['student_login_mode'] : 'admission_pin';
+        $parentLoginMode  = in_array($_POST['parent_login_mode'] ?? '', ['email_password','username_password'], true) ? $_POST['parent_login_mode'] : 'username_password';
+
+        $this->db->execute("UPDATE tenants SET name=?,email=?,phone=?,address=?,country=?,timezone=?,academic_year=?,currency=?,domain=?,primary_color=?,secondary_color=?,accent_color=?,logo=?,student_login_mode=?,parent_login_mode=? WHERE id=?",
             [
                 $_POST['name'], $_POST['email']??'', $_POST['phone']??'', $_POST['address']??'',
                 $_POST['country']??'', $_POST['timezone']??'UTC', $_POST['academic_year']??'',
                 $_POST['currency']??'Ksh',
                 $_POST['domain']??null, $_POST['primary_color']??'#4F46E5',
                 $_POST['secondary_color']??'#7C3AED', $_POST['accent_color']??'#06B6D4',
-                $logo,
+                $logo, $studentLoginMode, $parentLoginMode,
                 $this->tid
             ]);
 
