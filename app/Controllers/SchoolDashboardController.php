@@ -3,7 +3,10 @@ require_once ROOT_DIR . '/core/Controller.php';
 
 class SchoolDashboardController extends Controller {
     public function index(): void {
-        $this->requireAuth(['School Admin','Teacher','Accountant','Staff']);
+        // Any logged-in school-panel user (built-in or custom role) can view the dashboard —
+        // Student/Parent accounts have their own dedicated portals and never route here.
+        if (!isset($_SESSION['user_id'])) { $this->redirect('/login'); }
+        if (!empty($_SESSION['student_id']) || !empty($_SESSION['parent_id'])) { $this->redirect('/login'); }
         $tid = $this->tenantId();
         $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$tid]);
 

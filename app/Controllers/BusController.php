@@ -7,7 +7,7 @@ class BusController extends Controller {
 
     // --- BUSES ---
     public function buses(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['bus.manage']);
         $buses = $this->db->fetchAll(
             "SELECT b.*, (SELECT COUNT(*) FROM bus_routes r WHERE r.bus_id=b.id) AS route_count
              FROM buses b WHERE b.tenant_id=? ORDER BY b.bus_number", [$this->tid]
@@ -21,7 +21,7 @@ class BusController extends Controller {
     }
 
     public function storeBus(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['bus.manage']);
         $errors = $this->validate($_POST, ['bus_number' => 'required|max:50', 'capacity' => 'numeric']);
         if ($errors) { $this->failValidation($errors, '/school/transport/buses'); }
         $this->db->insert(
@@ -33,7 +33,7 @@ class BusController extends Controller {
     }
 
     public function updateBus(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['bus.manage']);
         $errors = $this->validate($_POST, ['bus_number' => 'required|max:50', 'capacity' => 'numeric']);
         if ($errors) { $this->failValidation($errors, '/school/transport/buses'); }
         $this->db->execute(
@@ -45,7 +45,7 @@ class BusController extends Controller {
     }
 
     public function deleteBus(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['bus.manage']);
         $this->db->execute("DELETE FROM buses WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         $this->flash('success', 'Bus removed.');
         $this->redirect('/school/transport/buses');
@@ -53,7 +53,7 @@ class BusController extends Controller {
 
     // --- DRIVERS ---
     public function drivers(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['bus.manage']);
         $drivers = $this->db->fetchAll(
             "SELECT d.*, (SELECT COUNT(*) FROM bus_routes r WHERE r.driver_id=d.id) AS route_count
              FROM bus_drivers d WHERE d.tenant_id=? ORDER BY d.name", [$this->tid]
@@ -63,7 +63,7 @@ class BusController extends Controller {
     }
 
     public function storeDriver(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['bus.manage']);
         $errors = $this->validate($_POST, ['name' => 'required|max:150']);
         if ($errors) { $this->failValidation($errors, '/school/transport/drivers'); }
         $this->db->insert(
@@ -75,7 +75,7 @@ class BusController extends Controller {
     }
 
     public function updateDriver(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['bus.manage']);
         $errors = $this->validate($_POST, ['name' => 'required|max:150']);
         if ($errors) { $this->failValidation($errors, '/school/transport/drivers'); }
         $this->db->execute(
@@ -87,7 +87,7 @@ class BusController extends Controller {
     }
 
     public function deleteDriver(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['bus.manage']);
         $this->db->execute("DELETE FROM bus_drivers WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         $this->flash('success', 'Driver removed.');
         $this->redirect('/school/transport/drivers');
@@ -95,7 +95,7 @@ class BusController extends Controller {
 
     // --- ROUTES ---
     public function routes(): void {
-        $this->requireAuth(['School Admin','Accountant']);
+        $this->requirePermission(['bus.fees']);
         $routes = $this->db->fetchAll(
             "SELECT r.*, b.bus_number, d.name AS driver_name,
                     (SELECT COUNT(*) FROM bus_students bs WHERE bs.route_id=r.id AND bs.status='active') AS student_count
@@ -117,7 +117,7 @@ class BusController extends Controller {
     }
 
     public function storeRoute(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['bus.manage']);
         $errors = $this->validate($_POST, ['name' => 'required|max:150', 'monthly_fee' => 'numeric']);
         if ($errors) { $this->failValidation($errors, '/school/transport/routes'); }
         $this->db->insert(
@@ -132,7 +132,7 @@ class BusController extends Controller {
     }
 
     public function updateRoute(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['bus.manage']);
         $errors = $this->validate($_POST, ['name' => 'required|max:150', 'monthly_fee' => 'numeric']);
         if ($errors) { $this->failValidation($errors, '/school/transport/routes'); }
         $this->db->execute(
@@ -148,7 +148,7 @@ class BusController extends Controller {
     }
 
     public function deleteRoute(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['bus.manage']);
         $this->db->execute("DELETE FROM bus_routes WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         $this->flash('success', 'Route removed.');
         $this->redirect('/school/transport/routes');
@@ -156,7 +156,7 @@ class BusController extends Controller {
 
     // --- ROUTE STUDENT ASSIGNMENT ---
     public function routeStudents(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['bus.manage']);
         $route = $this->db->fetchOne(
             "SELECT r.*, b.bus_number, d.name AS driver_name FROM bus_routes r
              LEFT JOIN buses b ON r.bus_id=b.id LEFT JOIN bus_drivers d ON r.driver_id=d.id
@@ -182,7 +182,7 @@ class BusController extends Controller {
     }
 
     public function assignStudent(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['bus.manage']);
         $errors = $this->validate($_POST, ['student_id' => 'required']);
         if ($errors) { $this->failValidation($errors, '/school/transport/routes/'.$id.'/students'); }
         try {
@@ -198,7 +198,7 @@ class BusController extends Controller {
     }
 
     public function unassignStudent(string $id, string $studentId): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['bus.manage']);
         $this->db->execute("DELETE FROM bus_students WHERE route_id=? AND student_id=? AND tenant_id=?", [$id, $studentId, $this->tid]);
         $this->flash('success', 'Student removed from route.');
         $this->redirect('/school/transport/routes/'.$id.'/students');

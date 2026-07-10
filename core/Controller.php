@@ -41,12 +41,31 @@ abstract class Controller {
         $this->requireAuth(['School Admin']);
     }
 
+    protected function hasPermission(string $key): bool {
+        return in_array($key, $_SESSION['permissions'] ?? [], true);
+    }
+
+    /** Permission-based equivalent of requireAuth(): redirects to /unauthorized unless the
+     *  logged-in user's role has been granted at least one of the given "module.action" keys. */
+    protected function requirePermission(string|array $keys): void {
+        if (!isset($_SESSION['user_id'])) {
+            $this->redirect('/login');
+        }
+        foreach ((array)$keys as $key) {
+            if ($this->hasPermission($key)) {
+                return;
+            }
+        }
+        $this->redirect('/unauthorized');
+    }
+
     protected function view(string $viewPath, array $data = []): void {
         // Automatically inject tenant data if it exists in session but not in $data
         if (!isset($data['tenant']) && isset($_SESSION['tenant_id'])) {
             $data['tenant'] = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$_SESSION['tenant_id']]);
         }
         $data['csrf_token'] = $this->csrfToken();
+        $data['canManageRoles'] = $this->hasPermission('roles.manage');
 
         extract($data);
         $viewFile = dirname(__DIR__) . "/app/Views/{$viewPath}.php";

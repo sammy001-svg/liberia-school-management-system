@@ -65,9 +65,18 @@ class AuthController extends Controller {
             // Set session
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['role'] = $user['role_name'];
+            $_SESSION['role_id'] = $user['role_id'];
             $_SESSION['tenant_id'] = $user['tenant_id'];
             $_SESSION['user_name']   = $user['name'];
             $_SESSION['user']        = $user;
+
+            // Cache this role's granted "module.action" permissions for the session so
+            // access checks don't need a DB hit on every request.
+            $perms = $this->db->fetchAll(
+                "SELECT p.module, p.action FROM role_permissions rp JOIN permissions p ON rp.permission_id = p.id WHERE rp.role_id = ?",
+                [$user['role_id']]
+            );
+            $_SESSION['permissions'] = array_map(fn($p) => "{$p['module']}.{$p['action']}", $perms);
 
             // Update last login
             $this->db->execute("UPDATE users SET last_login = NOW() WHERE id = ?", [$user['id']]);
@@ -109,25 +118,16 @@ class AuthController extends Controller {
     }
 
     private function redirectByRole(): void {
-        $role = $_SESSION['role'] ?? '';
-        
-        switch ($role) {
-            case 'School Admin':
-            case 'Teacher':
-            case 'Accountant':
-            case 'Staff':
-                $this->redirect('/school/dashboard');
-                break;
-            case 'Student':
-                $this->redirect('/student/dashboard');
-                break;
-            case 'Parent':
-                $this->redirect('/parent/dashboard');
-                break;
-            default:
-                $this->redirect('/login');
-                break;
+        // Student/Parent detection is based on the linked-record session values set above
+        // (not the role name) so that any custom role a School Admin creates also has a
+        // valid landing page rather than falling through to a dead default case.
+        if (!empty($_SESSION['student_id'])) {
+            $this->redirect('/student/dashboard');
         }
+        if (!empty($_SESSION['parent_id'])) {
+            $this->redirect('/parent/dashboard');
+        }
+        $this->redirect('/school/dashboard');
     }
 
     private function isLoggedIn(): bool {

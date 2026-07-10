@@ -6,7 +6,7 @@ class AcademicController extends Controller {
     public function __construct() { parent::__construct(); $this->tid = $this->tenantId() ?? 0; }
 
     public function index(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['academic.manage']);
         $years = $this->db->fetchAll("SELECT * FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]);
         $terms = $this->db->fetchAll(
             "SELECT t.*, y.name AS year_name FROM terms t JOIN academic_years y ON t.academic_year_id=y.id WHERE t.tenant_id=? ORDER BY t.start_date DESC",
@@ -19,7 +19,7 @@ class AcademicController extends Controller {
     }
 
     public function storeYear(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['academic.manage']);
         $errors = $this->validate($_POST, [
             'name'       => 'required|max:50',
             'start_date' => 'required|date',
@@ -38,7 +38,7 @@ class AcademicController extends Controller {
     }
 
     public function storeTerm(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['academic.manage']);
         $errors = $this->validate($_POST, [
             'academic_year_id' => 'required',
             'name'             => 'required|max:80',

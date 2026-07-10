@@ -6,7 +6,7 @@ class AnnouncementController extends Controller {
     public function __construct() { parent::__construct(); $this->tid = $this->tenantId() ?? 0; }
 
     public function index(): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['announcements.manage']);
         $announcements = $this->db->fetchAll("SELECT a.*, u.name AS author FROM announcements a JOIN users u ON a.author_id=u.id WHERE a.tenant_id=? ORDER BY a.is_pinned DESC, a.published_at DESC", [$this->tid]);
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?", [$this->tid]);
         $stats = [
@@ -18,12 +18,12 @@ class AnnouncementController extends Controller {
     }
 
     public function create(): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['announcements.manage']);
         $this->redirect('/school/announcements');
     }
 
     public function store(): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['announcements.manage']);
         $errors = $this->validate($_POST, [
             'title' => 'required|max:255',
             'body'  => 'required',
@@ -38,7 +38,7 @@ class AnnouncementController extends Controller {
     }
 
     public function delete(string $id): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['announcements.manage']);
         $this->db->execute("DELETE FROM announcements WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         $this->flash('success','Announcement removed.'); $this->redirect('/school/announcements');
     }
@@ -99,7 +99,7 @@ class GradeController extends Controller {
     public function __construct() { parent::__construct(); $this->tid = $this->tenantId() ?? 0; }
 
     public function index(): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['grades.manage']);
         $exams = $this->db->fetchAll(
             "SELECT e.*, c.name AS class_name, (SELECT COUNT(DISTINCT student_id) FROM grades g WHERE g.exam_id=e.id) AS graded_count
              FROM exams e LEFT JOIN classes c ON e.class_id=c.id WHERE e.tenant_id=? ORDER BY e.exam_date DESC", [$this->tid]
@@ -116,7 +116,7 @@ class GradeController extends Controller {
     }
 
     public function storeExam(): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['grades.manage']);
         $errors = $this->validate($_POST, [
             'name'        => 'required|max:150',
             'exam_date'   => 'date',
@@ -136,7 +136,7 @@ class GradeController extends Controller {
     }
 
     public function enter(): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['grades.manage']);
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?", [$this->tid]);
         $exams   = $this->db->fetchAll("SELECT id,name FROM exams WHERE tenant_id=?", [$this->tid]);
         $students = []; $courses = [];
@@ -148,7 +148,7 @@ class GradeController extends Controller {
     }
 
     public function store(): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['grades.manage']);
         foreach ($_POST['grades'] ?? [] as $studentId => $marks) {
             foreach ($marks as $courseId => $score) {
                 $pct = (float)$score;
@@ -162,14 +162,14 @@ class GradeController extends Controller {
     }
 
     public function report(string $studentId): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['grades.manage']);
         $student = $this->db->fetchOne("SELECT s.*,u.name FROM students s JOIN users u ON s.user_id=u.id WHERE s.id=? AND s.tenant_id=?",[$studentId,$this->tid]);
         $grades  = $this->db->fetchAll("SELECT g.*,c.name AS course_name,e.name AS exam_name FROM grades g LEFT JOIN courses c ON g.course_id=c.id LEFT JOIN exams e ON g.exam_id=e.id WHERE g.student_id=? AND g.tenant_id=? ORDER BY g.created_at DESC",[$studentId,$this->tid]);
         $this->view('school/highschool/grades/report', ['pageTitle'=>'Grade Report','panelType'=>'school','student'=>$student,'grades'=>$grades,'flash'=>$this->getFlash()]);
     }
 
     public function reportCard(string $studentId): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['grades.manage']);
         $student = $this->db->fetchOne(
             "SELECT s.*, u.name, u.gender, u.date_of_birth FROM students s JOIN users u ON s.user_id=u.id WHERE s.id=? AND s.tenant_id=?",
             [$studentId, $this->tid]
@@ -271,7 +271,7 @@ class GradeController extends Controller {
     }
 
     public function rankings(): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['grades.manage']);
         $classId = $_GET['class_id'] ?? '';
         $period  = $_GET['period'] ?? '';
 
@@ -297,7 +297,7 @@ class GradeController extends Controller {
     }
 
     public function exportRankingsCsv(): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['grades.manage']);
         $classId = $_GET['class_id'] ?? '';
         $period  = $_GET['period'] ?? '';
         if (!$period) {
@@ -314,7 +314,7 @@ class GradeController extends Controller {
     }
 
     public function printRankings(): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['grades.manage']);
         $classId = $_GET['class_id'] ?? '';
         $period  = $_GET['period'] ?? '';
         if (!$period) {
@@ -335,7 +335,7 @@ class GradeController extends Controller {
     }
 
     public function bulkTemplateRankings(): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['grades.manage']);
         $this->downloadCsvTemplate('rankings_template.csv',
             ['TSM ID','Name','Class','Period','Grade','Rank','Group Size'],
             ['CAS0001','John Doe','3rd Grade','1st Pd.','88.5','4','197']
@@ -343,7 +343,7 @@ class GradeController extends Controller {
     }
 
     public function bulkUploadRankings(): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['grades.manage']);
         $rows = $this->parseCsvUpload('csv_file');
         $students = $this->db->fetchAll("SELECT id, admission_no FROM students WHERE tenant_id=?", [$this->tid]);
         $studentByAdmNo = [];
@@ -392,7 +392,7 @@ class TimetableController extends Controller {
     public function __construct() { parent::__construct(); $this->tid = $this->tenantId() ?? 0; }
 
     public function index(): void {
-        $this->requireAuth(['School Admin','Teacher','Student']);
+        $this->requirePermission(['timetable.view','timetable.manage']);
         $classId   = $_GET['class_id'] ?? '';
         $classes   = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?", [$this->tid]);
         $courses   = $this->db->fetchAll("SELECT id,name FROM courses WHERE tenant_id=?", [$this->tid]);
@@ -408,12 +408,12 @@ class TimetableController extends Controller {
     }
 
     public function create(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['timetable.manage']);
         $this->redirect('/school/timetable');
     }
 
     public function store(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['timetable.manage']);
         $errors = $this->validate($_POST, [
             'class_id'    => 'required',
             'day_of_week' => 'required',
@@ -433,7 +433,7 @@ class TimetableController extends Controller {
     }
 
     public function deleteEntry(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['timetable.manage']);
         $entry = $this->db->fetchOne("SELECT class_id FROM timetable WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         if ($entry) {
             $this->db->execute("DELETE FROM timetable WHERE id=? AND tenant_id=?", [$id, $this->tid]);
@@ -448,7 +448,7 @@ class ParentController extends Controller {
     public function __construct() { parent::__construct(); $this->tid = $this->tenantId() ?? 0; }
 
     public function index(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['parents.manage']);
         $search = $_GET['q'] ?? '';
         $params = [$this->tid];
         $where = "p.tenant_id=?";
@@ -478,12 +478,12 @@ class ParentController extends Controller {
     }
 
     public function create(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['parents.manage']);
         $this->redirect('/school/parents');
     }
 
     public function bulkTemplate(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['parents.manage']);
         $this->downloadCsvTemplate('parents_template.csv',
             ['name','email','phone','gender','dob','occupation','workplace','student_admission_no','relationship'],
             ['John Doe','john.doe@example.com','0779876543','male','1980-02-10','Trader','Waterside Market','ADM-2026-0001','Father']
@@ -491,7 +491,7 @@ class ParentController extends Controller {
     }
 
     public function bulkUpload(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['parents.manage']);
         $rows = $this->parseCsvUpload('csv_file');
         $roleId = $this->db->fetchOne("SELECT id FROM roles WHERE name='Parent' LIMIT 1")['id'] ?? 8;
         $students = $this->db->fetchAll("SELECT id,admission_no FROM students WHERE tenant_id=?", [$this->tid]);
@@ -541,7 +541,7 @@ class ParentController extends Controller {
     }
 
     public function store(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['parents.manage']);
         $errors = $this->validate($_POST, [
             'name'  => 'required|max:150',
             'email' => 'email|max:150',
@@ -568,7 +568,7 @@ class ParentController extends Controller {
     }
 
     public function show(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['parents.manage']);
         $parent = $this->db->fetchOne(
             "SELECT p.*, u.name, u.email, u.phone, u.gender, u.date_of_birth, u.address
              FROM parents p JOIN users u ON p.user_id=u.id WHERE p.id=? AND p.tenant_id=?", [$id, $this->tid]
@@ -594,7 +594,7 @@ class ParentController extends Controller {
     }
 
     public function edit(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['parents.manage']);
         $parent = $this->db->fetchOne(
             "SELECT p.*, u.name, u.email, u.phone, u.gender, u.date_of_birth, u.address, u.employee_no
              FROM parents p JOIN users u ON p.user_id=u.id WHERE p.id=? AND p.tenant_id=?", [$id, $this->tid]
@@ -604,7 +604,7 @@ class ParentController extends Controller {
     }
 
     public function update(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['parents.manage']);
         $parent = $this->db->fetchOne("SELECT user_id FROM parents WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         if (!$parent) { $this->redirect('/school/parents'); }
         $errors = $this->validate($_POST, ['name' => 'required|max:150', 'email' => 'email|max:150']);
@@ -617,7 +617,7 @@ class ParentController extends Controller {
     }
 
     public function delete(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['parents.manage']);
         $parent = $this->db->fetchOne("SELECT user_id FROM parents WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         if ($parent) {
             $this->db->execute("DELETE FROM parents WHERE id=? AND tenant_id=?", [$id, $this->tid]);
@@ -627,7 +627,7 @@ class ParentController extends Controller {
     }
 
     public function linkChild(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['parents.manage']);
         $errors = $this->validate($_POST, ['student_id' => 'required']);
         if ($errors) { $this->failValidation($errors, '/school/parents/'.$id); }
         $this->db->insert("INSERT INTO parent_students (parent_id,student_id,relationship) VALUES (?,?,?)",
@@ -636,7 +636,7 @@ class ParentController extends Controller {
     }
 
     public function unlinkChild(string $id, string $studentId): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['parents.manage']);
         $this->db->execute("DELETE FROM parent_students WHERE parent_id=? AND student_id=?", [$id, $studentId]);
         $this->flash('success','Child unlinked.'); $this->redirect('/school/parents/'.$id);
     }
@@ -647,13 +647,13 @@ class SchoolSettingsController extends Controller {
     public function __construct() { parent::__construct(); $this->tid = $this->tenantId() ?? 0; }
 
     public function index(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['settings.manage']);
         $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
         $this->view('school/highschool/settings', ['pageTitle'=>'School Settings','panelType'=>'school','tenant'=>$tenant,'flash'=>$this->getFlash()]);
     }
 
     public function update(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['settings.manage']);
 
         $errors = [];
         $newLogoUrl = $this->handleImageUpload('logo', 'logos', $errors, 2 * 1024 * 1024);

@@ -6,7 +6,7 @@ class ClassController extends Controller {
     public function __construct() { parent::__construct(); $this->tid = $this->tenantId() ?? 0; }
 
     public function index(): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['classes.view','classes.manage']);
         $classes = $this->db->fetchAll("SELECT c.*, u.name AS teacher_name, (SELECT COUNT(*) FROM students s WHERE s.class_id=c.id) AS student_count FROM classes c LEFT JOIN teachers t ON c.class_teacher_id=t.id LEFT JOIN users u ON t.user_id=u.id WHERE c.tenant_id=? ORDER BY c.grade_level, c.section", [$this->tid]);
         $teachers = $this->db->fetchAll("SELECT t.id, u.name FROM teachers t JOIN users u ON t.user_id=u.id WHERE t.tenant_id=? ORDER BY u.name", [$this->tid]);
         $academicYears = $this->db->fetchAll("SELECT id,name FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]);
@@ -20,12 +20,12 @@ class ClassController extends Controller {
     }
 
     public function create(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['classes.manage']);
         $this->redirect('/school/classes');
     }
 
     public function store(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['classes.manage']);
         $errors = $this->validate($_POST, [
             'name'        => 'required|max:80',
             'grade_level' => 'required|max:30',
@@ -43,14 +43,14 @@ class ClassController extends Controller {
     }
 
     public function edit(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['classes.manage']);
         $class    = $this->db->fetchOne("SELECT * FROM classes WHERE id=? AND tenant_id=?", [$id,$this->tid]);
         $teachers = $this->db->fetchAll("SELECT t.id, u.name FROM teachers t JOIN users u ON t.user_id=u.id WHERE t.tenant_id=?", [$this->tid]);
         $this->view('school/highschool/classes/form', ['pageTitle'=>'Edit Class','panelType'=>'school','class'=>$class,'teachers'=>$teachers,'flash'=>$this->getFlash()]);
     }
 
     public function update(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['classes.manage']);
         $errors = $this->validate($_POST, ['name' => 'required|max:80', 'grade_level' => 'required|max:30', 'capacity' => 'numeric']);
         if ($errors) { $this->failValidation($errors, '/school/classes/'.$id.'/edit'); }
         $this->db->execute(
@@ -61,7 +61,7 @@ class ClassController extends Controller {
     }
 
     public function show(string $id): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['classes.view','classes.manage']);
         $class = $this->db->fetchOne(
             "SELECT c.*, u.name AS teacher_name, ay.name AS academic_year_name
              FROM classes c LEFT JOIN teachers t ON c.class_teacher_id=t.id LEFT JOIN users u ON t.user_id=u.id

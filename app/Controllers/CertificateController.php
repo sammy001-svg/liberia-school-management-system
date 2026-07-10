@@ -6,7 +6,7 @@ class CertificateController extends Controller {
     public function __construct() { parent::__construct(); $this->tid = $this->tenantId() ?? 0; }
 
     public function index(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['certificates.manage']);
         $academicYears = $this->db->fetchAll("SELECT * FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]);
         $academicYearId = $_GET['academic_year_id'] ?? ($academicYears[0]['id'] ?? '');
         $classId = $_GET['class_id'] ?? '';
@@ -48,7 +48,7 @@ class CertificateController extends Controller {
     }
 
     public function generate(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['certificates.manage']);
         $errors = $this->validate($_POST, ['student_id' => 'required', 'academic_year_id' => 'required']);
         if ($errors) { $this->failValidation($errors, '/school/certificates'); }
         $studentId = $_POST['student_id'];
@@ -79,7 +79,7 @@ class CertificateController extends Controller {
     // existence check (see the Finance bulk-invoicing fix) so it can't silently
     // truncate partway through a large class list.
     public function bulkGenerate(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['certificates.manage']);
         $errors = $this->validate($_POST, ['academic_year_id' => 'required']);
         if ($errors) { $this->failValidation($errors, '/school/certificates'); }
         $academicYearId = $_POST['academic_year_id'];
@@ -122,7 +122,7 @@ class CertificateController extends Controller {
     }
 
     public function printCertificate(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['certificates.manage']);
         $cert = $this->db->fetchOne(
             "SELECT cert.*, u.name AS student_name, s.admission_no, c.name AS class_name, ay.name AS year_name
              FROM certificates cert
@@ -137,7 +137,7 @@ class CertificateController extends Controller {
     }
 
     public function delete(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['certificates.manage']);
         $this->db->execute("DELETE FROM certificates WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         $this->flash('success', 'Certificate revoked.');
         $this->redirect('/school/certificates');

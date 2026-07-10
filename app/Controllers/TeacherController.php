@@ -6,7 +6,7 @@ class TeacherController extends Controller {
     public function __construct() { parent::__construct(); $this->tid = $this->tenantId() ?? 0; }
 
     public function index(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['teachers.manage']);
         $search = $_GET['q'] ?? '';
         $deptId = $_GET['department_id'] ?? '';
         $params = [$this->tid];
@@ -41,12 +41,12 @@ class TeacherController extends Controller {
     }
 
     public function create(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['teachers.manage']);
         $this->redirect('/school/teachers');
     }
 
     public function bulkTemplate(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['teachers.manage']);
         $this->downloadCsvTemplate('teachers_template.csv',
             ['name','email','phone','gender','dob','qualification','specialization','department_name','class_name','employment_type','joined_at'],
             ['John Smith','john.smith@example.com','0771234567','male','1985-03-20','B.Ed','Mathematics','Sciences','Grade 7A','full_time','2026-01-15']
@@ -54,7 +54,7 @@ class TeacherController extends Controller {
     }
 
     public function bulkUpload(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['teachers.manage']);
         $rows = $this->parseCsvUpload('csv_file');
         $roleId = $this->db->fetchOne("SELECT id FROM roles WHERE name='Teacher' LIMIT 1")['id'] ?? 5;
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?", [$this->tid]);
@@ -115,7 +115,7 @@ class TeacherController extends Controller {
     }
 
     public function store(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['teachers.manage']);
         $errors = $this->validate($_POST, [
             'name'  => 'required|max:150',
             'email' => 'required|email|max:150',
@@ -146,7 +146,7 @@ class TeacherController extends Controller {
     }
 
     public function show(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['teachers.manage']);
         $teacher = $this->db->fetchOne("SELECT t.*, u.name, u.email, u.phone, u.gender, u.date_of_birth, c.name AS class_name, d.name AS department_name FROM teachers t JOIN users u ON t.user_id=u.id LEFT JOIN classes c ON t.class_id=c.id LEFT JOIN departments d ON t.department_id=d.id WHERE t.id=? AND t.tenant_id=?", [$id,$this->tid]);
         if (!$teacher) { $this->redirect('/school/teachers'); }
         $assignedCourses = $this->db->fetchAll(
@@ -171,7 +171,7 @@ class TeacherController extends Controller {
     }
 
     public function idCard(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['teachers.manage']);
         $teacher = $this->db->fetchOne("SELECT t.*, u.name, u.gender FROM teachers t JOIN users u ON t.user_id=u.id WHERE t.id=? AND t.tenant_id=?", [$id, $this->tid]);
         if (!$teacher) { $this->redirect('/school/teachers'); }
         $department = $teacher['department_id'] ? $this->db->fetchOne("SELECT name FROM departments WHERE id=?", [$teacher['department_id']]) : null;
@@ -196,7 +196,7 @@ class TeacherController extends Controller {
     }
 
     public function assignCourse(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['teachers.manage']);
         $errors = $this->validate($_POST, ['course_id' => 'required']);
         if ($errors) { $this->failValidation($errors, '/school/teachers/'.$id); }
         $this->db->insert("INSERT INTO teacher_courses (teacher_id, course_id) VALUES (?, ?)", [$id, $_POST['course_id']]);
@@ -205,21 +205,21 @@ class TeacherController extends Controller {
     }
 
     public function removeCourse(string $id, string $courseId): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['teachers.manage']);
         $this->db->execute("DELETE FROM teacher_courses WHERE teacher_id=? AND course_id=?", [$id, $courseId]);
         $this->flash('success', 'Course unassigned.');
         $this->redirect('/school/teachers/'.$id);
     }
 
     public function edit(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['teachers.manage']);
         $teacher = $this->db->fetchOne("SELECT t.*, u.name, u.email, u.phone, u.gender FROM teachers t JOIN users u ON t.user_id=u.id WHERE t.id=? AND t.tenant_id=?", [$id,$this->tid]);
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?", [$this->tid]);
         $this->view('school/highschool/teachers/form', ['pageTitle'=>'Edit Teacher','panelType'=>'school','teacher'=>$teacher,'classes'=>$classes,'flash'=>$this->getFlash()]);
     }
 
     public function update(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['teachers.manage']);
         $teacher = $this->db->fetchOne("SELECT user_id FROM teachers WHERE id=? AND tenant_id=?", [$id,$this->tid]);
         if (!$teacher) { $this->redirect('/school/teachers'); }
         $errors = $this->validate($_POST, ['name' => 'required|max:150', 'email' => 'required|email|max:150']);

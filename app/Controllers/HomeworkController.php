@@ -12,7 +12,7 @@ class HomeworkController extends Controller {
     }
 
     public function index(): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['homework.manage']);
         $homework = $this->db->fetchAll(
             "SELECT h.*, c.name AS class_name, co.name AS course_name, u.name AS teacher_name,
                     (SELECT COUNT(*) FROM students s WHERE s.class_id=h.class_id AND s.tenant_id=h.tenant_id AND s.status='active') AS student_count,
@@ -40,7 +40,7 @@ class HomeworkController extends Controller {
     }
 
     public function store(): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['homework.manage']);
         $errors = $this->validate($_POST, [
             'title'    => 'required|max:200',
             'class_id' => 'required',
@@ -64,14 +64,14 @@ class HomeworkController extends Controller {
     }
 
     public function delete(string $id): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['homework.manage']);
         $this->db->execute("DELETE FROM homework WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         $this->flash('success', 'Homework removed.');
         $this->redirect('/school/homework');
     }
 
     public function submissions(string $id): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['homework.manage']);
         $homework = $this->db->fetchOne(
             "SELECT h.*, c.name AS class_name, co.name AS course_name
              FROM homework h LEFT JOIN classes c ON h.class_id=c.id LEFT JOIN courses co ON h.course_id=co.id
@@ -96,7 +96,7 @@ class HomeworkController extends Controller {
     }
 
     public function grade(string $submissionId): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['homework.manage']);
         $submission = $this->db->fetchOne(
             "SELECT hs.*, h.max_score, h.id AS homework_id FROM homework_submissions hs
              JOIN homework h ON hs.homework_id=h.id WHERE hs.id=? AND hs.tenant_id=?", [$submissionId, $this->tid]

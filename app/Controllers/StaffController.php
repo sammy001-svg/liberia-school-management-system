@@ -6,7 +6,7 @@ class StaffController extends Controller {
     public function __construct() { parent::__construct(); $this->tid = $this->tenantId() ?? 0; }
 
     public function index(): void {
-        $this->requireAuth(['School Admin','Accountant']);
+        $this->requirePermission(['staff.manage']);
         $staff = $this->db->fetchAll(
             "SELECT u.*, r.name AS role_name, sal.basic_salary, sal.allowances, sal.deductions, sal.effective_from,
                     t.id AS teacher_id, COALESCE(t.employee_no, u.employee_no) AS staff_no
@@ -27,7 +27,7 @@ class StaffController extends Controller {
     }
 
     public function store(): void {
-        $this->requireAuth(['School Admin','Accountant']);
+        $this->requirePermission(['staff.manage']);
         $errors = $this->validate($_POST, [
             'name'          => 'required|max:150',
             'email'         => 'required|email|max:150',
@@ -58,7 +58,7 @@ class StaffController extends Controller {
     }
 
     public function edit(string $id): void {
-        $this->requireAuth(['School Admin','Accountant']);
+        $this->requirePermission(['staff.manage']);
         $staff = $this->db->fetchOne(
             "SELECT u.*, r.name AS role_name, sal.basic_salary, sal.allowances, sal.deductions, sal.effective_from
              FROM users u JOIN roles r ON u.role_id=r.id LEFT JOIN staff_salaries sal ON sal.user_id=u.id
@@ -69,7 +69,7 @@ class StaffController extends Controller {
     }
 
     public function update(string $id): void {
-        $this->requireAuth(['School Admin','Accountant']);
+        $this->requirePermission(['staff.manage']);
         $staff = $this->db->fetchOne("SELECT id FROM users WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         if (!$staff) { $this->redirect('/school/staff'); }
         $errors = $this->validate($_POST, [
@@ -92,7 +92,7 @@ class StaffController extends Controller {
     }
 
     public function delete(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['staff.delete']);
         $staff = $this->db->fetchOne("SELECT id FROM users WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         if ($staff) {
             $this->db->execute("DELETE FROM staff_salaries WHERE user_id=? AND tenant_id=?", [$id, $this->tid]);

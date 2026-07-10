@@ -12,7 +12,7 @@ class OnlineExamController extends Controller {
     }
 
     public function index(): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['online_exam.manage']);
         $exams = $this->db->fetchAll(
             "SELECT e.*, c.name AS class_name, co.name AS course_name, u.name AS teacher_name,
                     (SELECT COUNT(*) FROM online_exam_questions q WHERE q.exam_id=e.id) AS question_count,
@@ -40,7 +40,7 @@ class OnlineExamController extends Controller {
     }
 
     public function store(): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['online_exam.manage']);
         $errors = $this->validate($_POST, [
             'title'            => 'required|max:200',
             'class_id'         => 'required',
@@ -66,14 +66,14 @@ class OnlineExamController extends Controller {
     }
 
     public function delete(string $id): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['online_exam.manage']);
         $this->db->execute("DELETE FROM online_exams WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         $this->flash('success', 'Exam removed.');
         $this->redirect('/school/online-exams');
     }
 
     public function publish(string $id): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['online_exam.manage']);
         $exam = $this->db->fetchOne("SELECT * FROM online_exams WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         if (!$exam) { $this->redirect('/school/online-exams'); }
         if ($exam['status'] === 'draft') {
@@ -92,7 +92,7 @@ class OnlineExamController extends Controller {
     }
 
     public function questions(string $id): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['online_exam.manage']);
         $exam = $this->db->fetchOne(
             "SELECT e.*, c.name AS class_name FROM online_exams e LEFT JOIN classes c ON e.class_id=c.id WHERE e.id=? AND e.tenant_id=?",
             [$id, $this->tid]
@@ -106,7 +106,7 @@ class OnlineExamController extends Controller {
     }
 
     public function storeQuestion(string $id): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['online_exam.manage']);
         $exam = $this->db->fetchOne("SELECT id FROM online_exams WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         if (!$exam) { $this->redirect('/school/online-exams'); }
         $errors = $this->validate($_POST, [
@@ -132,14 +132,14 @@ class OnlineExamController extends Controller {
     }
 
     public function deleteQuestion(string $id, string $qid): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['online_exam.manage']);
         $this->db->execute("DELETE FROM online_exam_questions WHERE id=? AND exam_id=? AND tenant_id=?", [$qid, $id, $this->tid]);
         $this->flash('success', 'Question removed.');
         $this->redirect('/school/online-exams/'.$id.'/questions');
     }
 
     public function results(string $id): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['online_exam.manage']);
         $exam = $this->db->fetchOne(
             "SELECT e.*, c.name AS class_name FROM online_exams e LEFT JOIN classes c ON e.class_id=c.id WHERE e.id=? AND e.tenant_id=?",
             [$id, $this->tid]

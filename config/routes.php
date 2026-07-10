@@ -197,6 +197,16 @@ $router->post('/school/staff/store',        ['StaffController', 'store']);
 $router->get('/school/staff/{id}/edit',     ['StaffController', 'edit']);
 $router->post('/school/staff/{id}/update',  ['StaffController', 'update']);
 $router->post('/school/staff/{id}/delete',  ['StaffController', 'delete']);
+
+// ── ROLES & PERMISSIONS ─────────────────────────────────────────
+$router->get('/school/roles',               ['RoleController', 'index']);
+$router->get('/school/roles/create',        ['RoleController', 'create']);
+$router->post('/school/roles/store',        ['RoleController', 'store']);
+$router->get('/school/roles/users',         ['RoleController', 'usersIndex']);
+$router->post('/school/roles/assign-user',  ['RoleController', 'assignUser']);
+$router->get('/school/roles/{id}/edit',     ['RoleController', 'edit']);
+$router->post('/school/roles/{id}/update',  ['RoleController', 'update']);
+$router->post('/school/roles/{id}/delete',  ['RoleController', 'delete']);
 $router->get('/school/hr/payroll',          ['HRController', 'payroll']);
 $router->post('/school/hr/payroll/generate', ['HRController', 'generatePayroll']);
 $router->post('/school/hr/payroll/{id}/pay', ['HRController', 'markPayrollPaid']);

@@ -10,7 +10,7 @@ class StudentController extends Controller {
     }
 
     public function index(): void {
-        $this->requireAuth(['School Admin','Teacher','Staff']);
+        $this->requirePermission(['students.view','students.edit','students.manage']);
         $search = $_GET['q'] ?? '';
         $classId = $_GET['class_id'] ?? '';
         $params = [$this->tid];
@@ -43,12 +43,12 @@ class StudentController extends Controller {
     }
 
     public function create(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['students.manage']);
         $this->redirect('/school/students');
     }
 
     public function bulkTemplate(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['students.manage']);
         $this->downloadCsvTemplate('students_template.csv',
             ['TSM ID','First Name','Middle Name','Last Name','Class','Gender','Date of Birth','Residential Address','County','Country','Religion','Contact Number 1','Contact Number 2','Email','Previous School Name','Previous School Address','Previous Class','Admission Date','Transfer Date','Reason for Leaving','Student Type'],
             ['CAS0001','Jane','K.','Doe','Grade 7A','Female','14/05/2010','Ben Town','Margibi County','Liberia','Christianity','0771234567','0779876543','jane.doe@example.com','','','','15/01/2026','','','New Student']
@@ -66,7 +66,7 @@ class StudentController extends Controller {
     }
 
     public function bulkUpload(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['students.manage']);
         $rows = $this->parseCsvUpload('csv_file');
         $roleId = $this->db->fetchOne("SELECT id FROM roles WHERE name='Student' LIMIT 1")['id'] ?? 7;
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?", [$this->tid]);
@@ -162,7 +162,7 @@ class StudentController extends Controller {
     }
 
     public function store(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['students.manage']);
         $errors = $this->validate($_POST, [
             'first_name' => 'required|max:100',
             'last_name'  => 'required|max:100',
@@ -210,7 +210,7 @@ class StudentController extends Controller {
     }
 
     public function show(string $id): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['students.edit','students.manage']);
         $student = $this->db->fetchOne(
             "SELECT s.*, u.name, u.email, u.phone, u.gender, u.date_of_birth, u.avatar,
                     c.name AS class_name
@@ -249,7 +249,7 @@ class StudentController extends Controller {
     }
 
     public function idCard(string $id): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['students.edit','students.manage']);
         $student = $this->db->fetchOne(
             "SELECT s.*, u.name, u.gender, u.date_of_birth
              FROM students s JOIN users u ON s.user_id=u.id
@@ -278,14 +278,14 @@ class StudentController extends Controller {
     }
 
     public function edit(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['students.manage']);
         $student = $this->db->fetchOne("SELECT s.*, u.name, u.email, u.phone, u.gender, u.date_of_birth FROM students s JOIN users u ON s.user_id=u.id WHERE s.id=? AND s.tenant_id=?",[$id,$this->tid]);
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?",[$this->tid]);
         $this->view('school/highschool/students/form',['pageTitle'=>'Edit Student','panelType'=>'school','student'=>$student,'classes'=>$classes,'flash'=>$this->getFlash()]);
     }
 
     public function update(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['students.manage']);
         $student = $this->db->fetchOne("SELECT user_id FROM students WHERE id=? AND tenant_id=?",[$id,$this->tid]);
         if (!$student) { $this->redirect('/school/students'); }
         $errors = $this->validate($_POST, ['first_name' => 'required|max:100', 'last_name' => 'required|max:100', 'email' => 'email|max:150']);
@@ -312,7 +312,7 @@ class StudentController extends Controller {
     }
 
     public function delete(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['students.manage']);
         $student = $this->db->fetchOne("SELECT user_id FROM students WHERE id=? AND tenant_id=?",[$id,$this->tid]);
         if ($student) {
             $this->db->execute("DELETE FROM students WHERE id=? AND tenant_id=?",[$id,$this->tid]);

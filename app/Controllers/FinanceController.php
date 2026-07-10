@@ -6,7 +6,7 @@ class FinanceController extends Controller {
     public function __construct() { parent::__construct(); $this->tid = $this->tenantId() ?? 0; }
 
     public function index(): void {
-        $this->requireAuth(['School Admin','Accountant']);
+        $this->requirePermission(['finance.manage']);
         $stats = [
             'total_due'  => $this->db->fetchOne("SELECT COALESCE(SUM(amount_due),0) AS c FROM invoices WHERE tenant_id=?",[$this->tid])['c']??0,
             'total_paid' => $this->db->fetchOne("SELECT COALESCE(SUM(amount_paid),0) AS c FROM invoices WHERE tenant_id=?",[$this->tid])['c']??0,
@@ -20,7 +20,7 @@ class FinanceController extends Controller {
     }
 
     public function invoices(): void {
-        $this->requireAuth(['School Admin','Accountant']);
+        $this->requirePermission(['finance.manage']);
         $status = $_GET['status'] ?? '';
         $studentId = $_GET['student_id'] ?? '';
         $params = [$this->tid];
@@ -47,12 +47,12 @@ class FinanceController extends Controller {
     }
 
     public function createInvoice(): void {
-        $this->requireAuth(['School Admin','Accountant']);
+        $this->requirePermission(['finance.manage']);
         $this->redirect('/school/finance/invoices');
     }
 
     public function storeInvoice(): void {
-        $this->requireAuth(['School Admin','Accountant']);
+        $this->requirePermission(['finance.manage']);
         $errors = $this->validate($_POST, [
             'student_id' => 'required',
             'amount_due' => 'required|numeric',
@@ -67,7 +67,7 @@ class FinanceController extends Controller {
     }
 
     public function feeStructures(): void {
-        $this->requireAuth(['School Admin','Accountant']);
+        $this->requirePermission(['finance.manage']);
         $fees = $this->db->fetchAll(
             "SELECT f.*, c.name AS class_name,
                     (SELECT COUNT(*) FROM students s WHERE s.tenant_id=f.tenant_id AND s.status='active' AND (f.class_id IS NULL OR s.class_id=f.class_id)) AS student_count
@@ -86,7 +86,7 @@ class FinanceController extends Controller {
     }
 
     public function storeFeeStructure(): void {
-        $this->requireAuth(['School Admin','Accountant']);
+        $this->requirePermission(['finance.manage']);
         $errors = $this->validate($_POST, [
             'name'   => 'required|max:150',
             'amount' => 'required|numeric',
@@ -104,7 +104,7 @@ class FinanceController extends Controller {
     // embedded in the invoice notes and checked before inserting, so re-running for the same
     // period only bills students who weren't already invoiced — safe to click more than once.
     public function generateFeeInvoices(string $id): void {
-        $this->requireAuth(['School Admin','Accountant']);
+        $this->requirePermission(['finance.manage']);
         $fee = $this->db->fetchOne("SELECT * FROM fee_structures WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         if (!$fee) { $this->redirect('/school/finance/fees'); }
         $errors = $this->validate($_POST, ['period' => 'required|max:100']);
@@ -151,7 +151,7 @@ class FinanceController extends Controller {
     }
 
     public function payments(): void {
-        $this->requireAuth(['School Admin','Accountant']);
+        $this->requirePermission(['finance.manage']);
         $payments = $this->db->fetchAll("SELECT p.*, i.invoice_no, u.name AS student_name FROM payments p JOIN invoices i ON p.invoice_id=i.id JOIN students s ON i.student_id=s.id JOIN users u ON s.user_id=u.id WHERE p.tenant_id=? ORDER BY p.paid_at DESC",[$this->tid]);
         $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
         $stats = $this->db->fetchOne(
@@ -163,7 +163,7 @@ class FinanceController extends Controller {
     }
 
     public function storePayment(): void {
-        $this->requireAuth(['School Admin','Accountant']);
+        $this->requirePermission(['finance.manage']);
         $errors = $this->validate($_POST, [
             'invoice_id' => 'required',
             'amount'     => 'required|numeric',
@@ -183,7 +183,7 @@ class FinanceController extends Controller {
 
     // --- EXPENSES ---
     public function expenses(): void {
-        $this->requireAuth(['School Admin','Accountant']);
+        $this->requirePermission(['finance.manage']);
         $category = $_GET['category'] ?? '';
         $params = [$this->tid];
         $where = "e.tenant_id=?";
@@ -210,7 +210,7 @@ class FinanceController extends Controller {
     }
 
     public function storeExpense(): void {
-        $this->requireAuth(['School Admin','Accountant']);
+        $this->requirePermission(['finance.manage']);
         $errors = $this->validate($_POST, [
             'category'     => 'required|max:80',
             'amount'       => 'required|numeric',
@@ -225,14 +225,14 @@ class FinanceController extends Controller {
     }
 
     public function deleteExpense(string $id): void {
-        $this->requireAuth(['School Admin','Accountant']);
+        $this->requirePermission(['finance.manage']);
         $this->db->execute("DELETE FROM expenses WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         $this->flash('success','Expense removed.'); $this->redirect('/school/finance/expenses');
     }
 
     // --- COLLECTION ---
     public function collection(): void {
-        $this->requireAuth(['School Admin','Accountant']);
+        $this->requirePermission(['finance.manage']);
         $classId = $_GET['class_id'] ?? '';
         $params = [$this->tid];
         $where = "i.tenant_id=? AND i.status NOT IN ('paid','waived')";
@@ -269,7 +269,7 @@ class FinanceController extends Controller {
 
     // --- BUS BILLING (bills students on active bus routes; creates normal invoices) ---
     public function busBilling(): void {
-        $this->requireAuth(['School Admin','Accountant']);
+        $this->requirePermission(['finance.manage']);
         $routes = $this->db->fetchAll(
             "SELECT r.*, b.bus_number,
                     (SELECT COUNT(*) FROM bus_students bs WHERE bs.route_id=r.id AND bs.status='active') AS student_count
@@ -288,7 +288,7 @@ class FinanceController extends Controller {
     }
 
     public function generateBusInvoices(): void {
-        $this->requireAuth(['School Admin','Accountant']);
+        $this->requirePermission(['finance.manage']);
         $errors = $this->validate($_POST, ['route_id' => 'required', 'month' => 'required']);
         if ($errors) { $this->failValidation($errors, '/school/finance/bus-billing'); }
         $route = $this->db->fetchOne("SELECT * FROM bus_routes WHERE id=? AND tenant_id=?", [$_POST['route_id'], $this->tid]);
@@ -332,7 +332,7 @@ class FinanceController extends Controller {
     }
 
     public function printInvoice(string $id): void {
-        $this->requireAuth(['School Admin','Accountant']);
+        $this->requirePermission(['finance.manage']);
         $invoice = $this->db->fetchOne(
             "SELECT i.*, u.name AS student_name, s.admission_no, c.name AS class_name
              FROM invoices i JOIN students s ON i.student_id=s.id JOIN users u ON s.user_id=u.id
@@ -421,7 +421,7 @@ class FinanceController extends Controller {
     }
 
     public function reports(): void {
-        $this->requireAuth(['School Admin','Accountant']);
+        $this->requirePermission(['finance.manage']);
         [$from, $to, $periodLabel, $range] = $this->resolveReportRange();
         $data = $this->computeReportData($from, $to);
         $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
@@ -433,7 +433,7 @@ class FinanceController extends Controller {
     }
 
     public function printReport(): void {
-        $this->requireAuth(['School Admin','Accountant']);
+        $this->requirePermission(['finance.manage']);
         [$from, $to, $periodLabel] = $this->resolveReportRange();
         $data = $this->computeReportData($from, $to);
         $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
