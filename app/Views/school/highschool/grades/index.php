@@ -29,7 +29,7 @@
 <div class="card">
   <div class="card-header"><div class="card-title">All Exams (<?= count($exams) ?>)</div></div>
   <div class="table-wrapper"><table>
-    <thead><tr><th>Exam</th><th>Class</th><th>Date</th><th>Total Marks</th><th>Pass Marks</th><th>Status</th></tr></thead>
+    <thead><tr><th>Exam</th><th>Class</th><th>Date</th><th>Total Marks</th><th>Pass Marks</th><th>Grading</th><th>Publish Status</th><th></th></tr></thead>
     <tbody>
       <?php foreach($exams as $e): ?>
       <?php $isUpcoming = $e['exam_date'] && strtotime($e['exam_date']) >= strtotime(date('Y-m-d')); ?>
@@ -48,10 +48,25 @@
             <span class="badge badge-warning">Not graded</span>
           <?php endif; ?>
         </td>
+        <td>
+          <?php if($e['status']==='published'): ?>
+            <span class="badge badge-success">Published</span>
+          <?php else: ?>
+            <span class="badge badge-warning">Draft</span>
+          <?php endif; ?>
+        </td>
+        <td>
+          <form method="POST" action="<?= $cfg['url'] ?>/school/grades/<?= $e['id'] ?>/publish"
+                data-confirm="<?= $e['status']==='published' ? 'Unpublish '.htmlspecialchars($e['name']).'? Students and parents will no longer see these grades.' : 'Publish '.htmlspecialchars($e['name']).'? Students and parents will be able to see these grades.' ?>"
+                data-confirm-title="<?= $e['status']==='published' ? 'Unpublish Exam' : 'Publish Exam' ?>" data-confirm-label="<?= $e['status']==='published' ? 'Unpublish' : 'Publish' ?>">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+            <button type="submit" class="btn btn-sm <?= $e['status']==='published' ? 'btn-outline' : 'btn-primary' ?>"><?= $e['status']==='published' ? 'Unpublish' : 'Publish' ?></button>
+          </form>
+        </td>
       </tr>
       <?php endforeach; ?>
       <?php if(empty($exams)): ?>
-      <tr><td colspan="6">
+      <tr><td colspan="8">
         <div class="empty-state">
           <div class="empty-state-icon">📝</div>
           <div class="empty-state-text">No exams created yet. <a href="javascript:void(0)" onclick="document.getElementById('addExamModal').classList.add('open')">Add one</a></div>

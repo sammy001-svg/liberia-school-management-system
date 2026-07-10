@@ -57,6 +57,7 @@ $router->get('/school/grades',              ['GradeController', 'index']);
 $router->get('/school/grades/enter',        ['GradeController', 'enter']);
 $router->post('/school/grades/store',       ['GradeController', 'store']);
 $router->post('/school/exams/store',        ['GradeController', 'storeExam']);
+$router->post('/school/grades/{id}/publish', ['GradeController', 'publish']);
 $router->get('/school/grades/report/{studentId}', ['GradeController', 'report']);
 $router->get('/school/grades/report-card/{studentId}', ['GradeController', 'reportCard']);
 $router->get('/school/grades/rankings',            ['GradeController', 'rankings']);
@@ -191,6 +192,7 @@ $router->get('/student/exams/{id}/result',  ['StudentPortalController', 'examRes
 // ── PARENT PORTAL ───────────────────────────────────────────────
 $router->get('/parent/dashboard',           ['ParentPortalController', 'dashboard']);
 $router->get('/parent/student/{id}',        ['ParentPortalController', 'viewChild']);
+$router->get('/parent/student/{id}/report-card', ['ParentPortalController', 'reportCard']);
 $router->get('/parent/finance',             ['ParentPortalController', 'finance']);
 
 // ── HR & PAYROLL ────────────────────────────────────────────────

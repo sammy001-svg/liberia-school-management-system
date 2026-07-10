@@ -36,7 +36,7 @@ class StudentPortalController extends Controller {
              FROM grades g
              JOIN exams e ON g.exam_id = e.id
              JOIN courses co ON g.course_id = co.id
-             WHERE g.student_id = ? ORDER BY e.exam_date DESC LIMIT 5",
+             WHERE g.student_id = ? AND e.status = 'published' ORDER BY e.exam_date DESC LIMIT 5",
             [$this->sid]
         );
 
@@ -87,11 +87,11 @@ class StudentPortalController extends Controller {
 
     public function grades(): void {
         $grades = $this->db->fetchAll(
-            "SELECT g.*, e.name as exam_name, co.name as course_name 
-             FROM grades g 
-             JOIN exams e ON g.exam_id = e.id 
-             JOIN courses co ON g.course_id = co.id 
-             WHERE g.student_id = ? ORDER BY e.exam_date DESC", 
+            "SELECT g.*, e.name as exam_name, co.name as course_name
+             FROM grades g
+             JOIN exams e ON g.exam_id = e.id
+             JOIN courses co ON g.course_id = co.id
+             WHERE g.student_id = ? AND e.status = 'published' ORDER BY e.exam_date DESC",
             [$this->sid]
         );
 

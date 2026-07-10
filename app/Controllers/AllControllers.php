@@ -135,6 +135,25 @@ class GradeController extends Controller {
         $this->redirect('/school/grades');
     }
 
+    public function publish(string $id): void {
+        $this->requirePermission(['grades.manage']);
+        $exam = $this->db->fetchOne("SELECT * FROM exams WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        if (!$exam) { $this->redirect('/school/grades'); }
+        if ($exam['status'] === 'draft') {
+            $count = $this->db->fetchOne("SELECT COUNT(*) c FROM grades WHERE exam_id=?", [$id])['c'];
+            if ($count < 1) {
+                $this->flash('danger', 'Enter at least one grade before publishing.');
+                $this->redirect('/school/grades');
+            }
+            $this->db->execute("UPDATE exams SET status='published' WHERE id=?", [$id]);
+            $this->flash('success', 'Exam published — students and parents can now see these grades.');
+        } else {
+            $this->db->execute("UPDATE exams SET status='draft' WHERE id=?", [$id]);
+            $this->flash('success', 'Exam unpublished (moved back to draft).');
+        }
+        $this->redirect('/school/grades');
+    }
+
     public function enter(): void {
         $this->requirePermission(['grades.manage']);
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?", [$this->tid]);
