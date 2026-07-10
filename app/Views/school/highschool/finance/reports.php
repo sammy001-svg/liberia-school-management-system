@@ -13,7 +13,7 @@
 <form method="GET" class="card" style="padding:16px 20px;margin-bottom:20px;">
   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
     <label style="color:var(--text-muted);font-size:13px">Period:</label>
-    <?php foreach(['month'=>'This Month','term'=>'This Term','year'=>'This Academic Year','all'=>'All Time'] as $val=>$lbl): ?>
+    <?php foreach(['month'=>'This Month','term'=>'This Period','year'=>'This Academic Year','all'=>'All Time'] as $val=>$lbl): ?>
       <a href="?range=<?= $val ?>" class="btn btn-sm <?= $range===$val?'btn-primary':'btn-outline' ?>"><?= $lbl ?></a>
     <?php endforeach; ?>
     <span style="border-left:1px solid var(--border);height:20px;margin:0 4px;"></span>

@@ -236,7 +236,7 @@
       <div class="dash-card-title">Exam Overview</div>
       <div class="dash-card-action">
         <select class="form-control" style="padding:4px 8px;font-size:11px;width:auto;height:auto;background:rgba(255,255,255,0.05);border:none;">
-          <option>This Term</option>
+          <option>This Period</option>
         </select>
       </div>
     </div>

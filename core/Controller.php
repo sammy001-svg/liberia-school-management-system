@@ -41,12 +41,31 @@ abstract class Controller {
         $this->requireAuth(['School Admin']);
     }
 
+    protected function hasPermission(string $key): bool {
+        return in_array($key, $_SESSION['permissions'] ?? [], true);
+    }
+
+    /** Permission-based equivalent of requireAuth(): redirects to /unauthorized unless the
+     *  logged-in user's role has been granted at least one of the given "module.action" keys. */
+    protected function requirePermission(string|array $keys): void {
+        if (!isset($_SESSION['user_id'])) {
+            $this->redirect('/login');
+        }
+        foreach ((array)$keys as $key) {
+            if ($this->hasPermission($key)) {
+                return;
+            }
+        }
+        $this->redirect('/unauthorized');
+    }
+
     protected function view(string $viewPath, array $data = []): void {
         // Automatically inject tenant data if it exists in session but not in $data
         if (!isset($data['tenant']) && isset($_SESSION['tenant_id'])) {
             $data['tenant'] = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$_SESSION['tenant_id']]);
         }
         $data['csrf_token'] = $this->csrfToken();
+        $data['canManageRoles'] = $this->hasPermission('roles.manage');
 
         extract($data);
         $viewFile = dirname(__DIR__) . "/app/Views/{$viewPath}.php";
@@ -348,6 +367,24 @@ abstract class Controller {
         $errors = $_SESSION['import_errors'] ?? [];
         unset($_SESSION['import_errors']);
         return $errors;
+    }
+
+    /** Random 4-digit login PIN (zero-padded), hashed/verified the same way a password is. */
+    protected function generateUniquePin(): string {
+        return str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+    }
+
+    /** Slugifies $name into a login username, appending a numeric suffix until it's unique within the tenant. */
+    protected function generateUniqueUsername(string $name, int $tenantId): string {
+        $base = trim(strtolower(preg_replace('/[^a-z0-9]+/i', '.', $name)), '.');
+        $base = $base !== '' ? $base : 'user';
+        $username = $base;
+        $i = 1;
+        while ($this->db->fetchOne("SELECT id FROM users WHERE username=? AND tenant_id=?", [$username, $tenantId])) {
+            $username = $base . $i;
+            $i++;
+        }
+        return $username;
     }
 
     /**

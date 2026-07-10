@@ -31,6 +31,13 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<?= rawurlencode($faviconSvg) ?>">
 <script>(function(){try{if(localStorage.getItem('theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
 <link rel="stylesheet" href="<?= $cfg['url'] ?>/assets/css/style.css">
+<style>
+  .login-tabs { display:flex; gap:4px; margin-bottom:20px; border-bottom:1px solid var(--border); }
+  .login-tab { flex:1; padding:10px 4px; background:none; border:none; border-bottom:2px solid transparent; color:var(--text-muted); font-size:13px; font-weight:600; cursor:pointer; }
+  .login-tab.active { color:var(--primary); border-bottom-color:var(--primary); }
+  .login-tab-panel { display:none; }
+  .login-tab-panel.active { display:block; }
+</style>
 <?php if ($primaryColor): ?>
 <style>
   :root {
@@ -120,21 +127,85 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
         </div>
       <?php endif; ?>
 
-      <form action="<?= $cfg['url'] ?>/login" method="POST">
-        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
-        <div class="form-group">
-          <label class="form-label">Email Address</label>
-          <input type="email" name="email" class="form-control" placeholder="you@school.com" required autofocus>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Password</label>
-          <input type="password" name="password" class="form-control" placeholder="••••••••" required>
-        </div>
-        <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:8px;">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
-          Sign In
-        </button>
-      </form>
+      <?php
+        $studentLoginMode = $studentLoginMode ?? 'admission_pin';
+        $parentLoginMode  = $parentLoginMode  ?? 'username_password';
+      ?>
+      <div class="login-tabs" role="tablist">
+        <button type="button" class="login-tab active" data-tab="staff">Staff &amp; Admin</button>
+        <button type="button" class="login-tab" data-tab="student">Student</button>
+        <button type="button" class="login-tab" data-tab="parent">Parent</button>
+      </div>
+
+      <div class="login-tab-panel active" data-panel="staff">
+        <form action="<?= $cfg['url'] ?>/login" method="POST">
+          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+          <input type="hidden" name="login_type" value="staff">
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <input type="email" name="identifier" class="form-control" placeholder="you@school.com" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input type="password" name="secret" class="form-control" placeholder="••••••••" required>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:8px;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
+            Sign In
+          </button>
+        </form>
+      </div>
+
+      <div class="login-tab-panel" data-panel="student">
+        <form action="<?= $cfg['url'] ?>/login" method="POST">
+          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+          <input type="hidden" name="login_type" value="student">
+          <?php if ($studentLoginMode === 'admission_pin'): ?>
+            <div class="form-group">
+              <label class="form-label">Admission Number</label>
+              <input type="text" name="identifier" class="form-control" placeholder="e.g. ADM-2026-0001">
+            </div>
+            <div class="form-group">
+              <label class="form-label">PIN</label>
+              <input type="password" name="secret" class="form-control" placeholder="••••" inputmode="numeric" pattern="[0-9]*" maxlength="4">
+            </div>
+          <?php else: ?>
+            <div class="form-group">
+              <label class="form-label">Email Address</label>
+              <input type="email" name="identifier" class="form-control" placeholder="you@school.com">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Password</label>
+              <input type="password" name="secret" class="form-control" placeholder="••••••••">
+            </div>
+          <?php endif; ?>
+          <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:8px;">Sign In</button>
+        </form>
+      </div>
+
+      <div class="login-tab-panel" data-panel="parent">
+        <form action="<?= $cfg['url'] ?>/login" method="POST">
+          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+          <input type="hidden" name="login_type" value="parent">
+          <?php if ($parentLoginMode === 'username_password'): ?>
+            <div class="form-group">
+              <label class="form-label">Username</label>
+              <input type="text" name="identifier" class="form-control" placeholder="e.g. john.doe">
+            </div>
+          <?php else: ?>
+            <div class="form-group">
+              <label class="form-label">Email Address</label>
+              <input type="email" name="identifier" class="form-control" placeholder="you@school.com">
+            </div>
+          <?php endif; ?>
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input type="password" name="secret" class="form-control" placeholder="••••••••">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:8px;">Sign In</button>
+        </form>
+      </div>
+
       <p style="text-align:center;margin-top:30px;font-size:12px;color:var(--text-muted);">
         Powered by <?= htmlspecialchars($appName) ?> &copy; <?= date('Y') ?>
       </p>
@@ -160,6 +231,20 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
     d.addEventListener('click', function(){ show(j); restart(); });
   });
   if (slides.length > 1) restart();
+})();
+
+(function(){
+  var tabs = document.querySelectorAll('.login-tab');
+  var panels = document.querySelectorAll('.login-tab-panel');
+  tabs.forEach(function(tab){
+    tab.addEventListener('click', function(){
+      var target = tab.getAttribute('data-tab');
+      tabs.forEach(function(t){ t.classList.toggle('active', t === tab); });
+      panels.forEach(function(p){ p.classList.toggle('active', p.getAttribute('data-panel') === target); });
+      var firstInput = document.querySelector('.login-tab-panel[data-panel="' + target + '"] input:not([type=hidden])');
+      if (firstInput) firstInput.focus();
+    });
+  });
 })();
 </script>
 </body>

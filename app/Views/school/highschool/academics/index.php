@@ -32,10 +32,10 @@
 </div>
 
 <div class="card">
-  <div class="card-header"><div class="card-title">Terms (<?= count($terms) ?>)</div></div>
+  <div class="card-header"><div class="card-title">Periods (<?= count($terms) ?>)</div></div>
   <div class="table-wrapper">
     <table>
-      <thead><tr><th>Term</th><th>Academic Year</th><th>Start</th><th>End</th><th>Status</th></tr></thead>
+      <thead><tr><th>Period</th><th>Academic Year</th><th>Start</th><th>End</th><th>Status</th></tr></thead>
       <tbody>
         <?php foreach($terms as $t): ?>
         <tr>
@@ -46,7 +46,7 @@
           <td><?php if($t['is_current']): ?><span class="badge badge-success">CURRENT</span><?php else: ?><span class="badge badge-muted">—</span><?php endif; ?></td>
         </tr>
         <?php endforeach; ?>
-        <?php if(empty($terms)): ?><tr><td colspan="5" class="text-center text-muted" style="padding:32px">No terms yet. <a href="javascript:void(0)" onclick="document.getElementById('addTermModal').classList.add('open')">Add one</a></td></tr><?php endif; ?>
+        <?php if(empty($terms)): ?><tr><td colspan="5" class="text-center text-muted" style="padding:32px">No periods yet. <a href="javascript:void(0)" onclick="document.getElementById('addTermModal').classList.add('open')">Add one</a></td></tr><?php endif; ?>
       </tbody>
     </table>
   </div>
@@ -94,7 +94,7 @@
 <div class="modal-overlay" id="addTermModal">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">Add Term</div>
+      <div class="modal-title">Add Period</div>
       <button class="modal-close" onclick="document.getElementById('addTermModal').classList.remove('open')">&times;</button>
     </div>
     <form method="POST" action="<?= $cfg['url'] ?>/school/terms/store">
@@ -111,8 +111,8 @@
           <?php if(empty($years)): ?><div class="form-hint">Add an academic year first.</div><?php endif; ?>
         </div>
         <div class="form-group">
-          <label class="form-label">Term Name *</label>
-          <input type="text" name="name" class="form-control" required placeholder="e.g. Term 1">
+          <label class="form-label">Period Name *</label>
+          <input type="text" name="name" class="form-control" required placeholder="e.g. Period 1">
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -126,13 +126,13 @@
         </div>
         <div class="form-group">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-            <input type="checkbox" name="is_current" value="1"> <span class="form-label" style="margin:0">Set as current term</span>
+            <input type="checkbox" name="is_current" value="1"> <span class="form-label" style="margin:0">Set as current period</span>
           </label>
         </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="document.getElementById('addTermModal').classList.remove('open')">Cancel</button>
-        <button type="submit" class="btn btn-primary">Save Term</button>
+        <button type="submit" class="btn btn-primary">Save Period</button>
       </div>
     </form>
   </div>

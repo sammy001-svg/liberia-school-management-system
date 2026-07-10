@@ -18,11 +18,13 @@ $router->get('/school/students/create',     ['StudentController', 'create']);
 $router->post('/school/students/store',     ['StudentController', 'store']);
 $router->get('/school/students/bulk-template', ['StudentController', 'bulkTemplate']);
 $router->post('/school/students/bulk-upload',  ['StudentController', 'bulkUpload']);
+$router->get('/school/students/bulk-credentials', ['StudentController', 'downloadCredentials']);
 $router->get('/school/students/{id}',       ['StudentController', 'show']);
 $router->get('/school/students/{id}/id-card', ['StudentController', 'idCard']);
 $router->get('/school/students/{id}/edit',  ['StudentController', 'edit']);
 $router->post('/school/students/{id}/update', ['StudentController', 'update']);
 $router->post('/school/students/{id}/delete', ['StudentController', 'delete']);
+$router->post('/school/students/{id}/reset-pin', ['StudentController', 'resetPin']);
 
 $router->get('/school/teachers',            ['TeacherController', 'index']);
 $router->get('/school/teachers/create',     ['TeacherController', 'create']);
@@ -56,6 +58,7 @@ $router->get('/school/grades',              ['GradeController', 'index']);
 $router->get('/school/grades/enter',        ['GradeController', 'enter']);
 $router->post('/school/grades/store',       ['GradeController', 'store']);
 $router->post('/school/exams/store',        ['GradeController', 'storeExam']);
+$router->post('/school/grades/{id}/publish', ['GradeController', 'publish']);
 $router->get('/school/grades/report/{studentId}', ['GradeController', 'report']);
 $router->get('/school/grades/report-card/{studentId}', ['GradeController', 'reportCard']);
 $router->get('/school/grades/rankings',            ['GradeController', 'rankings']);
@@ -190,6 +193,7 @@ $router->get('/student/exams/{id}/result',  ['StudentPortalController', 'examRes
 // ── PARENT PORTAL ───────────────────────────────────────────────
 $router->get('/parent/dashboard',           ['ParentPortalController', 'dashboard']);
 $router->get('/parent/student/{id}',        ['ParentPortalController', 'viewChild']);
+$router->get('/parent/student/{id}/report-card', ['ParentPortalController', 'reportCard']);
 $router->get('/parent/finance',             ['ParentPortalController', 'finance']);
 
 // ── HR & PAYROLL ────────────────────────────────────────────────
@@ -198,6 +202,16 @@ $router->post('/school/staff/store',        ['StaffController', 'store']);
 $router->get('/school/staff/{id}/edit',     ['StaffController', 'edit']);
 $router->post('/school/staff/{id}/update',  ['StaffController', 'update']);
 $router->post('/school/staff/{id}/delete',  ['StaffController', 'delete']);
+
+// ── ROLES & PERMISSIONS ─────────────────────────────────────────
+$router->get('/school/roles',               ['RoleController', 'index']);
+$router->get('/school/roles/create',        ['RoleController', 'create']);
+$router->post('/school/roles/store',        ['RoleController', 'store']);
+$router->get('/school/roles/users',         ['RoleController', 'usersIndex']);
+$router->post('/school/roles/assign-user',  ['RoleController', 'assignUser']);
+$router->get('/school/roles/{id}/edit',     ['RoleController', 'edit']);
+$router->post('/school/roles/{id}/update',  ['RoleController', 'update']);
+$router->post('/school/roles/{id}/delete',  ['RoleController', 'delete']);
 $router->get('/school/hr/payroll',          ['HRController', 'payroll']);
 $router->post('/school/hr/payroll/generate', ['HRController', 'generatePayroll']);
 $router->post('/school/hr/payroll/{id}/pay', ['HRController', 'markPayrollPaid']);

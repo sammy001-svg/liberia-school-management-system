@@ -35,7 +35,7 @@
         <tr>
           <td class="fw-600"><?= htmlspecialchars($f['name']) ?></td>
           <td><?= htmlspecialchars($tenant['currency'] ?? 'Ksh') ?><?= number_format($f['amount'],2) ?></td>
-          <td><span class="badge badge-muted" style="text-transform:capitalize;"><?= htmlspecialchars($f['frequency']) ?></span></td>
+          <td><span class="badge badge-muted" style="text-transform:capitalize;"><?= $f['frequency']==='termly' ? 'Per Period' : htmlspecialchars($f['frequency']) ?></span></td>
           <td><?= htmlspecialchars($f['class_name'] ?? 'All Classes') ?></td>
           <td><span class="badge badge-info"><?= (int)$f['student_count'] ?></span></td>
           <td class="text-muted" style="font-size:12px"><?= htmlspecialchars($f['description'] ?? '—') ?></td>
@@ -86,7 +86,7 @@
             <select name="frequency" class="form-control">
               <option value="once">Once</option>
               <option value="monthly">Monthly</option>
-              <option value="termly" selected>Termly</option>
+              <option value="termly" selected>Per Period</option>
               <option value="yearly">Yearly</option>
             </select>
           </div>
@@ -136,7 +136,7 @@
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Billing Period *</label>
-            <input type="text" name="period" id="generateFeePeriod" class="form-control" required placeholder="e.g. Term 1 2026">
+            <input type="text" name="period" id="generateFeePeriod" class="form-control" required placeholder="e.g. Period 1 2026">
           </div>
           <div class="form-group">
             <label class="form-label">Due Date</label>
@@ -170,7 +170,7 @@ function openGenerateFeeModal(f) {
     periodInput.placeholder = 'e.g. ' + now.getFullYear() + '/' + (now.getFullYear()+1);
   } else {
     periodInput.value = '';
-    periodInput.placeholder = 'e.g. Term 1 ' + now.getFullYear();
+    periodInput.placeholder = 'e.g. Period 1 ' + now.getFullYear();
   }
   document.getElementById('generateFeeModal').classList.add('open');
 }

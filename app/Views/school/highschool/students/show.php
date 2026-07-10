@@ -22,6 +22,10 @@
       <?php endif; ?>
       <a href="<?= $cfg['url'] ?>/school/certificates" class="btn btn-outline">🎓 Certificates</a>
       <a href="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/edit" class="btn btn-secondary">Edit Profile</a>
+      <form method="POST" action="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/reset-pin" data-confirm="Reset the login PIN for <?= htmlspecialchars($student['name']) ?>? The old PIN will stop working." data-confirm-title="Reset Login PIN" data-confirm-label="Reset PIN">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+        <button type="submit" class="btn btn-outline">🔑 Reset PIN</button>
+      </form>
     </div>
   </div>
 </div>

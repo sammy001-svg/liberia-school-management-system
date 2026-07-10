@@ -12,7 +12,7 @@ class OnlineClassController extends Controller {
     }
 
     public function index(): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['online_class.manage']);
         $classes_list = $this->db->fetchAll(
             "SELECT oc.*, c.name AS class_name, co.name AS course_name, u.name AS teacher_name,
                     (SELECT COUNT(*) FROM students s WHERE s.class_id=oc.class_id AND s.tenant_id=oc.tenant_id AND s.status='active') AS student_count,
@@ -39,7 +39,7 @@ class OnlineClassController extends Controller {
     }
 
     public function store(): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['online_class.manage']);
         $errors = $this->validate($_POST, [
             'title'          => 'required|max:200',
             'class_id'       => 'required',
@@ -62,21 +62,21 @@ class OnlineClassController extends Controller {
     }
 
     public function delete(string $id): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['online_class.manage']);
         $this->db->execute("DELETE FROM online_classes WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         $this->flash('success', 'Online class removed.');
         $this->redirect('/school/online-classes');
     }
 
     public function cancel(string $id): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['online_class.manage']);
         $this->db->execute("UPDATE online_classes SET status='cancelled' WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         $this->flash('success', 'Online class cancelled.');
         $this->redirect('/school/online-classes');
     }
 
     public function attendance(string $id): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['online_class.manage']);
         $class = $this->db->fetchOne(
             "SELECT oc.*, c.name AS class_name, co.name AS course_name
              FROM online_classes oc LEFT JOIN classes c ON oc.class_id=c.id LEFT JOIN courses co ON oc.course_id=co.id
@@ -98,7 +98,7 @@ class OnlineClassController extends Controller {
     }
 
     public function markAttendance(string $id): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requirePermission(['online_class.manage']);
         $class = $this->db->fetchOne("SELECT * FROM online_classes WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         if (!$class) { $this->redirect('/school/online-classes'); }
 

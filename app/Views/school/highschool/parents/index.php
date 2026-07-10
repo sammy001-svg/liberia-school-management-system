@@ -41,7 +41,7 @@
   </div>
   <div class="table-wrapper">
     <table>
-      <thead><tr><th>TSM ID</th><th>Parent</th><th>Phone</th><th>Occupation</th><th>Linked Children</th><th>Status</th><th>Actions</th></tr></thead>
+      <thead><tr><th>TSM ID</th><th>Parent</th><th>Username</th><th>Phone</th><th>Occupation</th><th>Linked Children</th><th>Status</th><th>Actions</th></tr></thead>
       <tbody>
         <?php foreach($parents as $p): ?>
         <tr>
@@ -55,6 +55,7 @@
               </div>
             </a>
           </td>
+          <td style="font-family:monospace;font-size:12px"><?= htmlspecialchars($p['username'] ?? '—') ?></td>
           <td><?= htmlspecialchars($p['phone']??'—') ?></td>
           <td><?= htmlspecialchars($p['occupation']??'—') ?></td>
           <td>
@@ -78,7 +79,7 @@
         </tr>
         <?php endforeach; ?>
         <?php if(empty($parents)): ?>
-        <tr><td colspan="7">
+        <tr><td colspan="8">
           <div class="empty-state">
             <div class="empty-state-icon">👪</div>
             <div class="empty-state-text">No parents registered yet. <a href="javascript:void(0)" onclick="document.getElementById('addParentModal').classList.add('open')">Add the first parent</a></div>
@@ -190,6 +191,7 @@
         <div class="form-group">
           <label class="form-label">Login Password</label>
           <input type="password" name="password" class="form-control" placeholder="Default: Parent@123">
+          <div class="form-hint">A login username is generated automatically from the parent's name — you can change it afterward from the parent's profile.</div>
         </div>
 
       </div>
@@ -218,7 +220,7 @@
         <div class="form-group">
           <label class="form-label">CSV File *</label>
           <input type="file" name="csv_file" class="form-control" accept=".csv" required>
-          <div class="form-hint">New parents get the default password <code>Parent@123</code>. Link to a student via their admission number; rows with missing name/email or duplicate emails are skipped and reported.</div>
+          <div class="form-hint">New parents get the default password <code>Parent@123</code> and a login username generated automatically from their name. Link to a student via their admission number; rows with missing name/email or duplicate emails are skipped and reported.</div>
         </div>
       </div>
       <div class="modal-footer">

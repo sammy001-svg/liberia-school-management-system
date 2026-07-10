@@ -10,7 +10,7 @@ class StudentController extends Controller {
     }
 
     public function index(): void {
-        $this->requireAuth(['School Admin','Teacher','Staff']);
+        $this->requirePermission(['students.view','students.edit','students.manage']);
         $search = $_GET['q'] ?? '';
         $classId = $_GET['class_id'] ?? '';
         $params = [$this->tid];
@@ -39,16 +39,17 @@ class StudentController extends Controller {
             'pageTitle'=>'Students','panelType'=>'school','students'=>$students,'classes'=>$classes,'search'=>$search,'classId'=>$classId,
             'page'=>$p['page'],'totalPages'=>$p['totalPages'],'total'=>$p['total'],'perPage'=>$p['perPage'],'stats'=>$stats,
             'flash'=>$this->getFlash(), 'importErrors'=>$this->getImportErrors(),
+            'bulkCredentialsUrl' => !empty($_SESSION['bulk_credentials']) ? '/school/students/bulk-credentials' : null,
         ]);
     }
 
     public function create(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['students.manage']);
         $this->redirect('/school/students');
     }
 
     public function bulkTemplate(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['students.manage']);
         $this->downloadCsvTemplate('students_template.csv',
             ['TSM ID','First Name','Middle Name','Last Name','Class','Gender','Date of Birth','Residential Address','County','Country','Religion','Contact Number 1','Contact Number 2','Email','Previous School Name','Previous School Address','Previous Class','Admission Date','Transfer Date','Reason for Leaving','Student Type'],
             ['CAS0001','Jane','K.','Doe','Grade 7A','Female','14/05/2010','Ben Town','Margibi County','Liberia','Christianity','0771234567','0779876543','jane.doe@example.com','','','','15/01/2026','','','New Student']
@@ -66,7 +67,7 @@ class StudentController extends Controller {
     }
 
     public function bulkUpload(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['students.manage']);
         $rows = $this->parseCsvUpload('csv_file');
         $roleId = $this->db->fetchOne("SELECT id FROM roles WHERE name='Student' LIMIT 1")['id'] ?? 7;
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?", [$this->tid]);
@@ -75,6 +76,7 @@ class StudentController extends Controller {
 
         $success = 0;
         $rowErrors = [];
+        $generatedPins = [];
         foreach ($rows as $i => $row) {
             $line = $i + 2; // +1 for header row, +1 for 1-indexing
             try {
@@ -124,7 +126,9 @@ class StudentController extends Controller {
                     "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,date_of_birth,address,status) VALUES (?,?,?,?,?,?,?,?,?)",
                     [$this->tid, $roleId, $name, $email, $row['contact number 1'] ?: '', $gender, $dob, $row['residential address'] ?: '', 'active']
                 );
-                $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [password_hash('Student@123', PASSWORD_BCRYPT), $userId]);
+                $pin = $this->generateUniquePin();
+                $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [password_hash($pin, PASSWORD_BCRYPT), $userId]);
+                $generatedPins[$tsmId] = $pin;
 
                 $this->db->insert(
                     "INSERT INTO students (
@@ -158,11 +162,12 @@ class StudentController extends Controller {
                 $rowErrors[] = "Row {$line}: {$reason}";
             }
         }
+        if ($generatedPins) { $_SESSION['bulk_credentials'] = $generatedPins; }
         $this->finishBulkImport($success, count($rows), $rowErrors, '/school/students');
     }
 
     public function store(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['students.manage']);
         $errors = $this->validate($_POST, [
             'first_name' => 'required|max:100',
             'last_name'  => 'required|max:100',
@@ -179,13 +184,12 @@ class StudentController extends Controller {
 
         $name = trim(preg_replace('/\s+/', ' ', $_POST['first_name'].' '.($_POST['middle_name']??'').' '.$_POST['last_name']));
         $roleId = $this->db->fetchOne("SELECT id FROM roles WHERE name='Student' LIMIT 1")['id'] ?? 7;
-        $pw = password_hash($_POST['password'] ?: 'Student@123', PASSWORD_BCRYPT);
+        $pin = $this->generateUniquePin();
         $userId = $this->db->insert(
             "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,date_of_birth,address,status) VALUES (?,?,?,?,?,?,?,?,?)",
             [$this->tid, $roleId, $name, $_POST['email']?:null, $_POST['phone']??'', $_POST['gender']??null, $_POST['dob']??null, $_POST['address']??'', 'active']
         );
-        // Update password
-        $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [$pw, $userId]);
+        $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [password_hash($pin, PASSWORD_BCRYPT), $userId]);
         $admNo = $_POST['admission_no'] ?: ('ADM-'.date('Y').'-'.str_pad($userId, 4, '0', STR_PAD_LEFT));
         $this->db->insert(
             "INSERT INTO students (
@@ -205,12 +209,12 @@ class StudentController extends Controller {
                 $_POST['admission_type']??'new',
             ]
         );
-        $this->flash('success', 'Student admitted successfully. Admission No: '.$admNo);
+        $this->flash('success', "Student admitted successfully. Admission No: {$admNo} — Login PIN: {$pin} (write this down, it will not be shown again).");
         $this->redirect('/school/students');
     }
 
     public function show(string $id): void {
-        $this->requireAuth(['School Admin','Teacher','Staff']);
+        $this->requirePermission(['students.view','students.edit','students.manage']);
         $student = $this->db->fetchOne(
             "SELECT s.*, u.name, u.email, u.phone, u.gender, u.date_of_birth, u.avatar,
                     c.name AS class_name
@@ -271,7 +275,7 @@ class StudentController extends Controller {
     }
 
     public function idCard(string $id): void {
-        $this->requireAuth(['School Admin','Teacher','Staff']);
+        $this->requirePermission(['students.view','students.edit','students.manage']);
         $student = $this->db->fetchOne(
             "SELECT s.*, u.name, u.gender, u.date_of_birth
              FROM students s JOIN users u ON s.user_id=u.id
@@ -300,14 +304,14 @@ class StudentController extends Controller {
     }
 
     public function edit(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['students.manage']);
         $student = $this->db->fetchOne("SELECT s.*, u.name, u.email, u.phone, u.gender, u.date_of_birth FROM students s JOIN users u ON s.user_id=u.id WHERE s.id=? AND s.tenant_id=?",[$id,$this->tid]);
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?",[$this->tid]);
         $this->view('school/highschool/students/form',['pageTitle'=>'Edit Student','panelType'=>'school','student'=>$student,'classes'=>$classes,'flash'=>$this->getFlash()]);
     }
 
     public function update(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['students.manage']);
         $student = $this->db->fetchOne("SELECT user_id FROM students WHERE id=? AND tenant_id=?",[$id,$this->tid]);
         if (!$student) { $this->redirect('/school/students'); }
         $errors = $this->validate($_POST, ['first_name' => 'required|max:100', 'last_name' => 'required|max:100', 'email' => 'email|max:150']);
@@ -334,7 +338,7 @@ class StudentController extends Controller {
     }
 
     public function delete(string $id): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['students.manage']);
         $student = $this->db->fetchOne("SELECT user_id FROM students WHERE id=? AND tenant_id=?",[$id,$this->tid]);
         if ($student) {
             $this->db->execute("DELETE FROM students WHERE id=? AND tenant_id=?",[$id,$this->tid]);
@@ -342,5 +346,25 @@ class StudentController extends Controller {
         }
         $this->flash('success','Student removed.');
         $this->redirect('/school/students');
+    }
+
+    public function resetPin(string $id): void {
+        $this->requirePermission(['students.manage']);
+        $student = $this->db->fetchOne("SELECT user_id FROM students WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        if (!$student) { $this->redirect('/school/students'); }
+        $pin = $this->generateUniquePin();
+        $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [password_hash($pin, PASSWORD_BCRYPT), $student['user_id']]);
+        $this->flash('success', "New login PIN: {$pin} (write this down, it will not be shown again).");
+        $this->redirect('/school/students/'.$id);
+    }
+
+    /** One-time download of the PINs generated by the most recent bulk import (session-scoped, cleared after reading). */
+    public function downloadCredentials(): never {
+        $this->requirePermission(['students.manage']);
+        $pins = $_SESSION['bulk_credentials'] ?? [];
+        unset($_SESSION['bulk_credentials']);
+        $rows = [];
+        foreach ($pins as $admissionNo => $pin) { $rows[] = [$admissionNo, $pin]; }
+        $this->downloadCsv('student_login_pins.csv', ['Admission No', 'PIN'], $rows);
     }
 }

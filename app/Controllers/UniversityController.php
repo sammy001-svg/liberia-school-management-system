@@ -11,7 +11,7 @@ class UniversityController extends Controller {
 
     // --- DEPARTMENTS ---
     public function departments(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['university.manage']);
         $departments = $this->db->fetchAll(
             "SELECT d.*, u.name as head_name
              FROM departments d
@@ -30,12 +30,12 @@ class UniversityController extends Controller {
     }
 
     public function createDepartment(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['university.manage']);
         $this->redirect('/school/departments');
     }
 
     public function storeDepartment(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['university.manage']);
         $errors = $this->validate($_POST, ['name' => 'required|max:150']);
         if ($errors) { $this->failValidation($errors, '/school/departments'); }
         $this->db->insert(
@@ -48,7 +48,7 @@ class UniversityController extends Controller {
 
     // --- COURSES / SUBJECTS ---
     public function courses(): void {
-        $this->requireAuth(['School Admin', 'Lecturer', 'Teacher']);
+        $this->requirePermission(['university.view','university.manage']);
         $courses = $this->db->fetchAll(
             "SELECT c.*, cl.name AS class_name,
                     (SELECT COUNT(*) FROM teacher_courses tc WHERE tc.course_id=c.id) AS teacher_count,
@@ -71,12 +71,12 @@ class UniversityController extends Controller {
     }
 
     public function createCourse(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['university.manage']);
         $this->redirect('/school/courses');
     }
 
     public function storeCourse(): void {
-        $this->requireAuth(['School Admin']);
+        $this->requirePermission(['university.manage']);
         $errors = $this->validate($_POST, [
             'name' => 'required|max:150',
             'credit_hours' => 'numeric',

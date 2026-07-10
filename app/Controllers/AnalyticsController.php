@@ -6,7 +6,7 @@ class AnalyticsController extends Controller {
 
     public function __construct() {
         parent::__construct();
-        $this->requireAuth(['School Admin', 'Teacher']);
+        $this->requirePermission(['analytics.view']);
         $this->tid = $this->tenantId() ?? 0;
     }
 

@@ -121,6 +121,30 @@
       </div>
     </div>
   </div>
+
+  <div class="card mt-16">
+    <div class="card-header"><div class="card-title">🔐 Login &amp; Security</div></div>
+    <div class="card-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Student Login Method</label>
+          <select name="student_login_mode" class="form-control">
+            <option value="admission_pin" <?= ($tenant['student_login_mode']??'admission_pin')==='admission_pin'?'selected':'' ?>>Admission No. + PIN</option>
+            <option value="email_password" <?= ($tenant['student_login_mode']??'')==='email_password'?'selected':'' ?>>Email + Password</option>
+          </select>
+          <div class="form-hint">How students sign in on the login page's Student tab.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Parent Login Method</label>
+          <select name="parent_login_mode" class="form-control">
+            <option value="username_password" <?= ($tenant['parent_login_mode']??'username_password')==='username_password'?'selected':'' ?>>Username + Password</option>
+            <option value="email_password" <?= ($tenant['parent_login_mode']??'')==='email_password'?'selected':'' ?>>Email + Password</option>
+          </select>
+          <div class="form-hint">How parents sign in on the login page's Parent tab.</div>
+        </div>
+      </div>
+    </div>
+  </div>
   <div style="margin-top:20px;"><button type="submit" class="btn btn-primary">Save Settings</button></div>
 </form>
 </div>

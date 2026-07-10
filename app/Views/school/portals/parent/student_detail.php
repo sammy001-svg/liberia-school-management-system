@@ -30,7 +30,10 @@
 
 <div style="display:grid; grid-template-columns: 1fr; gap:24px;">
     <div class="card">
-        <div class="card-header"><div class="card-title">Academic Results</div></div>
+        <div class="card-header">
+          <div class="card-title">Academic Results</div>
+          <a href="<?= $cfg['url'] ?>/parent/student/<?= $student['id'] ?>/report-card" target="_blank" class="btn btn-sm btn-primary">📄 View Full Grade Sheet</a>
+        </div>
         <div class="table-wrapper">
             <table>
                 <thead>
@@ -50,6 +53,14 @@
                         <td><span class="badge badge-primary"><?= $g['grade_letter'] ?></span></td>
                     </tr>
                     <?php endforeach; ?>
+                    <?php if(empty($grades)): ?>
+                    <tr><td colspan="4">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📄</div>
+                            <div class="empty-state-text">No published results yet. Results appear here once the school finalizes and publishes them.</div>
+                        </div>
+                    </td></tr>
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>

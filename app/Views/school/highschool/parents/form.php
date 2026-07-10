@@ -31,9 +31,16 @@
       </div>
       <div class="form-row">
         <div class="form-group">
+          <label class="form-label">Login Username *</label>
+          <input type="text" name="username" class="form-control" value="<?= htmlspecialchars($parent['username']??'') ?>" required>
+          <div class="form-hint">Used to sign in when Parent Login Method is set to Username + Password.</div>
+        </div>
+        <div class="form-group">
           <label class="form-label">Phone</label>
           <input type="text" name="phone" class="form-control" value="<?= htmlspecialchars($parent['phone']??'') ?>">
         </div>
+      </div>
+      <div class="form-row">
         <div class="form-group">
           <label class="form-label">Gender</label>
           <select name="gender" class="form-control">
