@@ -210,7 +210,7 @@ class StudentController extends Controller {
     }
 
     public function show(string $id): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requireAuth(['School Admin','Teacher','Staff']);
         $student = $this->db->fetchOne(
             "SELECT s.*, u.name, u.email, u.phone, u.gender, u.date_of_birth, u.avatar,
                     c.name AS class_name
@@ -222,6 +222,28 @@ class StudentController extends Controller {
         $attendance = $this->db->fetchAll("SELECT * FROM attendance WHERE student_id=? AND tenant_id=? ORDER BY date DESC LIMIT 10",[$id,$this->tid]);
         $invoices = $this->db->fetchAll("SELECT * FROM invoices WHERE student_id=? AND tenant_id=? ORDER BY created_at DESC",[$id,$this->tid]);
         $rankings = $this->db->fetchAll("SELECT * FROM student_rankings WHERE student_id=? AND tenant_id=? ORDER BY created_at",[$id,$this->tid]);
+
+        $homework = $student['class_id'] ? $this->db->fetchAll(
+            "SELECT h.id, h.title, h.due_date, h.max_score, co.name AS course_name,
+                    hs.submitted_at, hs.score, hs.feedback
+             FROM homework h
+             LEFT JOIN courses co ON h.course_id=co.id
+             LEFT JOIN homework_submissions hs ON hs.homework_id=h.id AND hs.student_id=?
+             WHERE h.tenant_id=? AND h.class_id=?
+             ORDER BY h.due_date DESC LIMIT 10",
+            [$id, $this->tid, $student['class_id']]
+        ) : [];
+
+        $onlineExams = $student['class_id'] ? $this->db->fetchAll(
+            "SELECT e.id, e.title, e.status AS exam_status, co.name AS course_name,
+                    a.status AS attempt_status, a.score, a.total_marks, a.submitted_at
+             FROM online_exams e
+             LEFT JOIN courses co ON e.course_id=co.id
+             LEFT JOIN online_exam_attempts a ON a.exam_id=e.id AND a.student_id=?
+             WHERE e.tenant_id=? AND e.class_id=?
+             ORDER BY e.starts_at DESC LIMIT 10",
+            [$id, $this->tid, $student['class_id']]
+        ) : [];
 
         $attendanceStats = $this->db->fetchOne(
             "SELECT COUNT(*) total, SUM(CASE WHEN status='present' THEN 1 ELSE 0 END) present FROM attendance WHERE student_id=? AND tenant_id=?",
@@ -242,14 +264,14 @@ class StudentController extends Controller {
 
         $this->view('school/highschool/students/show',[
             'pageTitle'=>$student['name'],'panelType'=>'school','student'=>$student,'grades'=>$grades,'attendance'=>$attendance,'invoices'=>$invoices,
-            'rankings'=>$rankings,
+            'rankings'=>$rankings,'homework'=>$homework,'onlineExams'=>$onlineExams,
             'attendanceRate'=>$attendanceRate,'avgGrade'=>$avgGrade,'outstandingFees'=>$feesStats['outstanding'],
             'flash'=>$this->getFlash(),
         ]);
     }
 
     public function idCard(string $id): void {
-        $this->requireAuth(['School Admin','Teacher']);
+        $this->requireAuth(['School Admin','Teacher','Staff']);
         $student = $this->db->fetchOne(
             "SELECT s.*, u.name, u.gender, u.date_of_birth
              FROM students s JOIN users u ON s.user_id=u.id

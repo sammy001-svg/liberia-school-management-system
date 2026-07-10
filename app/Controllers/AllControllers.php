@@ -49,7 +49,7 @@ class MessageController extends Controller {
     public function __construct() { parent::__construct(); $this->tid = $this->tenantId() ?? 0; }
 
     public function index(): void {
-        $this->requireAuth();
+        $this->requireAuth(['School Admin','Teacher','Accountant','Staff']);
         $msgs = $this->db->fetchAll("SELECT m.*, u.name AS sender_name FROM messages m JOIN users u ON m.sender_id=u.id WHERE m.recipient_id=? AND m.tenant_id=? ORDER BY m.created_at DESC", [$_SESSION['user_id'],$this->tid]);
         $stats = [
             'total'  => count($msgs),
@@ -59,7 +59,7 @@ class MessageController extends Controller {
     }
 
     public function compose(): void {
-        $this->requireAuth();
+        $this->requireAuth(['School Admin','Teacher','Accountant','Staff']);
         $users = $this->db->fetchAll("SELECT id,name FROM users WHERE tenant_id=? AND id!=? ORDER BY name", [$this->tid,$_SESSION['user_id']]);
         $replyTo = null;
         $prefillSubject = '';
@@ -71,7 +71,7 @@ class MessageController extends Controller {
     }
 
     public function send(): void {
-        $this->requireAuth();
+        $this->requireAuth(['School Admin','Teacher','Accountant','Staff']);
         $errors = $this->validate($_POST, ['recipient_id' => 'required', 'body' => 'required']);
         if ($errors) { $this->failValidation($errors, '/school/messages/compose'); }
         $this->db->insert("INSERT INTO messages (tenant_id,sender_id,recipient_id,subject,body) VALUES (?,?,?,?,?)",
@@ -80,7 +80,7 @@ class MessageController extends Controller {
     }
 
     public function show(string $id): void {
-        $this->requireAuth();
+        $this->requireAuth(['School Admin','Teacher','Accountant','Staff']);
         $msg = $this->db->fetchOne("SELECT m.*,u.name AS sender_name FROM messages m JOIN users u ON m.sender_id=u.id WHERE m.id=? AND m.tenant_id=? AND m.recipient_id=?",[$id,$this->tid,$_SESSION['user_id']]);
         if (!$msg) { $this->redirect('/school/messages'); }
         if (!$msg['is_read']) { $this->db->execute("UPDATE messages SET is_read=1,read_at=NOW() WHERE id=?",[$id]); }
@@ -88,7 +88,7 @@ class MessageController extends Controller {
     }
 
     public function delete(string $id): void {
-        $this->requireAuth();
+        $this->requireAuth(['School Admin','Teacher','Accountant','Staff']);
         $this->db->execute("DELETE FROM messages WHERE id=? AND tenant_id=? AND recipient_id=?", [$id, $this->tid, $_SESSION['user_id']]);
         $this->flash('success','Message deleted.'); $this->redirect('/school/messages');
     }

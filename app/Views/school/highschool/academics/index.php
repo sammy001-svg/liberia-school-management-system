@@ -2,11 +2,11 @@
 
 <div class="page-header">
   <div>
-    <div class="page-header-title">Academic Years &amp; Terms</div>
+    <div class="page-header-title">Academic Years &amp; Periods</div>
     <div class="page-header-sub">Used by Classes, Timetable, Fee Structures and Exams to scope records to a period</div>
   </div>
   <div style="display:flex;gap:10px;">
-    <button type="button" class="btn btn-secondary" onclick="document.getElementById('addTermModal').classList.add('open')">+ Add Term</button>
+    <button type="button" class="btn btn-secondary" onclick="document.getElementById('addTermModal').classList.add('open')">+ Add Period</button>
     <button type="button" class="btn btn-primary" onclick="document.getElementById('addYearModal').classList.add('open')">+ Add Academic Year</button>
   </div>
 </div>

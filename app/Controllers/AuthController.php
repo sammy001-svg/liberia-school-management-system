@@ -108,6 +108,19 @@ class AuthController extends Controller {
         $this->redirect('/login');
     }
 
+    // Reached when requireAuth() rejects a logged-in user's role for a given page
+    // (e.g. an Accountant hitting a Teacher-only URL) — shown inside the same
+    // layout/sidebar the user already has, rather than a bare 404.
+    public function unauthorized(): void {
+        if (!$this->isLoggedIn()) { $this->redirect('/login'); }
+        $panelType = match ($_SESSION['role'] ?? '') {
+            'Student' => 'student',
+            'Parent'  => 'parent',
+            default   => 'school',
+        };
+        $this->view('errors/unauthorized', ['pageTitle' => 'Access Denied', 'panelType' => $panelType]);
+    }
+
     private function redirectByRole(): void {
         $role = $_SESSION['role'] ?? '';
         
