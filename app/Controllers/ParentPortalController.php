@@ -4,29 +4,47 @@ require_once ROOT_DIR . '/core/Controller.php';
 class ParentPortalController extends Controller {
     private int $pid;
     private int $tid;
+    private bool $restrictionEnabled;
 
     public function __construct() {
         parent::__construct();
         $this->requireAuth(['Parent']);
         $this->pid = $_SESSION['parent_id'] ?? 0;
         $this->tid = $this->tenantId() ?? 0;
+        $this->restrictionEnabled = (bool)($this->db->fetchOne("SELECT restrict_parent_arrears FROM tenants WHERE id=?", [$this->tid])['restrict_parent_arrears'] ?? false);
+    }
+
+    // "Arrears" = an unpaid/partial invoice past its due date, on ANY linked child — matches the
+    // overdue calculation already used in FinanceController::collection(). Account-wide, not
+    // per-child: one overdue child restricts detail pages for all of this parent's children.
+    private function overdueTotal(): float {
+        $total = $this->db->fetchOne(
+            "SELECT COALESCE(SUM(i.amount_due - i.amount_paid - i.discount), 0) AS total
+             FROM invoices i JOIN parent_students ps ON ps.student_id = i.student_id
+             WHERE ps.parent_id = ? AND i.status NOT IN ('paid','waived') AND i.due_date IS NOT NULL AND i.due_date < CURDATE()",
+            [$this->pid]
+        );
+        return (float)($total['total'] ?? 0);
     }
 
     public function dashboard(): void {
         $children = $this->db->fetchAll(
-            "SELECT s.*, u.name, c.name as class_name 
-             FROM parent_students ps 
-             JOIN students s ON ps.student_id = s.id 
-             JOIN users u ON s.user_id = u.id 
-             LEFT JOIN classes c ON s.class_id = c.id 
-             WHERE ps.parent_id = ?", 
+            "SELECT s.*, u.name, c.name as class_name
+             FROM parent_students ps
+             JOIN students s ON ps.student_id = s.id
+             JOIN users u ON s.user_id = u.id
+             LEFT JOIN classes c ON s.class_id = c.id
+             WHERE ps.parent_id = ?",
             [$this->pid]
         );
+        $overdueTotal = $this->restrictionEnabled ? $this->overdueTotal() : 0;
 
         $this->view('school/portals/parent/dashboard', [
             'pageTitle' => 'Parent Dashboard',
             'panelType' => 'parent',
-            'children' => $children
+            'children' => $children,
+            'hasArrears' => $overdueTotal > 0,
+            'overdueTotal' => $overdueTotal,
         ]);
     }
 
@@ -39,13 +57,26 @@ class ParentPortalController extends Controller {
         }
 
         $student = $this->db->fetchOne(
-            "SELECT s.*, u.name, c.name as class_name 
-             FROM students s 
-             JOIN users u ON s.user_id = u.id 
-             LEFT JOIN classes c ON s.class_id = c.id 
-             WHERE s.id = ?", 
+            "SELECT s.*, u.name, c.name as class_name
+             FROM students s
+             JOIN users u ON s.user_id = u.id
+             LEFT JOIN classes c ON s.class_id = c.id
+             WHERE s.id = ?",
             [$sid]
         );
+
+        if ($this->restrictionEnabled) {
+            $overdueTotal = $this->overdueTotal();
+            if ($overdueTotal > 0) {
+                $this->view('school/portals/parent/restricted', [
+                    'pageTitle' => 'Access Restricted',
+                    'panelType' => 'parent',
+                    'student' => $student,
+                    'overdueTotal' => $overdueTotal,
+                ]);
+                return;
+            }
+        }
 
         $attendance = $this->db->fetchOne(
             "SELECT 
@@ -92,6 +123,20 @@ class ParentPortalController extends Controller {
             [$studentId, $this->tid]
         );
         if (!$student) { $this->redirect('/parent/dashboard'); }
+
+        if ($this->restrictionEnabled) {
+            $overdueTotal = $this->overdueTotal();
+            if ($overdueTotal > 0) {
+                $this->view('school/portals/parent/restricted', [
+                    'pageTitle' => 'Access Restricted',
+                    'panelType' => 'parent',
+                    'student' => $student,
+                    'overdueTotal' => $overdueTotal,
+                ]);
+                return;
+            }
+        }
+
         $class  = $student['class_id'] ? $this->db->fetchOne("SELECT * FROM classes WHERE id=?", [$student['class_id']]) : null;
         $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
 

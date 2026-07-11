@@ -696,15 +696,16 @@ class SchoolSettingsController extends Controller {
 
         $studentLoginMode = in_array($_POST['student_login_mode'] ?? '', ['email_password','admission_pin'], true) ? $_POST['student_login_mode'] : 'admission_pin';
         $parentLoginMode  = in_array($_POST['parent_login_mode'] ?? '', ['email_password','username_password'], true) ? $_POST['parent_login_mode'] : 'username_password';
+        $restrictParentArrears = !empty($_POST['restrict_parent_arrears']) ? 1 : 0;
 
-        $this->db->execute("UPDATE tenants SET name=?,email=?,phone=?,address=?,country=?,timezone=?,academic_year=?,currency=?,domain=?,primary_color=?,secondary_color=?,accent_color=?,logo=?,student_login_mode=?,parent_login_mode=? WHERE id=?",
+        $this->db->execute("UPDATE tenants SET name=?,email=?,phone=?,address=?,country=?,timezone=?,academic_year=?,currency=?,domain=?,primary_color=?,secondary_color=?,accent_color=?,logo=?,student_login_mode=?,parent_login_mode=?,restrict_parent_arrears=? WHERE id=?",
             [
                 $_POST['name'], $_POST['email']??'', $_POST['phone']??'', $_POST['address']??'',
                 $_POST['country']??'', $_POST['timezone']??'UTC', $_POST['academic_year']??'',
                 $_POST['currency']??'Ksh',
                 $_POST['domain']??null, $_POST['primary_color']??'#4F46E5',
                 $_POST['secondary_color']??'#7C3AED', $_POST['accent_color']??'#06B6D4',
-                $logo, $studentLoginMode, $parentLoginMode,
+                $logo, $studentLoginMode, $parentLoginMode, $restrictParentArrears,
                 $this->tid
             ]);
 

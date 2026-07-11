@@ -143,6 +143,11 @@
           <div class="form-hint">How parents sign in on the login page's Parent tab.</div>
         </div>
       </div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;">
+        <input type="checkbox" name="restrict_parent_arrears" value="1" <?= !empty($tenant['restrict_parent_arrears']) ? 'checked' : '' ?>>
+        <span class="form-label" style="margin:0;">Restrict parent portal access when fees are overdue</span>
+      </label>
+      <div class="form-hint">When enabled, a parent with an unpaid invoice past its due date can still view and pay invoices, but their children's profile, grades and report cards are hidden until the balance is cleared.</div>
     </div>
   </div>
   <div style="margin-top:20px;"><button type="submit" class="btn btn-primary">Save Settings</button></div>
