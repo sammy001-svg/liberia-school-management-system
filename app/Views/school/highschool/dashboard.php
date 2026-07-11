@@ -236,7 +236,7 @@
       <div class="dash-card-title">Exam Overview</div>
       <div class="dash-card-action">
         <select class="form-control" style="padding:4px 8px;font-size:11px;width:auto;height:auto;background:rgba(255,255,255,0.05);border:none;">
-          <option>This Term</option>
+          <option>This Period</option>
         </select>
       </div>
     </div>
@@ -245,37 +245,46 @@
     </div>
   </div>
 
+  <?php
+    // Same per-role visibility as the sidebar — only show a quick link if this
+    // role's requireAuth() on the target page would actually let them through.
+    $quickLinks = [
+      ['url'=>'/school/students?open=admitModal', 'label'=>'Add Student', 'roles'=>['School Admin'],
+       'icon'=>'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z'],
+      ['url'=>'/school/teachers?open=addTeacherModal', 'label'=>'Add Teacher', 'roles'=>['School Admin'],
+       'icon'=>'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z'],
+      ['url'=>'/school/classes?open=addClassModal', 'label'=>'Add Class', 'roles'=>['School Admin'],
+       'icon'=>'M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z'],
+      ['url'=>'/school/attendance', 'label'=>'Mark Attendance', 'roles'=>['School Admin','Teacher'],
+       'icon'=>'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'],
+      ['url'=>'/school/announcements?open=addAnnouncementModal', 'label'=>'Post Announcement', 'roles'=>['School Admin','Teacher'],
+       'icon'=>'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'],
+      ['url'=>'/school/analytics', 'label'=>'View Reports', 'roles'=>['School Admin','Teacher'],
+       'icon'=>'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'],
+      ['url'=>'/school/finance/invoices/create', 'label'=>'Create Invoice', 'roles'=>['School Admin','Accountant'],
+       'icon'=>'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2z'],
+      ['url'=>'/school/finance/bus-billing', 'label'=>'Bus Billing', 'roles'=>['School Admin','Accountant'],
+       'icon'=>'M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25'],
+      ['url'=>'/school/inventory', 'label'=>'Inventory', 'roles'=>['Staff'],
+       'icon'=>'M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z'],
+    ];
+    $visibleQuickLinks = array_filter($quickLinks, fn($l) => in_array($role, $l['roles'], true));
+  ?>
+  <?php if (!empty($visibleQuickLinks)): ?>
   <div class="dash-card">
     <div class="dash-card-header">
       <div class="dash-card-title">Quick Links</div>
     </div>
     <div class="ql-grid">
-      <a href="<?= $cfg['url'] ?>/school/students?open=admitModal" class="ql-btn">
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
-        <span>Add Student</span>
+      <?php foreach ($visibleQuickLinks as $l): ?>
+      <a href="<?= $cfg['url'] . $l['url'] ?>" class="ql-btn">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="<?= $l['icon'] ?>"/></svg>
+        <span><?= htmlspecialchars($l['label']) ?></span>
       </a>
-      <a href="<?= $cfg['url'] ?>/school/teachers?open=addTeacherModal" class="ql-btn">
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
-        <span>Add Teacher</span>
-      </a>
-      <a href="<?= $cfg['url'] ?>/school/classes?open=addClassModal" class="ql-btn">
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>
-        <span>Add Class</span>
-      </a>
-      <a href="<?= $cfg['url'] ?>/school/attendance" class="ql-btn">
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        <span>Mark Attendance</span>
-      </a>
-      <a href="<?= $cfg['url'] ?>/school/announcements?open=addAnnouncementModal" class="ql-btn">
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-        <span>Post Announcement</span>
-      </a>
-      <a href="<?= $cfg['url'] ?>/school/analytics" class="ql-btn">
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-        <span>View Reports</span>
-      </a>
+      <?php endforeach; ?>
     </div>
   </div>
+  <?php endif; ?>
 </div>
 
 <script>

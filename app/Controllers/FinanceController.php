@@ -356,7 +356,7 @@ class FinanceController extends Controller {
 
         if ($range === 'term') {
             $term = $this->db->fetchOne("SELECT * FROM terms WHERE tenant_id=? AND is_current=1 LIMIT 1", [$this->tid]);
-            if ($term) { return [$term['start_date'], $term['end_date'], 'Term: '.$term['name'], 'term']; }
+            if ($term) { return [$term['start_date'], $term['end_date'], 'Period: '.$term['name'], 'term']; }
             $range = 'month';
         }
         if ($range === 'year') {

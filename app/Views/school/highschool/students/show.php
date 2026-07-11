@@ -17,6 +17,9 @@
     <div class="profile-hero-actions">
       <a href="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/id-card" target="_blank" class="btn btn-outline">🪪 ID Card</a>
       <a href="<?= $cfg['url'] ?>/school/grades/report-card/<?= $student['id'] ?>" target="_blank" class="btn btn-outline">📄 Report Card</a>
+      <?php if(!empty($student['class_id'])): ?>
+      <a href="<?= $cfg['url'] ?>/school/grades/enter?class_id=<?= $student['class_id'] ?>" class="btn btn-outline">✏️ Enter Grades</a>
+      <?php endif; ?>
       <a href="<?= $cfg['url'] ?>/school/certificates" class="btn btn-outline">🎓 Certificates</a>
       <a href="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/edit" class="btn btn-secondary">Edit Profile</a>
       <form method="POST" action="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/reset-pin" data-confirm="Reset the login PIN for <?= htmlspecialchars($student['name']) ?>? The old PIN will stop working." data-confirm-title="Reset Login PIN" data-confirm-label="Reset PIN">
@@ -181,6 +184,59 @@
           <?php endforeach; ?>
           <?php if(empty($grades)): ?>
           <tr><td colspan="3"><div class="empty-state"><div class="empty-state-icon">📝</div><div class="empty-state-text">No grades recorded yet.</div></div></td></tr>
+          <?php endif; ?>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">Homework</div><a href="<?= $cfg['url'] ?>/school/homework" class="btn btn-sm btn-outline">All Homework</a></div>
+      <div class="table-wrapper"><table>
+        <thead><tr><th>Title</th><th>Due</th><th>Status</th><th>Score</th></tr></thead>
+        <tbody>
+          <?php foreach($homework as $h): ?>
+          <?php $submitted = !empty($h['submitted_at']); $overdue = strtotime($h['due_date']) < strtotime(date('Y-m-d')); ?>
+          <tr>
+            <td class="fw-600"><?= htmlspecialchars($h['title']) ?><?php if($h['course_name']): ?><div style="font-size:11px;color:var(--text-muted)"><?= htmlspecialchars($h['course_name']) ?></div><?php endif; ?></td>
+            <td><?= date('M d, Y', strtotime($h['due_date'])) ?></td>
+            <td>
+              <?php if($submitted): ?><span class="badge badge-success">Submitted</span>
+              <?php elseif($overdue): ?><span class="badge badge-danger">Overdue</span>
+              <?php else: ?><span class="badge badge-muted">Pending</span><?php endif; ?>
+            </td>
+            <td><?= $h['score']!==null ? number_format($h['score'],1).' / '.number_format($h['max_score'],0) : '—' ?></td>
+          </tr>
+          <?php endforeach; ?>
+          <?php if(empty($homework)): ?>
+          <tr><td colspan="4"><div class="empty-state"><div class="empty-state-icon">📚</div><div class="empty-state-text">No homework assigned to this class yet.</div></div></td></tr>
+          <?php endif; ?>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">Online Exams</div><a href="<?= $cfg['url'] ?>/school/online-exams" class="btn btn-sm btn-outline">All Exams</a></div>
+      <div class="table-wrapper"><table>
+        <thead><tr><th>Title</th><th>Status</th><th>Score</th></tr></thead>
+        <tbody>
+          <?php foreach($onlineExams as $e): ?>
+          <tr>
+            <td class="fw-600"><?= htmlspecialchars($e['title']) ?><?php if($e['course_name']): ?><div style="font-size:11px;color:var(--text-muted)"><?= htmlspecialchars($e['course_name']) ?></div><?php endif; ?></td>
+            <td>
+              <?php if($e['attempt_status']==='submitted'): ?><span class="badge badge-success">Submitted</span>
+              <?php elseif($e['attempt_status']==='in_progress'): ?><span class="badge badge-warning">In Progress</span>
+              <?php else: ?><span class="badge badge-muted">Not Attempted</span><?php endif; ?>
+            </td>
+            <td>
+              <?php if($e['score'] !== null): ?>
+                <?php $pct = $e['total_marks']>0 ? round($e['score']/$e['total_marks']*100,1) : 0; ?>
+                <span class="badge badge-<?= $pct>=70?'success':($pct>=50?'warning':'danger') ?>"><?= number_format($e['score'],1) ?> / <?= number_format($e['total_marks'],1) ?> (<?= $pct ?>%)</span>
+              <?php else: ?>—<?php endif; ?>
+            </td>
+          </tr>
+          <?php endforeach; ?>
+          <?php if(empty($onlineExams)): ?>
+          <tr><td colspan="3"><div class="empty-state"><div class="empty-state-icon">📝</div><div class="empty-state-text">No online exams for this class yet.</div></div></td></tr>
           <?php endif; ?>
         </tbody>
       </table></div>

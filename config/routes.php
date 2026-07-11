@@ -7,6 +7,7 @@
 $router->get('/login',    ['AuthController', 'loginPage']);
 $router->post('/login',   ['AuthController', 'loginPost']);
 $router->get('/logout',   ['AuthController', 'logout']);
+$router->get('/unauthorized', ['AuthController', 'unauthorized']);
 
 // ── SCHOOL (High School) ──────────────────────────────────────
 $router->get('/school',                     ['SchoolDashboardController', 'index']);

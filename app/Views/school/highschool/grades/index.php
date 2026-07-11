@@ -108,7 +108,7 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Term</label>
+            <label class="form-label">Period</label>
             <select name="term_id" class="form-control">
               <option value="">— Not Assigned —</option>
               <?php foreach($terms as $t): ?>

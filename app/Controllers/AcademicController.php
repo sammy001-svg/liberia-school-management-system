@@ -13,7 +13,7 @@ class AcademicController extends Controller {
             [$this->tid]
         );
         $this->view('school/highschool/academics/index', [
-            'pageTitle' => 'Academic Years & Terms', 'panelType' => 'school',
+            'pageTitle' => 'Academic Years & Periods', 'panelType' => 'school',
             'years' => $years, 'terms' => $terms, 'flash' => $this->getFlash(),
         ]);
     }
@@ -53,7 +53,7 @@ class AcademicController extends Controller {
             "INSERT INTO terms (tenant_id,academic_year_id,name,start_date,end_date,is_current) VALUES (?,?,?,?,?,?)",
             [$this->tid, $_POST['academic_year_id'], $_POST['name'], $_POST['start_date'], $_POST['end_date'], !empty($_POST['is_current']) ? 1 : 0]
         );
-        $this->flash('success', 'Term created.');
+        $this->flash('success', 'Period created.');
         $this->redirect('/school/academic-years');
     }
 }

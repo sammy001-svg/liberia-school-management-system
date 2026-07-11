@@ -4,7 +4,7 @@ $user    = $_SESSION['user'] ?? [];
 $branding = $_SESSION['branding'] ?? [];
 $appName  = $branding['name'] ?? $cfg['name'];
 $base     = $cfg['url'];
-$role     = $_SESSION['role_name'] ?? '';
+$role     = $_SESSION['role'] ?? '';
 $faviconColor = $branding['primary_color'] ?? '#10B981';
 $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='{$faviconColor}'/><text x='50' y='68' font-family='Arial,sans-serif' font-size='58' font-weight='900' fill='white' text-anchor='middle'>" . strtoupper(substr($appName, 0, 1)) . "</text></svg>";
 ?>
