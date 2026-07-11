@@ -150,11 +150,12 @@ class TeacherController extends Controller {
         $teacher = $this->db->fetchOne("SELECT t.*, u.name, u.email, u.phone, u.gender, u.date_of_birth, c.name AS class_name, d.name AS department_name FROM teachers t JOIN users u ON t.user_id=u.id LEFT JOIN classes c ON t.class_id=c.id LEFT JOIN departments d ON t.department_id=d.id WHERE t.id=? AND t.tenant_id=?", [$id,$this->tid]);
         if (!$teacher) { $this->redirect('/school/teachers'); }
         $assignedCourses = $this->db->fetchAll(
-            "SELECT c.* FROM teacher_courses tc JOIN courses c ON tc.course_id=c.id WHERE tc.teacher_id=? AND c.tenant_id=? ORDER BY c.name",
+            "SELECT c.*, cl.name AS class_name FROM teacher_courses tc JOIN courses c ON tc.course_id=c.id LEFT JOIN classes cl ON c.class_id=cl.id WHERE tc.teacher_id=? AND c.tenant_id=? ORDER BY cl.name, c.name",
             [$id, $this->tid]
         );
         $availableCourses = $this->db->fetchAll(
-            "SELECT * FROM courses WHERE tenant_id=? AND id NOT IN (SELECT course_id FROM teacher_courses WHERE teacher_id=?) ORDER BY name",
+            "SELECT c.*, cl.name AS class_name FROM courses c LEFT JOIN classes cl ON c.class_id=cl.id
+             WHERE c.tenant_id=? AND c.id NOT IN (SELECT course_id FROM teacher_courses WHERE teacher_id=?) ORDER BY cl.name, c.name",
             [$this->tid, $id]
         );
         $homeroomCount = $teacher['class_id']
@@ -197,10 +198,18 @@ class TeacherController extends Controller {
 
     public function assignCourse(string $id): void {
         $this->requirePermission(['teachers.manage']);
-        $errors = $this->validate($_POST, ['course_id' => 'required']);
-        if ($errors) { $this->failValidation($errors, '/school/teachers/'.$id); }
-        $this->db->insert("INSERT INTO teacher_courses (teacher_id, course_id) VALUES (?, ?)", [$id, $_POST['course_id']]);
-        $this->flash('success', 'Course assigned.');
+        $courseIds = array_filter(array_map('intval', $_POST['course_ids'] ?? []));
+        if (empty($courseIds)) {
+            $this->failValidation(['course_ids' => 'Select at least one class/subject to assign.'], '/school/teachers/'.$id);
+        }
+        $assigned = 0;
+        foreach (array_unique($courseIds) as $courseId) {
+            $course = $this->db->fetchOne("SELECT id FROM courses WHERE id=? AND tenant_id=?", [$courseId, $this->tid]);
+            if (!$course) { continue; }
+            $this->db->execute("INSERT IGNORE INTO teacher_courses (teacher_id, course_id) VALUES (?, ?)", [$id, $courseId]);
+            $assigned++;
+        }
+        $this->flash('success', $assigned === 1 ? '1 subject assigned.' : "{$assigned} subjects assigned.");
         $this->redirect('/school/teachers/'.$id);
     }
 

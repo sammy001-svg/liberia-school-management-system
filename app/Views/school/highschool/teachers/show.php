@@ -102,16 +102,17 @@
 
     <div class="card">
       <div class="card-header">
-        <div class="card-title">Courses Taught (<?= count($assignedCourses) ?>)</div>
-        <button type="button" class="btn btn-sm btn-primary" onclick="document.getElementById('assignCourseModal').classList.add('open')">+ Assign Course</button>
+        <div class="card-title">Classes &amp; Subjects Taught (<?= count($assignedCourses) ?>)</div>
+        <button type="button" class="btn btn-sm btn-primary" onclick="document.getElementById('assignCourseModal').classList.add('open')">+ Assign Classes/Subjects</button>
       </div>
       <div class="table-wrapper">
         <table>
-          <thead><tr><th>Course</th><th>Code</th><th>Credit Hours</th><th></th></tr></thead>
+          <thead><tr><th>Subject</th><th>Class</th><th>Code</th><th>Credit Hours</th><th></th></tr></thead>
           <tbody>
             <?php foreach($assignedCourses as $c): ?>
             <tr>
               <td class="fw-600"><?= htmlspecialchars($c['name']) ?></td>
+              <td><?= htmlspecialchars($c['class_name']??'All Classes') ?></td>
               <td><?= htmlspecialchars($c['code']??'—') ?></td>
               <td><?= $c['credit_hours'] ?></td>
               <td>
@@ -123,10 +124,10 @@
             </tr>
             <?php endforeach; ?>
             <?php if(empty($assignedCourses)): ?>
-            <tr><td colspan="4">
+            <tr><td colspan="5">
               <div class="empty-state">
                 <div class="empty-state-icon">📖</div>
-                <div class="empty-state-text">No courses assigned yet. <a href="javascript:void(0)" onclick="document.getElementById('assignCourseModal').classList.add('open')">Assign one</a></div>
+                <div class="empty-state-text">No classes/subjects assigned yet. <a href="javascript:void(0)" onclick="document.getElementById('assignCourseModal').classList.add('open')">Assign some</a></div>
               </div>
             </td></tr>
             <?php endif; ?>
@@ -138,30 +139,39 @@
   </div>
 </div>
 
-<!-- Assign Course Modal -->
+<!-- Assign Classes/Subjects Modal -->
 <div class="modal-overlay" id="assignCourseModal">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">Assign Course to <?= htmlspecialchars($teacher['name']) ?></div>
+      <div class="modal-title">Assign Classes/Subjects to <?= htmlspecialchars($teacher['name']) ?></div>
       <button class="modal-close" onclick="document.getElementById('assignCourseModal').classList.remove('open')">&times;</button>
     </div>
     <form method="POST" action="<?= $cfg['url'] ?>/school/teachers/<?= $teacher['id'] ?>/courses/assign">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
       <div class="modal-body">
-        <div class="form-group">
-          <label class="form-label">Course / Subject *</label>
-          <select name="course_id" class="form-control" required>
-            <option value="">— Select Course —</option>
-            <?php foreach($availableCourses as $c): ?>
-              <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['name']) ?></option>
-            <?php endforeach; ?>
-          </select>
-          <?php if(empty($availableCourses)): ?><div class="form-hint">All courses are already assigned to this teacher.</div><?php endif; ?>
-        </div>
+        <?php if(empty($availableCourses)): ?>
+          <div class="form-hint">All classes/subjects are already assigned to this teacher.</div>
+        <?php else: ?>
+          <div class="form-group">
+            <label class="form-label">Classes / Subjects</label>
+            <div class="form-hint" style="margin-bottom:10px;">Select every subject (across any class) this teacher should be assigned to.</div>
+            <div style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;">
+              <?php $currentClass = null; foreach($availableCourses as $c): ?>
+                <?php if($c['class_name'] !== $currentClass): $currentClass = $c['class_name']; ?>
+                  <div class="fw-600" style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin:12px 0 6px;"><?= htmlspecialchars($currentClass ?? 'All Classes') ?></div>
+                <?php endif; ?>
+                <label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;">
+                  <input type="checkbox" name="course_ids[]" value="<?= $c['id'] ?>">
+                  <?= htmlspecialchars($c['name']) ?><?php if(!empty($c['code'])): ?> <span style="color:var(--text-muted);">(<?= htmlspecialchars($c['code']) ?>)</span><?php endif; ?>
+                </label>
+              <?php endforeach; ?>
+            </div>
+          </div>
+        <?php endif; ?>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="document.getElementById('assignCourseModal').classList.remove('open')">Cancel</button>
-        <button type="submit" class="btn btn-primary">Assign</button>
+        <?php if(!empty($availableCourses)): ?><button type="submit" class="btn btn-primary">Assign Selected</button><?php endif; ?>
       </div>
     </form>
   </div>
