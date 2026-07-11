@@ -57,15 +57,18 @@ class UniversityController extends Controller {
              WHERE c.tenant_id = ? ORDER BY c.name", [$this->tid]
         );
         $stats = $this->db->fetchOne(
-            "SELECT COUNT(*) total, COALESCE(SUM(credit_hours),0) totalCredits,
+            "SELECT COUNT(*) total,
+                    SUM(CASE WHEN class_id IS NOT NULL THEN 1 ELSE 0 END) assignedToClass,
                     SUM(CASE WHEN NOT EXISTS(SELECT 1 FROM teacher_courses tc WHERE tc.course_id=courses.id) THEN 1 ELSE 0 END) unassigned
              FROM courses WHERE tenant_id=?", [$this->tid]
         );
+        $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
         $this->view('school/university/courses/index', [
-            'pageTitle' => 'Courses catalog',
+            'pageTitle' => 'Subjects',
             'panelType' => 'school',
             'courses' => $courses,
             'stats' => $stats,
+            'classes' => $classes,
             'flash' => $this->getFlash()
         ]);
     }
@@ -77,17 +80,27 @@ class UniversityController extends Controller {
 
     public function storeCourse(): void {
         $this->requirePermission(['university.manage']);
-        $errors = $this->validate($_POST, [
-            'name' => 'required|max:150',
-            'credit_hours' => 'numeric',
-            'semester_no'  => 'numeric',
-        ]);
+        $errors = $this->validate($_POST, ['name' => 'required|max:150']);
         if ($errors) { $this->failValidation($errors, '/school/courses'); }
         $this->db->insert(
-            "INSERT INTO courses (tenant_id, name, code, credit_hours, semester_no, description) VALUES (?, ?, ?, ?, ?, ?)",
-            [$this->tid, $_POST['name'], $_POST['code'], $_POST['credit_hours'], $_POST['semester_no'], $_POST['description'] ?? '']
+            "INSERT INTO courses (tenant_id, name, code, class_id, description) VALUES (?, ?, ?, ?, ?)",
+            [$this->tid, $_POST['name'], $_POST['code'], $_POST['class_id'] ?: null, $_POST['description'] ?? '']
         );
-        $this->flash('success', 'Course added to catalog.');
+        $this->flash('success', 'Subject added.');
+        $this->redirect('/school/courses');
+    }
+
+    public function updateCourse(string $id): void {
+        $this->requirePermission(['university.manage']);
+        $course = $this->db->fetchOne("SELECT id FROM courses WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        if (!$course) { $this->redirect('/school/courses'); }
+        $errors = $this->validate($_POST, ['name' => 'required|max:150']);
+        if ($errors) { $this->failValidation($errors, '/school/courses'); }
+        $this->db->execute(
+            "UPDATE courses SET name=?, code=?, class_id=?, description=? WHERE id=? AND tenant_id=?",
+            [$_POST['name'], $_POST['code'], $_POST['class_id'] ?: null, $_POST['description'] ?? '', $id, $this->tid]
+        );
+        $this->flash('success', 'Subject updated.');
         $this->redirect('/school/courses');
     }
 }
