@@ -51,10 +51,16 @@
                         <?php endif; ?>
                     </td>
                     <td>
-                        <button type="button" class="btn btn-sm btn-secondary" onclick='openEditCourseModal(<?= json_encode([
-                            "id" => $c['id'], "name" => $c['name'], "code" => $c['code'],
-                            "class_id" => $c['class_id'], "description" => $c['description'],
-                        ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'>Edit</button>
+                        <div style="display:flex;gap:6px;">
+                            <button type="button" class="btn btn-sm btn-secondary" onclick='openEditCourseModal(<?= json_encode([
+                                "id" => $c['id'], "name" => $c['name'], "code" => $c['code'],
+                                "class_id" => $c['class_id'], "description" => $c['description'],
+                            ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'>Edit</button>
+                            <form method="POST" action="<?= $cfg['url'] ?>/school/courses/<?= $c['id'] ?>/delete" data-confirm="Remove '<?= htmlspecialchars(addslashes($c['name'])) ?>'? Grades, timetable entries, and other records tied to it will keep their data but lose this subject label." data-confirm-title="Remove Subject" data-confirm-label="Remove">
+                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
                 <?php endforeach; ?>

@@ -147,6 +147,7 @@ $router->get('/school/courses',             ['UniversityController', 'courses'])
 $router->get('/school/courses/create',      ['UniversityController', 'createCourse']);
 $router->post('/school/courses/store',      ['UniversityController', 'storeCourse']);
 $router->post('/school/courses/{id}/update', ['UniversityController', 'updateCourse']);
+$router->post('/school/courses/{id}/delete', ['UniversityController', 'deleteCourse']);
 
 // ── ACADEMIC YEARS & TERMS ──────────────────────────────────────
 $router->get('/school/academic-years',        ['AcademicController', 'index']);

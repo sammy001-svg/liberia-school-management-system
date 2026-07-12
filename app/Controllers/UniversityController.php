@@ -103,4 +103,14 @@ class UniversityController extends Controller {
         $this->flash('success', 'Subject updated.');
         $this->redirect('/school/courses');
     }
+
+    // Safe to delete outright: grades/timetable/homework/online class/online exam rows
+    // that reference this course fall back to SET NULL (they survive, just lose the
+    // subject label); only the teacher-course assignment link actually cascades away.
+    public function deleteCourse(string $id): void {
+        $this->requirePermission(['university.manage']);
+        $this->db->execute("DELETE FROM courses WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        $this->flash('success', 'Subject removed.');
+        $this->redirect('/school/courses');
+    }
 }
