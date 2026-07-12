@@ -32,13 +32,16 @@ class ClassController extends Controller {
             'capacity'    => 'numeric',
         ]);
         if ($errors) { $this->failValidation($errors, '/school/classes'); }
-        $this->db->insert(
-            "INSERT INTO classes (tenant_id,academic_year_id,name,grade_level,section,capacity,class_teacher_id,room_number,description) VALUES (?,?,?,?,?,?,?,?,?)",
+        $classId = $this->db->insert(
+            "INSERT INTO classes (tenant_id,academic_year_id,name,grade_level,section,capacity,room_number,description) VALUES (?,?,?,?,?,?,?,?)",
             [
                 $this->tid,$_POST['academic_year_id']?:null,$_POST['name'],$_POST['grade_level'],$_POST['section']??'',
-                (int)($_POST['capacity']??40),$_POST['teacher_id']?:null,$_POST['room_number']??null,$_POST['description']??null,
+                (int)($_POST['capacity']??40),$_POST['room_number']??null,$_POST['description']??null,
             ]
         );
+        if (!empty($_POST['teacher_id'])) {
+            $this->assignHomeroom($this->tid, (int)$_POST['teacher_id'], (int)$classId);
+        }
         $this->flash('success','Class created.'); $this->redirect('/school/classes');
     }
 
@@ -54,9 +57,15 @@ class ClassController extends Controller {
         $errors = $this->validate($_POST, ['name' => 'required|max:80', 'grade_level' => 'required|max:30', 'capacity' => 'numeric']);
         if ($errors) { $this->failValidation($errors, '/school/classes/'.$id.'/edit'); }
         $this->db->execute(
-            "UPDATE classes SET name=?,grade_level=?,section=?,capacity=?,class_teacher_id=?,room_number=?,description=? WHERE id=? AND tenant_id=?",
-            [$_POST['name'],$_POST['grade_level'],$_POST['section']??'',(int)$_POST['capacity'],$_POST['teacher_id']?:null,$_POST['room_number']??null,$_POST['description']??null,$id,$this->tid]
+            "UPDATE classes SET name=?,grade_level=?,section=?,capacity=?,room_number=?,description=? WHERE id=? AND tenant_id=?",
+            [$_POST['name'],$_POST['grade_level'],$_POST['section']??'',(int)$_POST['capacity'],$_POST['room_number']??null,$_POST['description']??null,$id,$this->tid]
         );
+        if (!empty($_POST['teacher_id'])) {
+            $this->assignHomeroom($this->tid, (int)$_POST['teacher_id'], (int)$id);
+        } else {
+            $this->db->execute("UPDATE classes SET class_teacher_id=NULL WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+            $this->db->execute("UPDATE teachers SET class_id=NULL WHERE class_id=? AND tenant_id=?", [$id, $this->tid]);
+        }
         $this->flash('success','Class updated.'); $this->redirect('/school/classes');
     }
 

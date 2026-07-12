@@ -132,15 +132,16 @@ class TeacherController extends Controller {
         );
         $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [$pw, $userId]);
         $empNo = 'EMP-'.date('Y').'-'.str_pad($userId,4,'0',STR_PAD_LEFT);
-        $this->db->insert(
-            "INSERT INTO teachers (tenant_id,user_id,employee_no,department_id,class_id,qualification,specialization,national_id,employment_type,joined_at)
-             VALUES (?,?,?,?,?,?,?,?,?,?)",
+        $teacherId = $this->db->insert(
+            "INSERT INTO teachers (tenant_id,user_id,employee_no,department_id,qualification,specialization,national_id,employment_type,joined_at)
+             VALUES (?,?,?,?,?,?,?,?,?)",
             [
-                $this->tid,$userId,$empNo,$_POST['department_id']?:null,$_POST['class_id']?:null,
+                $this->tid,$userId,$empNo,$_POST['department_id']?:null,
                 $_POST['qualification']??'',$_POST['specialization']??'',$_POST['national_id']??null,
                 $_POST['employment_type']??'full_time',$_POST['joined_at']??date('Y-m-d'),
             ]
         );
+        $this->assignHomeroom($this->tid, (int)$teacherId, $_POST['class_id'] ?: null);
         $this->flash('success','Teacher added. Employee No: '.$empNo);
         $this->redirect('/school/teachers');
     }
@@ -263,7 +264,8 @@ class TeacherController extends Controller {
         $errors = $this->validate($_POST, ['name' => 'required|max:150', 'email' => 'required|email|max:150']);
         if ($errors) { $this->failValidation($errors, '/school/teachers/'.$id.'/edit'); }
         $this->db->execute("UPDATE users SET name=?,email=?,phone=?,gender=? WHERE id=?", [$_POST['name'],$_POST['email'],$_POST['phone']??'',$_POST['gender']??null,$teacher['user_id']]);
-        $this->db->execute("UPDATE teachers SET class_id=?,qualification=?,specialization=? WHERE id=? AND tenant_id=?", [$_POST['class_id']?:null,$_POST['qualification']??'',$_POST['specialization']??'',$id,$this->tid]);
+        $this->db->execute("UPDATE teachers SET qualification=?,specialization=? WHERE id=? AND tenant_id=?", [$_POST['qualification']??'',$_POST['specialization']??'',$id,$this->tid]);
+        $this->assignHomeroom($this->tid, (int)$id, $_POST['class_id'] ?: null);
         $this->flash('success','Teacher updated.'); $this->redirect('/school/teachers');
     }
 

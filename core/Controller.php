@@ -369,6 +369,26 @@ abstract class Controller {
         return $errors;
     }
 
+    /**
+     * Keeps teachers.class_id and classes.class_teacher_id in sync — both columns
+     * denormalize the same "who is this class's homeroom teacher" relationship, one
+     * class can have at most one homeroom teacher, and one teacher can be homeroom
+     * of at most one class. Assigning $classId to $teacherId (or clearing it with
+     * null) updates both sides and bumps whichever other teacher/class previously
+     * held the slot being taken over.
+     */
+    protected function assignHomeroom(int $tenantId, int $teacherId, ?int $classId): void {
+        if ($classId !== null) {
+            $sql = "UPDATE classes SET class_teacher_id=NULL WHERE tenant_id=? AND class_teacher_id=? AND id!=?";
+            $this->db->execute($sql, [$tenantId, $teacherId, $classId]);
+            $this->db->execute("UPDATE teachers SET class_id=NULL WHERE tenant_id=? AND class_id=? AND id!=?", [$tenantId, $classId, $teacherId]);
+            $this->db->execute("UPDATE classes SET class_teacher_id=? WHERE id=? AND tenant_id=?", [$teacherId, $classId, $tenantId]);
+        } else {
+            $this->db->execute("UPDATE classes SET class_teacher_id=NULL WHERE tenant_id=? AND class_teacher_id=?", [$tenantId, $teacherId]);
+        }
+        $this->db->execute("UPDATE teachers SET class_id=? WHERE id=? AND tenant_id=?", [$classId, $teacherId, $tenantId]);
+    }
+
     /** Random 4-digit login PIN (zero-padded), hashed/verified the same way a password is. */
     protected function generateUniquePin(): string {
         return str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
