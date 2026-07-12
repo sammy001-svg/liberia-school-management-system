@@ -139,15 +139,15 @@ $router->get('/school/settings',            ['SchoolSettingsController', 'index'
 $router->post('/school/settings/update',    ['SchoolSettingsController', 'update']);
 
 // ── DEPARTMENTS & COURSES (used by Teachers, Grades, Timetable) ──
-$router->get('/school/departments',         ['UniversityController', 'departments']);
-$router->get('/school/departments/create',  ['UniversityController', 'createDepartment']);
-$router->post('/school/departments/store',  ['UniversityController', 'storeDepartment']);
+$router->get('/school/departments',         ['AcademicsController', 'departments']);
+$router->get('/school/departments/create',  ['AcademicsController', 'createDepartment']);
+$router->post('/school/departments/store',  ['AcademicsController', 'storeDepartment']);
 
-$router->get('/school/courses',             ['UniversityController', 'courses']);
-$router->get('/school/courses/create',      ['UniversityController', 'createCourse']);
-$router->post('/school/courses/store',      ['UniversityController', 'storeCourse']);
-$router->post('/school/courses/{id}/update', ['UniversityController', 'updateCourse']);
-$router->post('/school/courses/{id}/delete', ['UniversityController', 'deleteCourse']);
+$router->get('/school/courses',             ['AcademicsController', 'courses']);
+$router->get('/school/courses/create',      ['AcademicsController', 'createCourse']);
+$router->post('/school/courses/store',      ['AcademicsController', 'storeCourse']);
+$router->post('/school/courses/{id}/update', ['AcademicsController', 'updateCourse']);
+$router->post('/school/courses/{id}/delete', ['AcademicsController', 'deleteCourse']);
 
 // ── ACADEMIC YEARS & TERMS ──────────────────────────────────────
 $router->get('/school/academic-years',        ['AcademicController', 'index']);

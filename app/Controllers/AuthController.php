@@ -101,11 +101,10 @@ class AuthController extends Controller {
             // Update last login
             $this->db->execute("UPDATE users SET last_login = NOW() WHERE id = ?", [$user['id']]);
 
-            // Store institution type and school branding
+            // Store school branding
             if ($user['tenant_id']) {
-                $tenant = $this->db->fetchOne("SELECT institution_type, name, primary_color, secondary_color, logo FROM tenants WHERE id = ?", [$user['tenant_id']]);
+                $tenant = $this->db->fetchOne("SELECT name, primary_color, secondary_color, logo FROM tenants WHERE id = ?", [$user['tenant_id']]);
                 if ($tenant) {
-                    $_SESSION['institution_type'] = $tenant['institution_type'] ?? 'high_school';
                     $_SESSION['branding'] = [
                         'name' => $tenant['name'],
                         'primary_color' => $tenant['primary_color'],

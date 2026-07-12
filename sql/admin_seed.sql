@@ -6,7 +6,6 @@
 UPDATE tenants SET
     name = 'Liberia School Management System',
     slug = 'liberia-school',
-    institution_type = 'high_school',
     status = 'active'
 WHERE id = 1;
 

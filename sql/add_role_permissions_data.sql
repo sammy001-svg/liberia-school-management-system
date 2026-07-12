@@ -26,8 +26,8 @@ INSERT INTO permissions (name, module, action, description) VALUES
 ('classes.view',       'classes',     'view',   'View classes'),
 ('classes.manage',     'classes',     'manage', 'Create and edit classes'),
 ('inventory.manage',   'inventory',   'manage', 'Manage school inventory'),
-('university.manage',  'university',  'manage', 'Manage university courses/programs'),
-('university.view',    'university',  'view',   'View university courses/programs'),
+('academics.manage',   'academics',   'manage', 'Manage departments and subjects'),
+('academics.view',     'academics',   'view',   'View departments and subjects'),
 ('certificates.manage','certificates','manage', 'Issue and manage certificates'),
 ('hr.manage',          'hr',          'manage', 'Manage staff payroll and leave applications'),
 ('homework.manage',    'homework',    'manage', 'Assign and manage homework'),
@@ -51,7 +51,7 @@ SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.name = 'Teacher' AND r.tenant_id IS NULL
 AND p.name IN (
     'attendance.manage','analytics.view','announcements.manage','grades.manage','timetable.view',
-    'online_class.manage','classes.view','university.view','homework.manage','online_exam.manage',
+    'online_class.manage','classes.view','academics.view','homework.manage','online_exam.manage',
     'students.view','students.edit'
 );
 
@@ -66,12 +66,6 @@ INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.name = 'Staff' AND r.tenant_id IS NULL
 AND p.name IN ('inventory.manage','students.view');
-
--- Lecturer
-INSERT INTO role_permissions (role_id, permission_id)
-SELECT r.id, p.id FROM roles r, permissions p
-WHERE r.name = 'Lecturer' AND r.tenant_id IS NULL
-AND p.name IN ('university.view');
 
 -- Student (school-panel timetable view only; the Student portal itself stays gated by requireAuth(['Student']))
 INSERT INTO role_permissions (role_id, permission_id)

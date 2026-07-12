@@ -11,5 +11,5 @@ ALTER TABLE users
     ADD UNIQUE KEY unique_username_tenant (username, tenant_id);
 
 ALTER TABLE tenants
-    ADD COLUMN student_login_mode ENUM('email_password','admission_pin') NOT NULL DEFAULT 'admission_pin' AFTER institution_type,
+    ADD COLUMN student_login_mode ENUM('email_password','admission_pin') NOT NULL DEFAULT 'admission_pin',
     ADD COLUMN parent_login_mode  ENUM('email_password','username_password') NOT NULL DEFAULT 'username_password' AFTER student_login_mode;

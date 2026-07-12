@@ -1,7 +1,7 @@
 <?php
 require_once ROOT_DIR . '/core/Controller.php';
 
-class UniversityController extends Controller {
+class AcademicsController extends Controller {
     private int $tid;
 
     public function __construct() {
@@ -11,7 +11,7 @@ class UniversityController extends Controller {
 
     // --- DEPARTMENTS ---
     public function departments(): void {
-        $this->requirePermission(['university.manage']);
+        $this->requirePermission(['academics.manage']);
         $departments = $this->db->fetchAll(
             "SELECT d.*, u.name as head_name
              FROM departments d
@@ -19,8 +19,8 @@ class UniversityController extends Controller {
              WHERE d.tenant_id = ?",
             [$this->tid]
         );
-        $staff = $this->db->fetchAll("SELECT id, name FROM users WHERE tenant_id = ? AND role_id IN (SELECT id FROM roles WHERE name IN ('Teacher', 'Lecturer', 'Staff'))", [$this->tid]);
-        $this->view('school/university/departments/index', [
+        $staff = $this->db->fetchAll("SELECT id, name FROM users WHERE tenant_id = ? AND role_id IN (SELECT id FROM roles WHERE name IN ('Teacher', 'Staff'))", [$this->tid]);
+        $this->view('school/highschool/departments/index', [
             'pageTitle' => 'Departments',
             'panelType' => 'school',
             'departments' => $departments,
@@ -30,12 +30,12 @@ class UniversityController extends Controller {
     }
 
     public function createDepartment(): void {
-        $this->requirePermission(['university.manage']);
+        $this->requirePermission(['academics.manage']);
         $this->redirect('/school/departments');
     }
 
     public function storeDepartment(): void {
-        $this->requirePermission(['university.manage']);
+        $this->requirePermission(['academics.manage']);
         $errors = $this->validate($_POST, ['name' => 'required|max:150']);
         if ($errors) { $this->failValidation($errors, '/school/departments'); }
         $this->db->insert(
@@ -48,7 +48,7 @@ class UniversityController extends Controller {
 
     // --- COURSES / SUBJECTS ---
     public function courses(): void {
-        $this->requirePermission(['university.view','university.manage']);
+        $this->requirePermission(['academics.view','academics.manage']);
         $courses = $this->db->fetchAll(
             "SELECT c.*, cl.name AS class_name,
                     (SELECT COUNT(*) FROM teacher_courses tc WHERE tc.course_id=c.id) AS teacher_count,
@@ -63,7 +63,7 @@ class UniversityController extends Controller {
              FROM courses WHERE tenant_id=?", [$this->tid]
         );
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
-        $this->view('school/university/courses/index', [
+        $this->view('school/highschool/courses/index', [
             'pageTitle' => 'Subjects',
             'panelType' => 'school',
             'courses' => $courses,
@@ -74,12 +74,12 @@ class UniversityController extends Controller {
     }
 
     public function createCourse(): void {
-        $this->requirePermission(['university.manage']);
+        $this->requirePermission(['academics.manage']);
         $this->redirect('/school/courses');
     }
 
     public function storeCourse(): void {
-        $this->requirePermission(['university.manage']);
+        $this->requirePermission(['academics.manage']);
         $errors = $this->validate($_POST, ['name' => 'required|max:150']);
         if ($errors) { $this->failValidation($errors, '/school/courses'); }
         $this->db->insert(
@@ -91,7 +91,7 @@ class UniversityController extends Controller {
     }
 
     public function updateCourse(string $id): void {
-        $this->requirePermission(['university.manage']);
+        $this->requirePermission(['academics.manage']);
         $course = $this->db->fetchOne("SELECT id FROM courses WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         if (!$course) { $this->redirect('/school/courses'); }
         $errors = $this->validate($_POST, ['name' => 'required|max:150']);
@@ -108,7 +108,7 @@ class UniversityController extends Controller {
     // that reference this course fall back to SET NULL (they survive, just lose the
     // subject label); only the teacher-course assignment link actually cascades away.
     public function deleteCourse(string $id): void {
-        $this->requirePermission(['university.manage']);
+        $this->requirePermission(['academics.manage']);
         $this->db->execute("DELETE FROM courses WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         $this->flash('success', 'Subject removed.');
         $this->redirect('/school/courses');

@@ -130,11 +130,7 @@ class SchoolDashboardController extends Controller {
             'cancelled' => 0
         ];
 
-        $view = ($tenant['institution_type'] === 'university') 
-                ? 'school/university/dashboard' 
-                : 'school/highschool/dashboard';
-
-        $this->view($view, [
+        $this->view('school/highschool/dashboard', [
             'pageTitle'      => 'Dashboard',
             'panelType'      => 'school',
             'tenant'         => $tenant,

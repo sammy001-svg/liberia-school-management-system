@@ -17,7 +17,6 @@
       <div class="profile-hero-name"><?= htmlspecialchars($tenant['name'] ?? '') ?></div>
       <div class="profile-hero-meta">
         <span class="meta-chip">🏷️ <?= htmlspecialchars($tenant['slug'] ?? '—') ?></span>
-        <span class="meta-chip"><?= $tenant['institution_type']==='university'?'🎓 University':'🏫 High School' ?></span>
         <span class="badge badge-<?= $tenant['status']==='active'?'success':($tenant['status']==='trial'?'info':($tenant['status']==='suspended'?'danger':'warning')) ?>"><?= ucfirst($tenant['status'] ?? 'active') ?></span>
         <?php if($tenant['status']==='trial' && !empty($tenant['trial_ends_at'])): ?>
           <span class="meta-chip">⏳ Trial ends <?= date('d M Y', strtotime($tenant['trial_ends_at'])) ?></span>

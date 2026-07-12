@@ -56,7 +56,6 @@ CREATE TABLE tenants (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     reseller_id INT UNSIGNED DEFAULT NULL,
     plan_id INT UNSIGNED DEFAULT NULL,
-    institution_type ENUM('high_school','university') NOT NULL DEFAULT 'high_school',
     name VARCHAR(200) NOT NULL,
     slug VARCHAR(100) UNIQUE NOT NULL,
     domain VARCHAR(255) DEFAULT NULL,
@@ -71,7 +70,6 @@ CREATE TABLE tenants (
     trial_ends_at DATE DEFAULT NULL,
     timezone VARCHAR(80) DEFAULT 'UTC',
     academic_year VARCHAR(20) DEFAULT NULL,
-    current_semester VARCHAR(20) DEFAULT NULL,
     primary_color VARCHAR(20) DEFAULT '#10B981',
     secondary_color VARCHAR(20) DEFAULT '#059669',
     accent_color VARCHAR(20) DEFAULT '#34D399',
@@ -199,7 +197,7 @@ CREATE TABLE terms (
 );
 
 -- ============================================================
--- DEPARTMENTS & PROGRAMS (University)
+-- DEPARTMENTS
 -- ============================================================
 CREATE TABLE departments (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -209,19 +207,6 @@ CREATE TABLE departments (
     head_user_id INT UNSIGNED DEFAULT NULL,
     description TEXT DEFAULT NULL,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
-);
-
-CREATE TABLE programs (
-    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    tenant_id INT UNSIGNED NOT NULL,
-    department_id INT UNSIGNED NOT NULL,
-    name VARCHAR(150) NOT NULL,
-    code VARCHAR(30) DEFAULT NULL,
-    duration_years TINYINT DEFAULT 4,
-    degree_type ENUM('certificate','diploma','bachelor','master','phd') DEFAULT 'bachelor',
-    description TEXT DEFAULT NULL,
-    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
-    FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE
 );
 
 -- ============================================================
@@ -244,25 +229,22 @@ CREATE TABLE classes (
 );
 
 -- ============================================================
--- COURSES (University + High School subjects)
+-- COURSES (High School subjects)
 -- ============================================================
 CREATE TABLE courses (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
-    program_id INT UNSIGNED DEFAULT NULL,
     class_id INT UNSIGNED DEFAULT NULL,
     name VARCHAR(150) NOT NULL,
     code VARCHAR(30) DEFAULT NULL,
     credit_hours TINYINT DEFAULT 3,
-    semester_no TINYINT DEFAULT 1,
     description TEXT DEFAULT NULL,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
-    FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE SET NULL,
     FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE SET NULL
 );
 
 -- ============================================================
--- TEACHERS / LECTURERS
+-- TEACHERS
 -- ============================================================
 CREATE TABLE teachers (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -298,11 +280,7 @@ CREATE TABLE students (
     user_id INT UNSIGNED NOT NULL,
     admission_no VARCHAR(50) NOT NULL,
     class_id INT UNSIGNED DEFAULT NULL,
-    department_id INT UNSIGNED DEFAULT NULL,
-    program_id INT UNSIGNED DEFAULT NULL,
     academic_year_id INT UNSIGNED DEFAULT NULL,
-    current_semester TINYINT DEFAULT 1,
-    cgpa DECIMAL(4,2) DEFAULT 0.00,
     admission_date DATE DEFAULT NULL,
     graduation_date DATE DEFAULT NULL,
     status ENUM('active','graduated','withdrawn','suspended') DEFAULT 'active',
@@ -325,9 +303,7 @@ CREATE TABLE students (
     UNIQUE KEY unique_admission (tenant_id, admission_no),
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE SET NULL,
-    FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE SET NULL,
-    FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE SET NULL
+    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE SET NULL
 );
 
 -- ============================================================
@@ -352,25 +328,6 @@ CREATE TABLE parent_students (
     PRIMARY KEY (parent_id, student_id),
     FOREIGN KEY (parent_id) REFERENCES parents(id) ON DELETE CASCADE,
     FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
-);
-
--- ============================================================
--- ENROLLMENTS
--- ============================================================
-CREATE TABLE enrollments (
-    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    tenant_id INT UNSIGNED NOT NULL,
-    student_id INT UNSIGNED NOT NULL,
-    course_id INT UNSIGNED DEFAULT NULL,
-    class_id INT UNSIGNED DEFAULT NULL,
-    academic_year_id INT UNSIGNED DEFAULT NULL,
-    semester TINYINT DEFAULT 1,
-    status ENUM('enrolled','dropped','completed','failed') DEFAULT 'enrolled',
-    enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
-    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
-    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE SET NULL,
-    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE SET NULL
 );
 
 -- ============================================================
@@ -471,7 +428,6 @@ CREATE TABLE fee_structures (
     amount DECIMAL(10,2) NOT NULL,
     frequency ENUM('once','monthly','termly','yearly') DEFAULT 'termly',
     class_id INT UNSIGNED DEFAULT NULL,
-    program_id INT UNSIGNED DEFAULT NULL,
     academic_year_id INT UNSIGNED DEFAULT NULL,
     description TEXT DEFAULT NULL,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
@@ -588,7 +544,6 @@ INSERT INTO roles (name, scope) VALUES
 ('Reseller Staff', 'reseller'),
 ('School Admin', 'school'),
 ('Teacher', 'school'),
-('Lecturer', 'school'),
 ('Student', 'school'),
 ('Parent', 'school'),
 ('Accountant', 'school'),
@@ -596,7 +551,7 @@ INSERT INTO roles (name, scope) VALUES
 
 -- Default super admin user (password: Admin@1234)
 INSERT INTO resellers (name, slug, email, status) VALUES ('Platform', 'platform', 'platform@internal', 'active');
-INSERT INTO tenants (name, slug, institution_type, status) VALUES ('Platform Admin', 'platform', 'high_school', 'active');
+INSERT INTO tenants (name, slug, status) VALUES ('Platform Admin', 'platform', 'active');
 INSERT INTO users (tenant_id, reseller_id, role_id, name, email, password_hash, status) VALUES
 (1, 1, 1, 'Super Admin', 'admin@schoolms.com', '$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'active');
 
