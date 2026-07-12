@@ -3,7 +3,11 @@
 
 <div class="card profile-hero">
   <div class="profile-hero-body">
-    <div class="avatar avatar-xl"><?= strtoupper(substr($student['name'],0,1)) ?></div>
+    <?php if(!empty($student['avatar'])): ?>
+      <div class="avatar avatar-xl" style="padding:0;overflow:hidden;"><img src="<?= htmlspecialchars($student['avatar']) ?>" alt="" style="width:100%;height:100%;object-fit:cover;"></div>
+    <?php else: ?>
+      <div class="avatar avatar-xl"><?= strtoupper(substr($student['name'],0,1)) ?></div>
+    <?php endif; ?>
     <div class="profile-hero-info">
       <div class="profile-hero-name"><?= htmlspecialchars($student['name']) ?></div>
       <div class="profile-hero-meta">

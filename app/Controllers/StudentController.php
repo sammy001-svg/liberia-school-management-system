@@ -22,7 +22,7 @@ class StudentController extends Controller {
         $p = $this->paginate($totalCount);
 
         $students = $this->db->fetchAll(
-            "SELECT s.*, u.name, u.email, u.phone, u.gender, c.name AS class_name
+            "SELECT s.*, u.name, u.email, u.phone, u.gender, u.avatar, c.name AS class_name
              FROM students s JOIN users u ON s.user_id=u.id
              LEFT JOIN classes c ON s.class_id=c.id
              WHERE $where ORDER BY u.name ASC LIMIT {$p['perPage']} OFFSET {$p['offset']}", $params
@@ -180,14 +180,15 @@ class StudentController extends Controller {
             $taken = $this->db->fetchOne("SELECT id FROM students WHERE admission_no=? AND tenant_id=?", [$_POST['admission_no'], $this->tid]);
             if ($taken) { $errors['admission_no'] = 'That admission/TSM ID is already in use.'; }
         }
+        $avatarUrl = $this->handleImageUpload('photo', 'students', $errors);
         if ($errors) { $this->failValidation($errors, '/school/students'); }
 
         $name = trim(preg_replace('/\s+/', ' ', $_POST['first_name'].' '.($_POST['middle_name']??'').' '.$_POST['last_name']));
         $roleId = $this->db->fetchOne("SELECT id FROM roles WHERE name='Student' LIMIT 1")['id'] ?? 7;
         $pin = $this->generateUniquePin();
         $userId = $this->db->insert(
-            "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,date_of_birth,address,status) VALUES (?,?,?,?,?,?,?,?,?)",
-            [$this->tid, $roleId, $name, $_POST['email']?:null, $_POST['phone']??'', $_POST['gender']??null, $_POST['dob']??null, $_POST['address']??'', 'active']
+            "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,date_of_birth,address,avatar,status) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            [$this->tid, $roleId, $name, $_POST['email']?:null, $_POST['phone']??'', $_POST['gender']??null, $_POST['dob']??null, $_POST['address']??'', $avatarUrl, 'active']
         );
         $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [password_hash($pin, PASSWORD_BCRYPT), $userId]);
         $admNo = $_POST['admission_no'] ?: ('ADM-'.date('Y').'-'.str_pad($userId, 4, '0', STR_PAD_LEFT));
@@ -305,7 +306,7 @@ class StudentController extends Controller {
 
     public function edit(string $id): void {
         $this->requirePermission(['students.manage']);
-        $student = $this->db->fetchOne("SELECT s.*, u.name, u.email, u.phone, u.gender, u.date_of_birth FROM students s JOIN users u ON s.user_id=u.id WHERE s.id=? AND s.tenant_id=?",[$id,$this->tid]);
+        $student = $this->db->fetchOne("SELECT s.*, u.name, u.email, u.phone, u.gender, u.date_of_birth, u.avatar FROM students s JOIN users u ON s.user_id=u.id WHERE s.id=? AND s.tenant_id=?",[$id,$this->tid]);
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?",[$this->tid]);
         $this->view('school/highschool/students/form',['pageTitle'=>'Edit Student','panelType'=>'school','student'=>$student,'classes'=>$classes,'flash'=>$this->getFlash()]);
     }
@@ -315,8 +316,12 @@ class StudentController extends Controller {
         $student = $this->db->fetchOne("SELECT user_id FROM students WHERE id=? AND tenant_id=?",[$id,$this->tid]);
         if (!$student) { $this->redirect('/school/students'); }
         $errors = $this->validate($_POST, ['first_name' => 'required|max:100', 'last_name' => 'required|max:100', 'email' => 'email|max:150']);
+        $avatarUrl = $this->handleImageUpload('photo', 'students', $errors);
         if ($errors) { $this->failValidation($errors, '/school/students/'.$id.'/edit'); }
         $name = trim(preg_replace('/\s+/', ' ', $_POST['first_name'].' '.($_POST['middle_name']??'').' '.$_POST['last_name']));
+        if ($avatarUrl !== null) {
+            $this->db->execute("UPDATE users SET avatar=? WHERE id=?", [$avatarUrl, $student['user_id']]);
+        }
         $this->db->execute("UPDATE users SET name=?,email=?,phone=?,gender=?,date_of_birth=?,address=? WHERE id=?",
             [$name,$_POST['email']?:null,$_POST['phone']??'',$_POST['gender']??null,$_POST['dob']??null,$_POST['address']??'',$student['user_id']]);
         $this->db->execute(

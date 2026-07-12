@@ -57,7 +57,11 @@
         <tr>
           <td>
             <a href="<?= $cfg['url'] ?>/school/students/<?= $s['id'] ?>" style="display:flex;align-items:center;gap:10px;color:inherit;">
-              <div class="avatar"><?= strtoupper(substr($s['name'],0,1)) ?></div>
+              <?php if(!empty($s['avatar'])): ?>
+                <div class="avatar" style="padding:0;overflow:hidden;"><img src="<?= htmlspecialchars($s['avatar']) ?>" alt="" style="width:100%;height:100%;object-fit:cover;"></div>
+              <?php else: ?>
+                <div class="avatar"><?= strtoupper(substr($s['name'],0,1)) ?></div>
+              <?php endif; ?>
               <div>
                 <div class="fw-600"><?= htmlspecialchars($s['name']) ?></div>
                 <div style="font-size:11px;color:var(--text-muted)"><?= htmlspecialchars($s['email'] ?? '—') ?></div>
@@ -102,11 +106,16 @@
       <div class="modal-title">Admit New Student</div>
       <button class="modal-close" onclick="document.getElementById('admitModal').classList.remove('open')">&times;</button>
     </div>
-    <form method="POST" action="<?= $cfg['url'] ?>/school/students/store">
+    <form method="POST" action="<?= $cfg['url'] ?>/school/students/store" enctype="multipart/form-data">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
       <div class="modal-body">
 
         <div class="modal-section-title">Personal Information</div>
+        <div class="form-group">
+          <label class="form-label">Photo</label>
+          <input type="file" name="photo" class="form-control" accept="image/*">
+          <div class="form-hint">JPG, PNG, WEBP or GIF — up to 2MB.</div>
+        </div>
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">First Name *</label>

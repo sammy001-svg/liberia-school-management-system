@@ -6,7 +6,11 @@
 </div>
 <div class="page-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="avatar avatar-lg"><?= strtoupper(substr($student['name'] ?? '?',0,1)) ?></div>
+    <?php if(!empty($student['avatar'])): ?>
+      <div class="avatar avatar-lg" style="padding:0;overflow:hidden;"><img src="<?= htmlspecialchars($student['avatar']) ?>" alt="" style="width:100%;height:100%;object-fit:cover;"></div>
+    <?php else: ?>
+      <div class="avatar avatar-lg"><?= strtoupper(substr($student['name'] ?? '?',0,1)) ?></div>
+    <?php endif; ?>
     <div>
       <div class="page-header-title">Edit Student Profile</div>
       <div class="page-header-sub"><?= htmlspecialchars($student['name'] ?? '') ?> · <?= htmlspecialchars($student['admission_no'] ?? '') ?></div>
@@ -26,11 +30,16 @@ if ($firstName === '' && $lastName === '' && !empty($student['name'])) {
 }
 ?>
 <div style="max-width:700px;">
-<form method="POST" action="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/update">
+<form method="POST" action="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/update" enctype="multipart/form-data">
   <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
   <div class="card">
     <div class="card-header"><div class="card-title">Personal Information</div></div>
     <div class="card-body">
+      <div class="form-group">
+        <label class="form-label">Photo</label>
+        <input type="file" name="photo" class="form-control" accept="image/*">
+        <div class="form-hint">JPG, PNG, WEBP or GIF — up to 2MB. Leave blank to keep the current photo.</div>
+      </div>
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">First Name *</label>
