@@ -223,6 +223,10 @@ $router->get('/school/hr/payroll/{id}/payslip', ['HRController', 'payslip']);
 $router->get('/school/hr/leaves',           ['HRController', 'leaves']);
 $router->post('/school/hr/leaves/approve',  ['HRController', 'approveLeave']);
 
+// ── MY LEAVE (self-service, any staff-panel user) ────────────────
+$router->get('/school/my-leave',            ['LeaveController', 'index']);
+$router->post('/school/my-leave/apply',     ['LeaveController', 'store']);
+
 // ── INVENTORY & LIBRARY ─────────────────────────────────────────
 $router->get('/school/inventory',           ['InventoryController', 'index']);
 $router->post('/school/inventory/store',    ['InventoryController', 'store']);
