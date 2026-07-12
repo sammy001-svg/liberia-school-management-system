@@ -80,7 +80,10 @@ class ClassController extends Controller {
              WHERE s.class_id=? AND g.tenant_id=? AND g.total_marks>0", [$id, $this->tid]
         );
         $avgGrade = $gradeStats['avg_pct'] !== null ? round($gradeStats['avg_pct']) : null;
-        $courses = $this->db->fetchAll("SELECT id,name,code FROM courses WHERE class_id=? AND tenant_id=? ORDER BY name", [$id, $this->tid]);
+        $courses = $this->db->fetchAll(
+            "SELECT c.id,c.name,c.code FROM courses c JOIN course_classes cc ON cc.course_id=c.id
+             WHERE cc.class_id=? AND c.tenant_id=? ORDER BY c.name", [$id, $this->tid]
+        );
 
         $this->view('school/highschool/classes/show', [
             'pageTitle'=>$class['name'],'panelType'=>'school','class'=>$class,'roster'=>$roster,

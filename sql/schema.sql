@@ -234,13 +234,20 @@ CREATE TABLE classes (
 CREATE TABLE courses (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
-    class_id INT UNSIGNED DEFAULT NULL,
     name VARCHAR(150) NOT NULL,
     code VARCHAR(30) DEFAULT NULL,
     credit_hours TINYINT DEFAULT 3,
     description TEXT DEFAULT NULL,
-    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
-    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE SET NULL
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
+);
+
+-- A subject can be taught to more than one class.
+CREATE TABLE course_classes (
+    course_id INT UNSIGNED NOT NULL,
+    class_id INT UNSIGNED NOT NULL,
+    PRIMARY KEY (course_id, class_id),
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
 );
 
 -- ============================================================

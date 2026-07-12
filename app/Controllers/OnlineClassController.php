@@ -26,7 +26,7 @@ class OnlineClassController extends Controller {
             [$this->tid]
         );
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
-        $courses = $this->db->fetchAll("SELECT id,name,class_id FROM courses WHERE tenant_id=? ORDER BY name", [$this->tid]);
+        $courses = $this->db->fetchAll("SELECT id,name FROM courses WHERE tenant_id=? ORDER BY name", [$this->tid]);
         $stats = [
             'total'     => count($classes_list),
             'upcoming'  => count(array_filter($classes_list, fn($c) => $c['status']==='scheduled' && strtotime($c['scheduled_date']) >= strtotime(date('Y-m-d')))),

@@ -27,7 +27,7 @@ class OnlineExamController extends Controller {
             [$this->tid]
         );
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
-        $courses = $this->db->fetchAll("SELECT id,name,class_id FROM courses WHERE tenant_id=? ORDER BY name", [$this->tid]);
+        $courses = $this->db->fetchAll("SELECT id,name FROM courses WHERE tenant_id=? ORDER BY name", [$this->tid]);
         $stats = [
             'total'     => count($exams),
             'published' => count(array_filter($exams, fn($e) => $e['status']==='published')),

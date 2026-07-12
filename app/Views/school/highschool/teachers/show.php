@@ -116,7 +116,7 @@
             <?php foreach($assignedCourses as $c): ?>
             <tr>
               <td class="fw-600"><?= htmlspecialchars($c['name']) ?></td>
-              <td><?= htmlspecialchars($c['class_name']??'All Classes') ?></td>
+              <td><?= htmlspecialchars($c['class_names']??'All Classes') ?></td>
               <td><?= htmlspecialchars($c['code']??'—') ?></td>
               <td><?= $c['credit_hours'] ?></td>
               <td>
@@ -174,13 +174,11 @@
             <label class="form-label">Classes / Subjects</label>
             <div class="form-hint" style="margin-bottom:10px;">Select every subject (across any class) this teacher should be assigned to.</div>
             <div style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;">
-              <?php $currentClass = null; foreach($availableCourses as $c): ?>
-                <?php if($c['class_name'] !== $currentClass): $currentClass = $c['class_name']; ?>
-                  <div class="fw-600" style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin:12px 0 6px;"><?= htmlspecialchars($currentClass ?? 'All Classes') ?></div>
-                <?php endif; ?>
+              <?php foreach($availableCourses as $c): ?>
                 <label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;">
                   <input type="checkbox" name="course_ids[]" value="<?= $c['id'] ?>">
                   <?= htmlspecialchars($c['name']) ?><?php if(!empty($c['code'])): ?> <span style="color:var(--text-muted);">(<?= htmlspecialchars($c['code']) ?>)</span><?php endif; ?>
+                  <span style="color:var(--text-muted);font-size:11px;">— <?= htmlspecialchars($c['class_names'] ?? 'All Classes') ?></span>
                 </label>
               <?php endforeach; ?>
             </div>

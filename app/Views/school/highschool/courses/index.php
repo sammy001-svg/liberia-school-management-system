@@ -42,7 +42,17 @@
                 <tr>
                     <td class="fw-600"><?= htmlspecialchars($c['name']) ?></td>
                     <td><?php if($c['code']): ?><span class="badge badge-primary"><?= htmlspecialchars($c['code']) ?></span><?php else: ?><span class="text-muted">—</span><?php endif; ?></td>
-                    <td><?php if($c['class_name']): ?><?= htmlspecialchars($c['class_name']) ?><?php else: ?><span class="badge badge-warning">Not assigned</span><?php endif; ?></td>
+                    <td>
+                        <?php if($c['class_names']): ?>
+                            <div style="display:flex;flex-wrap:wrap;gap:4px;max-width:220px;">
+                                <?php foreach(explode(', ', $c['class_names']) as $clName): ?>
+                                    <span class="badge badge-info"><?= htmlspecialchars($clName) ?></span>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php else: ?>
+                            <span class="badge badge-warning">Not assigned</span>
+                        <?php endif; ?>
+                    </td>
                     <td>
                         <?php if($c['teacher_count'] > 0): ?>
                             <div style="display:flex;flex-wrap:wrap;gap:4px;max-width:220px;">
@@ -58,7 +68,8 @@
                         <div style="display:flex;gap:6px;">
                             <button type="button" class="btn btn-sm btn-secondary" onclick='openEditCourseModal(<?= json_encode([
                                 "id" => $c['id'], "name" => $c['name'], "code" => $c['code'],
-                                "class_id" => $c['class_id'], "description" => $c['description'],
+                                "class_ids" => $c['class_ids'] ? array_map("intval", explode(",", $c['class_ids'])) : [],
+                                "description" => $c['description'],
                             ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'>Edit</button>
                             <form method="POST" action="<?= $cfg['url'] ?>/school/courses/<?= $c['id'] ?>/delete" data-confirm="Remove '<?= htmlspecialchars(addslashes($c['name'])) ?>'? Grades, timetable entries, and other records tied to it will keep their data but lose this subject label." data-confirm-title="Remove Subject" data-confirm-label="Remove">
                                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
@@ -95,19 +106,23 @@
           <label class="form-label">Subject Name *</label>
           <input type="text" name="name" class="form-control" required placeholder="e.g. Mathematics">
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Subject Code</label>
-            <input type="text" name="code" class="form-control" placeholder="e.g. MATH101">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Class</label>
-            <select name="class_id" class="form-control">
-              <option value="">— Not Assigned —</option>
-              <?php foreach($classes as $cl): ?>
-                <option value="<?= $cl['id'] ?>"><?= htmlspecialchars($cl['name']) ?></option>
-              <?php endforeach; ?>
-            </select>
+        <div class="form-group">
+          <label class="form-label">Subject Code</label>
+          <input type="text" name="code" class="form-control" placeholder="e.g. MATH101">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Classes</label>
+          <div class="form-hint" style="margin-bottom:6px;">Select every class this subject is taught to.</div>
+          <div style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;">
+            <?php if(empty($classes)): ?>
+              <div class="form-hint">No classes exist yet.</div>
+            <?php endif; ?>
+            <?php foreach($classes as $cl): ?>
+              <label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;">
+                <input type="checkbox" name="class_ids[]" value="<?= $cl['id'] ?>">
+                <?= htmlspecialchars($cl['name']) ?>
+              </label>
+            <?php endforeach; ?>
           </div>
         </div>
         <div class="form-group">
@@ -137,19 +152,23 @@
           <label class="form-label">Subject Name *</label>
           <input type="text" name="name" id="editCourseName" class="form-control" required>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Subject Code</label>
-            <input type="text" name="code" id="editCourseCode" class="form-control">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Class</label>
-            <select name="class_id" id="editCourseClassId" class="form-control">
-              <option value="">— Not Assigned —</option>
-              <?php foreach($classes as $cl): ?>
-                <option value="<?= $cl['id'] ?>"><?= htmlspecialchars($cl['name']) ?></option>
-              <?php endforeach; ?>
-            </select>
+        <div class="form-group">
+          <label class="form-label">Subject Code</label>
+          <input type="text" name="code" id="editCourseCode" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Classes</label>
+          <div class="form-hint" style="margin-bottom:6px;">Select every class this subject is taught to.</div>
+          <div id="editCourseClasses" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;">
+            <?php if(empty($classes)): ?>
+              <div class="form-hint">No classes exist yet.</div>
+            <?php endif; ?>
+            <?php foreach($classes as $cl): ?>
+              <label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;">
+                <input type="checkbox" name="class_ids[]" value="<?= $cl['id'] ?>" class="edit-course-class-cb">
+                <?= htmlspecialchars($cl['name']) ?>
+              </label>
+            <?php endforeach; ?>
           </div>
         </div>
         <div class="form-group">
@@ -170,8 +189,11 @@ function openEditCourseModal(c) {
   document.getElementById('editCourseForm').action = '<?= $cfg['url'] ?>/school/courses/' + c.id + '/update';
   document.getElementById('editCourseName').value = c.name || '';
   document.getElementById('editCourseCode').value = c.code || '';
-  document.getElementById('editCourseClassId').value = c.class_id || '';
   document.getElementById('editCourseDescription').value = c.description || '';
+  var classIds = (c.class_ids || []).map(String);
+  document.querySelectorAll('.edit-course-class-cb').forEach(function(cb) {
+    cb.checked = classIds.indexOf(cb.value) !== -1;
+  });
   document.getElementById('editCourseModal').classList.add('open');
 }
 </script>

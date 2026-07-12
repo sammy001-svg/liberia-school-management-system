@@ -27,7 +27,7 @@ class HomeworkController extends Controller {
             [$this->tid]
         );
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
-        $courses = $this->db->fetchAll("SELECT id,name,class_id FROM courses WHERE tenant_id=? ORDER BY name", [$this->tid]);
+        $courses = $this->db->fetchAll("SELECT id,name FROM courses WHERE tenant_id=? ORDER BY name", [$this->tid]);
         $stats = [
             'total'    => count($homework),
             'upcoming' => count(array_filter($homework, fn($h) => strtotime($h['due_date']) >= strtotime(date('Y-m-d')))),

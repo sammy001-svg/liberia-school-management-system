@@ -50,15 +50,17 @@ class AcademicsController extends Controller {
     public function courses(): void {
         $this->requirePermission(['academics.view','academics.manage']);
         $courses = $this->db->fetchAll(
-            "SELECT c.*, cl.name AS class_name,
+            "SELECT c.*,
+                    (SELECT GROUP_CONCAT(cl.name ORDER BY cl.name SEPARATOR ', ') FROM course_classes cc JOIN classes cl ON cc.class_id=cl.id WHERE cc.course_id=c.id) AS class_names,
+                    (SELECT GROUP_CONCAT(cc.class_id) FROM course_classes cc WHERE cc.course_id=c.id) AS class_ids,
                     (SELECT COUNT(*) FROM teacher_courses tc WHERE tc.course_id=c.id) AS teacher_count,
                     (SELECT GROUP_CONCAT(u.name SEPARATOR ', ') FROM teacher_courses tc JOIN teachers t ON tc.teacher_id=t.id JOIN users u ON t.user_id=u.id WHERE tc.course_id=c.id) AS teacher_names
-             FROM courses c LEFT JOIN classes cl ON c.class_id=cl.id
+             FROM courses c
              WHERE c.tenant_id = ? ORDER BY c.name", [$this->tid]
         );
         $stats = $this->db->fetchOne(
             "SELECT COUNT(*) total,
-                    SUM(CASE WHEN class_id IS NOT NULL THEN 1 ELSE 0 END) assignedToClass,
+                    SUM(CASE WHEN EXISTS(SELECT 1 FROM course_classes cc WHERE cc.course_id=courses.id) THEN 1 ELSE 0 END) assignedToClass,
                     SUM(CASE WHEN NOT EXISTS(SELECT 1 FROM teacher_courses tc WHERE tc.course_id=courses.id) THEN 1 ELSE 0 END) unassigned
              FROM courses WHERE tenant_id=?", [$this->tid]
         );
@@ -78,14 +80,23 @@ class AcademicsController extends Controller {
         $this->redirect('/school/courses');
     }
 
+    private function syncCourseClasses(int $courseId, array $classIds): void {
+        $classIds = array_unique(array_filter(array_map('intval', $classIds)));
+        $this->db->execute("DELETE FROM course_classes WHERE course_id=?", [$courseId]);
+        foreach ($classIds as $classId) {
+            $this->db->execute("INSERT INTO course_classes (course_id, class_id) VALUES (?, ?)", [$courseId, $classId]);
+        }
+    }
+
     public function storeCourse(): void {
         $this->requirePermission(['academics.manage']);
         $errors = $this->validate($_POST, ['name' => 'required|max:150']);
         if ($errors) { $this->failValidation($errors, '/school/courses'); }
-        $this->db->insert(
-            "INSERT INTO courses (tenant_id, name, code, class_id, description) VALUES (?, ?, ?, ?, ?)",
-            [$this->tid, $_POST['name'], $_POST['code'], $_POST['class_id'] ?: null, $_POST['description'] ?? '']
+        $courseId = $this->db->insert(
+            "INSERT INTO courses (tenant_id, name, code, description) VALUES (?, ?, ?, ?)",
+            [$this->tid, $_POST['name'], $_POST['code'], $_POST['description'] ?? '']
         );
+        $this->syncCourseClasses((int)$courseId, $_POST['class_ids'] ?? []);
         $this->flash('success', 'Subject added.');
         $this->redirect('/school/courses');
     }
@@ -97,9 +108,10 @@ class AcademicsController extends Controller {
         $errors = $this->validate($_POST, ['name' => 'required|max:150']);
         if ($errors) { $this->failValidation($errors, '/school/courses'); }
         $this->db->execute(
-            "UPDATE courses SET name=?, code=?, class_id=?, description=? WHERE id=? AND tenant_id=?",
-            [$_POST['name'], $_POST['code'], $_POST['class_id'] ?: null, $_POST['description'] ?? '', $id, $this->tid]
+            "UPDATE courses SET name=?, code=?, description=? WHERE id=? AND tenant_id=?",
+            [$_POST['name'], $_POST['code'], $_POST['description'] ?? '', $id, $this->tid]
         );
+        $this->syncCourseClasses((int)$id, $_POST['class_ids'] ?? []);
         $this->flash('success', 'Subject updated.');
         $this->redirect('/school/courses');
     }

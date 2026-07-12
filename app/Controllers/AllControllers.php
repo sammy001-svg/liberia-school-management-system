@@ -161,7 +161,10 @@ class GradeController extends Controller {
         $students = []; $courses = [];
         if (!empty($_GET['class_id'])) {
             $students = $this->db->fetchAll("SELECT s.id,u.name FROM students s JOIN users u ON s.user_id=u.id WHERE s.class_id=? AND s.tenant_id=? AND s.status='active' ORDER BY u.name",[$_GET['class_id'],$this->tid]);
-            $courses  = $this->db->fetchAll("SELECT id,name FROM courses WHERE class_id=? AND tenant_id=?",[$_GET['class_id'],$this->tid]);
+            $courses  = $this->db->fetchAll(
+                "SELECT c.id,c.name FROM courses c JOIN course_classes cc ON cc.course_id=c.id
+                 WHERE cc.class_id=? AND c.tenant_id=?",[$_GET['class_id'],$this->tid]
+            );
         }
         $this->view('school/highschool/grades/enter', ['pageTitle'=>'Enter Grades','panelType'=>'school','classes'=>$classes,'exams'=>$exams,'students'=>$students,'courses'=>$courses,'selectedClass'=>$_GET['class_id']??'','flash'=>$this->getFlash()]);
     }

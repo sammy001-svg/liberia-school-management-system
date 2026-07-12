@@ -95,7 +95,7 @@
             <label class="form-label">Subject</label>
             <select name="course_id" class="form-control">
               <option value="">— Any / Not subject-specific —</option>
-              <?php foreach($courses as $co): ?><option value="<?= $co['id'] ?>" data-class="<?= $co['class_id'] ?>"><?= htmlspecialchars($co['name']) ?></option><?php endforeach; ?>
+              <?php foreach($courses as $co): ?><option value="<?= $co['id'] ?>"><?= htmlspecialchars($co['name']) ?></option><?php endforeach; ?>
             </select>
           </div>
         </div>
