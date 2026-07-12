@@ -116,10 +116,24 @@
               <td><?= htmlspecialchars($c['code']??'—') ?></td>
               <td><?= $c['credit_hours'] ?></td>
               <td>
-                <form method="POST" action="<?= $cfg['url'] ?>/school/teachers/<?= $teacher['id'] ?>/courses/<?= $c['id'] ?>/remove" data-confirm="Unassign <?= htmlspecialchars($c['name']) ?> from <?= htmlspecialchars($teacher['name']) ?>?" data-confirm-label="Unassign">
-                  <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
-                  <button type="submit" class="btn btn-sm btn-outline">Remove</button>
-                </form>
+                <div style="display:flex;gap:6px;align-items:center;">
+                  <?php if(!empty($otherTeachers)): ?>
+                  <form method="POST" action="<?= $cfg['url'] ?>/school/teachers/<?= $teacher['id'] ?>/courses/<?= $c['id'] ?>/reassign" data-confirm="Reassign <?= htmlspecialchars($c['name']) ?> to the selected teacher?" data-confirm-label="Reassign" style="display:flex;gap:4px;align-items:center;">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+                    <select name="new_teacher_id" class="form-control" style="font-size:12px;padding:4px 6px;" required onclick="event.stopPropagation()">
+                      <option value="">Reassign to…</option>
+                      <?php foreach($otherTeachers as $ot): ?>
+                        <option value="<?= $ot['id'] ?>"><?= htmlspecialchars($ot['name']) ?></option>
+                      <?php endforeach; ?>
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-secondary">Move</button>
+                  </form>
+                  <?php endif; ?>
+                  <form method="POST" action="<?= $cfg['url'] ?>/school/teachers/<?= $teacher['id'] ?>/courses/<?= $c['id'] ?>/remove" data-confirm="Unassign <?= htmlspecialchars($c['name']) ?> from <?= htmlspecialchars($teacher['name']) ?>?" data-confirm-label="Unassign">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+                    <button type="submit" class="btn btn-sm btn-outline">Remove</button>
+                  </form>
+                </div>
               </td>
             </tr>
             <?php endforeach; ?>

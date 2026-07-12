@@ -45,7 +45,11 @@
                     <td><?php if($c['class_name']): ?><?= htmlspecialchars($c['class_name']) ?><?php else: ?><span class="badge badge-warning">Not assigned</span><?php endif; ?></td>
                     <td>
                         <?php if($c['teacher_count'] > 0): ?>
-                            <span class="badge badge-success" title="<?= htmlspecialchars($c['teacher_names']) ?>"><?= $c['teacher_count'] ?> teacher<?= $c['teacher_count']>1?'s':'' ?></span>
+                            <div style="display:flex;flex-wrap:wrap;gap:4px;max-width:220px;">
+                                <?php foreach(explode(', ', $c['teacher_names']) as $tName): ?>
+                                    <span class="badge badge-success"><?= htmlspecialchars($tName) ?></span>
+                                <?php endforeach; ?>
+                            </div>
                         <?php else: ?>
                             <span class="badge badge-warning">Unassigned</span>
                         <?php endif; ?>

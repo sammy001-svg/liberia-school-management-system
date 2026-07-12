@@ -162,10 +162,15 @@ class TeacherController extends Controller {
             ? ($this->db->fetchOne("SELECT COUNT(*) c FROM students WHERE class_id=? AND tenant_id=?", [$teacher['class_id'], $this->tid])['c'] ?? 0)
             : 0;
         $yearsOfService = $teacher['joined_at'] ? floor((time() - strtotime($teacher['joined_at'])) / 31536000) : null;
+        $otherTeachers = $this->db->fetchAll(
+            "SELECT t.id, u.name FROM teachers t JOIN users u ON t.user_id=u.id WHERE t.tenant_id=? AND t.id!=? ORDER BY u.name",
+            [$this->tid, $id]
+        );
 
         $this->view('school/highschool/teachers/show', [
             'pageTitle'=>$teacher['name'],'panelType'=>'school','teacher'=>$teacher,
             'assignedCourses'=>$assignedCourses,'availableCourses'=>$availableCourses,
+            'otherTeachers'=>$otherTeachers,
             'homeroomCount'=>$homeroomCount,'yearsOfService'=>$yearsOfService,
             'flash'=>$this->getFlash(),
         ]);
@@ -217,6 +222,25 @@ class TeacherController extends Controller {
         $this->requirePermission(['teachers.manage']);
         $this->db->execute("DELETE FROM teacher_courses WHERE teacher_id=? AND course_id=?", [$id, $courseId]);
         $this->flash('success', 'Course unassigned.');
+        $this->redirect('/school/teachers/'.$id);
+    }
+
+    public function reassignCourse(string $id, string $courseId): void {
+        $this->requirePermission(['teachers.manage']);
+        $newTeacherId = (int)($_POST['new_teacher_id'] ?? 0);
+        if (!$newTeacherId) {
+            $this->failValidation(['new_teacher_id' => 'Select a teacher to reassign to.'], '/school/teachers/'.$id);
+        }
+        $newTeacher = $this->db->fetchOne("SELECT id FROM teachers WHERE id=? AND tenant_id=?", [$newTeacherId, $this->tid]);
+        $link = $this->db->fetchOne("SELECT 1 FROM teacher_courses WHERE teacher_id=? AND course_id=?", [$id, $courseId]);
+        if (!$newTeacher || !$link) { $this->redirect('/school/teachers/'.$id); }
+        $alreadyAssigned = $this->db->fetchOne("SELECT 1 FROM teacher_courses WHERE teacher_id=? AND course_id=?", [$newTeacherId, $courseId]);
+        if ($alreadyAssigned) {
+            $this->db->execute("DELETE FROM teacher_courses WHERE teacher_id=? AND course_id=?", [$id, $courseId]);
+        } else {
+            $this->db->execute("UPDATE teacher_courses SET teacher_id=? WHERE teacher_id=? AND course_id=?", [$newTeacherId, $id, $courseId]);
+        }
+        $this->flash('success', 'Subject reassigned.');
         $this->redirect('/school/teachers/'.$id);
     }
 
