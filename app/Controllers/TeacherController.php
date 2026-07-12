@@ -184,7 +184,7 @@ class TeacherController extends Controller {
 
     public function idCard(string $id): void {
         $this->requirePermission(['teachers.manage']);
-        $teacher = $this->db->fetchOne("SELECT t.*, u.name, u.gender FROM teachers t JOIN users u ON t.user_id=u.id WHERE t.id=? AND t.tenant_id=?", [$id, $this->tid]);
+        $teacher = $this->db->fetchOne("SELECT t.*, u.name, u.gender, u.avatar FROM teachers t JOIN users u ON t.user_id=u.id WHERE t.id=? AND t.tenant_id=?", [$id, $this->tid]);
         if (!$teacher) { $this->redirect('/school/teachers'); }
         $department = $teacher['department_id'] ? $this->db->fetchOne("SELECT name FROM departments WHERE id=?", [$teacher['department_id']]) : null;
         $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
@@ -196,6 +196,7 @@ class TeacherController extends Controller {
             'roleLabel' => 'Staff',
             'personName' => $teacher['name'],
             'idLabel' => 'Employee No', 'idValue' => $teacher['employee_no'],
+            'photoUrl' => $teacher['avatar'] ?? null,
             'fields' => [
                 'Department' => $department['name'] ?? null,
                 'Subject'    => $teacher['specialization'] ?: null,

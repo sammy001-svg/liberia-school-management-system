@@ -278,7 +278,7 @@ class StudentController extends Controller {
     public function idCard(string $id): void {
         $this->requirePermission(['students.view','students.edit','students.manage']);
         $student = $this->db->fetchOne(
-            "SELECT s.*, u.name, u.gender, u.date_of_birth
+            "SELECT s.*, u.name, u.gender, u.date_of_birth, u.avatar
              FROM students s JOIN users u ON s.user_id=u.id
              WHERE s.id=? AND s.tenant_id=?", [$id, $this->tid]
         );
@@ -293,6 +293,7 @@ class StudentController extends Controller {
             'roleLabel' => 'Student',
             'personName' => $student['name'],
             'idLabel' => 'Admission No', 'idValue' => $student['admission_no'],
+            'photoUrl' => $student['avatar'] ?? null,
             'fields' => [
                 'Class'     => $class['name'] ?? 'Not Assigned',
                 'Gender'    => $student['gender'] ? ucfirst($student['gender']) : null,
