@@ -261,4 +261,20 @@ class TeacherController extends Controller {
         $this->db->execute("UPDATE teachers SET class_id=?,qualification=?,specialization=? WHERE id=? AND tenant_id=?", [$_POST['class_id']?:null,$_POST['qualification']??'',$_POST['specialization']??'',$id,$this->tid]);
         $this->flash('success','Teacher updated.'); $this->redirect('/school/teachers');
     }
+
+    // Safe to delete outright: teacher_courses/learning_materials rows cascade away,
+    // timetable/homework/online class/online exam rows fall back to SET NULL (they
+    // survive, just lose the teacher attribution); classes.class_teacher_id has no FK
+    // so it's cleared manually to avoid a dangling homeroom reference.
+    public function delete(string $id): void {
+        $this->requirePermission(['teachers.manage']);
+        $teacher = $this->db->fetchOne("SELECT user_id FROM teachers WHERE id=? AND tenant_id=?", [$id,$this->tid]);
+        if ($teacher) {
+            $this->db->execute("UPDATE classes SET class_teacher_id=NULL WHERE class_teacher_id=? AND tenant_id=?", [$id, $this->tid]);
+            $this->db->execute("DELETE FROM teachers WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+            $this->db->execute("DELETE FROM users WHERE id=?", [$teacher['user_id']]);
+        }
+        $this->flash('success', 'Teacher removed.');
+        $this->redirect('/school/teachers');
+    }
 }

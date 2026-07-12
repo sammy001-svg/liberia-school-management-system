@@ -69,7 +69,16 @@
           <td><?= htmlspecialchars($t['class_name']??'—') ?></td>
           <td><?= htmlspecialchars($t['specialization']??'—') ?></td>
           <td><?= htmlspecialchars($t['phone']??'—') ?></td>
-          <td><div style="display:flex;gap:6px;"><a href="<?= $cfg['url'] ?>/school/teachers/<?= $t['id'] ?>" class="btn btn-sm btn-outline">View</a><a href="<?= $cfg['url'] ?>/school/teachers/<?= $t['id'] ?>/edit" class="btn btn-sm btn-secondary">Edit</a></div></td>
+          <td>
+            <div style="display:flex;gap:6px;">
+              <a href="<?= $cfg['url'] ?>/school/teachers/<?= $t['id'] ?>" class="btn btn-sm btn-outline">View</a>
+              <a href="<?= $cfg['url'] ?>/school/teachers/<?= $t['id'] ?>/edit" class="btn btn-sm btn-secondary">Edit</a>
+              <form method="POST" action="<?= $cfg['url'] ?>/school/teachers/<?= $t['id'] ?>/delete" data-confirm="Remove <?= htmlspecialchars($t['name']) ?>? This cannot be undone." data-confirm-title="Remove Teacher" data-confirm-label="Remove">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+                <button type="submit" class="btn btn-sm btn-danger">Del</button>
+              </form>
+            </div>
+          </td>
         </tr>
         <?php endforeach; ?>
         <?php if(empty($teachers)): ?>

@@ -19,6 +19,10 @@
     <div class="profile-hero-actions">
       <a href="<?= $cfg['url'] ?>/school/teachers/<?= $teacher['id'] ?>/id-card" target="_blank" class="btn btn-outline">🪪 ID Card</a>
       <a href="<?= $cfg['url'] ?>/school/teachers/<?= $teacher['id'] ?>/edit" class="btn btn-secondary">Edit</a>
+      <form method="POST" action="<?= $cfg['url'] ?>/school/teachers/<?= $teacher['id'] ?>/delete" data-confirm="Remove <?= htmlspecialchars($teacher['name']) ?>? This cannot be undone." data-confirm-title="Remove Teacher" data-confirm-label="Remove">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+        <button type="submit" class="btn btn-danger">Delete</button>
+      </form>
     </div>
   </div>
 </div>

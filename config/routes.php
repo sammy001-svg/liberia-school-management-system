@@ -35,6 +35,7 @@ $router->get('/school/teachers/{id}',       ['TeacherController', 'show']);
 $router->get('/school/teachers/{id}/id-card', ['TeacherController', 'idCard']);
 $router->get('/school/teachers/{id}/edit',  ['TeacherController', 'edit']);
 $router->post('/school/teachers/{id}/update', ['TeacherController', 'update']);
+$router->post('/school/teachers/{id}/delete', ['TeacherController', 'delete']);
 $router->post('/school/teachers/{id}/courses/assign', ['TeacherController', 'assignCourse']);
 $router->post('/school/teachers/{id}/courses/{courseId}/remove', ['TeacherController', 'removeCourse']);
 $router->post('/school/teachers/{id}/courses/{courseId}/reassign', ['TeacherController', 'reassignCourse']);
