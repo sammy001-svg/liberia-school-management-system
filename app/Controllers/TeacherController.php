@@ -22,7 +22,8 @@ class TeacherController extends Controller {
         $totalCount = $this->db->fetchOne("SELECT COUNT(*) c FROM teachers t JOIN users u ON t.user_id=u.id WHERE $where", $params)['c'];
         $p = $this->paginate($totalCount);
         $teachers = $this->db->fetchAll(
-            "SELECT t.*, u.name, u.email, u.phone, u.gender, c.name AS class_name, d.name AS department_name
+            "SELECT t.*, u.name, u.email, u.phone, u.gender, c.name AS class_name, d.name AS department_name,
+                    (SELECT GROUP_CONCAT(co.name SEPARATOR ', ') FROM teacher_courses tc JOIN courses co ON tc.course_id=co.id WHERE tc.teacher_id=t.id) AS subjects_taught
              FROM teachers t JOIN users u ON t.user_id=u.id LEFT JOIN classes c ON t.class_id=c.id LEFT JOIN departments d ON t.department_id=d.id
              WHERE $where ORDER BY u.name LIMIT {$p['perPage']} OFFSET {$p['offset']}",
             $params
@@ -195,6 +196,8 @@ class TeacherController extends Controller {
         $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
         $currentYear = $this->db->fetchOne("SELECT * FROM academic_years WHERE tenant_id=? AND is_current=1 LIMIT 1", [$this->tid]);
         $validThru = $currentYear ? date('M Y', strtotime($currentYear['end_date'])) : date('M Y', strtotime('+1 year'));
+        $subjects = $this->db->fetchAll("SELECT co.name FROM teacher_courses tc JOIN courses co ON tc.course_id=co.id WHERE tc.teacher_id=?", [$id]);
+        $subjectNames = implode(', ', array_column($subjects, 'name'));
 
         $this->view('school/id_card', [
             'pageTitle' => 'ID Card', 'tenant' => $tenant,
@@ -204,7 +207,7 @@ class TeacherController extends Controller {
             'photoUrl' => $teacher['avatar'] ?? null,
             'fields' => [
                 'Department' => $department['name'] ?? null,
-                'Subject'    => $teacher['specialization'] ?: null,
+                'Subject'    => $subjectNames ?: null,
                 'Gender'     => $teacher['gender'] ? ucfirst($teacher['gender']) : null,
                 'Qualif.'    => $teacher['qualification'] ?: null,
             ],

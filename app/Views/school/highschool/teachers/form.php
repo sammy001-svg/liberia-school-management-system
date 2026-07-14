@@ -32,7 +32,7 @@
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Qualification</label><input type="text" name="qualification" class="form-control" value="<?= htmlspecialchars($teacher['qualification']??'') ?>" placeholder="e.g. B.Ed, MSc"></div>
-      <div class="form-group"><label class="form-label">Specialization</label><input type="text" name="specialization" class="form-control" value="<?= htmlspecialchars($teacher['specialization']??'') ?>" placeholder="e.g. Mathematics"></div>
+      <div class="form-group"><label class="form-label">Area of Expertise</label><input type="text" name="specialization" class="form-control" value="<?= htmlspecialchars($teacher['specialization']??'') ?>" placeholder="e.g. Mathematics"><div class="form-hint">A descriptive note only &mdash; assign actual subjects from the teacher's profile page ("Classes &amp; Subjects Taught").</div></div>
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Assign to Class</label>

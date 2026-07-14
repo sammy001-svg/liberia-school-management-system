@@ -51,7 +51,7 @@
   </div>
   <div class="table-wrapper">
     <table>
-      <thead><tr><th>Teacher</th><th>Employee No</th><th>Department</th><th>Class</th><th>Specialization</th><th>Phone</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Teacher</th><th>Employee No</th><th>Department</th><th>Class</th><th>Subjects Taught</th><th>Phone</th><th>Actions</th></tr></thead>
       <tbody>
         <?php foreach($teachers as $t): ?>
         <tr>
@@ -67,7 +67,7 @@
           <td style="font-family:monospace;font-size:12px"><?= htmlspecialchars($t['employee_no']) ?></td>
           <td><?= htmlspecialchars($t['department_name']??'—') ?></td>
           <td><?= htmlspecialchars($t['class_name']??'—') ?></td>
-          <td><?= htmlspecialchars($t['specialization']??'—') ?></td>
+          <td><?= htmlspecialchars($t['subjects_taught'] ?: 'Not assigned') ?></td>
           <td><?= htmlspecialchars($t['phone']??'—') ?></td>
           <td>
             <div style="display:flex;gap:6px;">
@@ -154,8 +154,9 @@
             <input type="text" name="qualification" class="form-control" placeholder="e.g. B.Ed, MSc">
           </div>
           <div class="form-group">
-            <label class="form-label">Specialization / Subject</label>
+            <label class="form-label">Area of Expertise</label>
             <input type="text" name="specialization" class="form-control" placeholder="e.g. Mathematics">
+            <div class="form-hint">A descriptive note only &mdash; assign actual subjects from the teacher's profile page after creating the account.</div>
           </div>
         </div>
         <div class="form-row">

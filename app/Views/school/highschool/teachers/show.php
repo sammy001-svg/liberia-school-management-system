@@ -90,7 +90,7 @@
           </div>
           <div class="detail-item">
             <div class="detail-icon">📚</div>
-            <div><div class="detail-label">Specialization</div><div class="detail-value"><?= htmlspecialchars($teacher['specialization'] ?? '—') ?></div></div>
+            <div><div class="detail-label">Area of Expertise</div><div class="detail-value"><?= htmlspecialchars($teacher['specialization'] ?? '—') ?></div></div>
           </div>
           <div class="detail-item">
             <div class="detail-icon">🏢</div>
