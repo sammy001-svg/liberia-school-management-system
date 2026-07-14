@@ -407,6 +407,16 @@ abstract class Controller {
         return $username;
     }
 
+    /** Random 10-char password (mixed case + digits, ambiguous characters like 0/O/1/l excluded). */
+    protected function generateStrongPassword(int $length = 10): string {
+        $chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+        $password = '';
+        for ($i = 0; $i < $length; $i++) {
+            $password .= $chars[random_int(0, strlen($chars) - 1)];
+        }
+        return $password;
+    }
+
     /**
      * Pagination helper: given a total row count, works out the current
      * page (from $_GET['page']), page size, and SQL OFFSET.

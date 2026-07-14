@@ -52,6 +52,10 @@
                 "basic_salary" => $s['basic_salary'], "allowances" => $s['allowances'], "deductions" => $s['deductions'],
                 "effective_from" => $s['effective_from'],
               ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'>Edit</button>
+              <form method="POST" action="<?= $cfg['url'] ?>/school/staff/<?= $s['id'] ?>/reset-password" data-confirm="Reset the login password for <?= htmlspecialchars($s['name']) ?>? The old password will stop working." data-confirm-title="Reset Password" data-confirm-label="Reset Password">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+                <button type="submit" class="btn btn-sm btn-outline">🔑 Reset</button>
+              </form>
               <?php if(!$isTeacher): ?>
                 <form method="POST" action="<?= $cfg['url'] ?>/school/staff/<?= $s['id'] ?>/delete" data-confirm="Remove <?= htmlspecialchars($s['name']) ?>? This cannot be undone." data-confirm-title="Remove Staff" data-confirm-label="Remove">
                   <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">

@@ -34,10 +34,10 @@
 <form method="GET" class="card" style="padding:16px 20px;margin-bottom:20px;">
   <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
     <input type="text" name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Search name or employee no…" class="form-control" style="max-width:280px;">
-    <select name="department_id" class="form-control" style="max-width:200px;">
-      <option value="">All Departments</option>
-      <?php foreach($departments as $d): ?>
-        <option value="<?= $d['id'] ?>" <?= $deptId==$d['id']?'selected':'' ?>><?= htmlspecialchars($d['name']) ?></option>
+    <select name="class_id" class="form-control" style="max-width:200px;">
+      <option value="">All Classes</option>
+      <?php foreach($classes as $cl): ?>
+        <option value="<?= $cl['id'] ?>" <?= $classId==$cl['id']?'selected':'' ?>><?= htmlspecialchars($cl['name']) ?></option>
       <?php endforeach; ?>
     </select>
     <button type="submit" class="btn btn-secondary">Filter</button>

@@ -149,6 +149,65 @@ class AuthController extends Controller {
         $this->view('errors/unauthorized', ['pageTitle' => 'Access Denied', 'panelType' => $panelType]);
     }
 
+    // A student's own secret is a short PIN (not a password) when their school is configured
+    // for admission_pin login — this shows a matching PIN-flavored form instead of a "password"
+    // one so validation (exact-4-digit vs. min-length) and copy line up with what they typed at login.
+    private function isPinAccount(): bool {
+        if (empty($_SESSION['student_id'])) { return false; }
+        $tenant = $this->db->fetchOne("SELECT student_login_mode FROM tenants WHERE id=?", [$_SESSION['tenant_id'] ?? 0]);
+        return ($tenant['student_login_mode'] ?? '') === 'admission_pin';
+    }
+
+    private function accountPanelType(): string {
+        if (!empty($_SESSION['student_id'])) { return 'student'; }
+        if (!empty($_SESSION['parent_id'])) { return 'parent'; }
+        return 'school';
+    }
+
+    public function changePasswordPage(): void {
+        if (!$this->isLoggedIn()) { $this->redirect('/login'); }
+        $isPin = $this->isPinAccount();
+        $this->view('auth/change_password', [
+            'pageTitle' => $isPin ? 'Change PIN' : 'Change Password',
+            'panelType' => $this->accountPanelType(),
+            'isPin' => $isPin,
+            'flash' => $this->getFlash(),
+        ]);
+    }
+
+    public function changePasswordPost(): void {
+        if (!$this->isLoggedIn()) { $this->redirect('/login'); }
+        $isPin = $this->isPinAccount();
+        $redirectUrl = '/account/change-password';
+
+        $current = $_POST['current_secret'] ?? '';
+        $new = $_POST['new_secret'] ?? '';
+        $confirm = $_POST['confirm_secret'] ?? '';
+        $label = $isPin ? 'PIN' : 'password';
+
+        $errors = [];
+        if ($current === '') { $errors['current_secret'] = "Enter your current {$label}."; }
+        if ($isPin) {
+            if (!preg_match('/^\d{4}$/', $new)) { $errors['new_secret'] = 'New PIN must be exactly 4 digits.'; }
+        } else {
+            if (strlen($new) < 8) { $errors['new_secret'] = 'New password must be at least 8 characters.'; }
+        }
+        if (!isset($errors['new_secret']) && $new !== $confirm) {
+            $errors['confirm_secret'] = "New {$label}s do not match.";
+        }
+        if (!$errors) {
+            $user = $this->db->fetchOne("SELECT password_hash FROM users WHERE id=?", [$_SESSION['user_id']]);
+            if (!$user || !password_verify($current, $user['password_hash'])) {
+                $errors['current_secret'] = "Current {$label} is incorrect.";
+            }
+        }
+        if ($errors) { $this->failValidation($errors, $redirectUrl); }
+
+        $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [password_hash($new, PASSWORD_BCRYPT), $_SESSION['user_id']]);
+        $this->flash('success', $isPin ? 'PIN changed successfully.' : 'Password changed successfully.');
+        $this->redirect($redirectUrl);
+    }
+
     private function redirectByRole(): void {
         // Student/Parent detection is based on the linked-record session values set above
         // (not the role name) so that any custom role a School Admin creates also has a
