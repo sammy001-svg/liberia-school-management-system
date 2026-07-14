@@ -1,4 +1,4 @@
--- ============================================================
+ -- ============================================================
 -- Seeds the (previously unused) permissions/role_permissions tables so
 -- that access control can move from hardcoded role-name checks to real
 -- per-module/action permissions. role_permissions grants below reproduce

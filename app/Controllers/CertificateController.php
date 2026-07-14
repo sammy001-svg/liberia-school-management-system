@@ -121,6 +121,50 @@ class CertificateController extends Controller {
         $this->redirect('/school/certificates?academic_year_id='.$academicYearId);
     }
 
+    // Same idempotent-skip + transaction pattern as bulkGenerate(), but scoped to an explicit
+    // set of student IDs (ticked via checkboxes) instead of "everyone matching a class filter."
+    public function issueSelected(): void {
+        $this->requirePermission(['certificates.manage']);
+        $errors = $this->validate($_POST, ['academic_year_id' => 'required']);
+        if ($errors) { $this->failValidation($errors, '/school/certificates'); }
+        $academicYearId = $_POST['academic_year_id'];
+        $type = $_POST['type'] ?: 'completion';
+        $studentIds = array_unique(array_filter(array_map('intval', $_POST['student_ids'] ?? [])));
+        if (empty($studentIds)) {
+            $this->flash('danger', 'Select at least one student to issue a certificate to.');
+            $this->redirect('/school/certificates?academic_year_id='.$academicYearId);
+        }
+
+        $alreadyIssued = array_flip(array_column(
+            $this->db->fetchAll("SELECT student_id FROM certificates WHERE tenant_id=? AND academic_year_id=? AND type=?", [$this->tid, $academicYearId, $type]),
+            'student_id'
+        ));
+
+        $created = 0; $skipped = 0;
+        $pdo = $this->db->pdo();
+        $pdo->beginTransaction();
+        try {
+            foreach ($studentIds as $sid) {
+                $student = $this->db->fetchOne("SELECT id FROM students WHERE id=? AND tenant_id=?", [$sid, $this->tid]);
+                if (!$student || isset($alreadyIssued[$sid])) { $skipped++; continue; }
+                $certNo = 'CERT-'.date('Y').'-'.strtoupper(bin2hex(random_bytes(4)));
+                $this->db->insert(
+                    "INSERT INTO certificates (tenant_id,student_id,academic_year_id,certificate_no,type,issued_date,issued_by) VALUES (?,?,?,?,?,?,?)",
+                    [$this->tid, $sid, $academicYearId, $certNo, $type, date('Y-m-d'), $_SESSION['user_id']]
+                );
+                $created++;
+            }
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            error_log("Certificate issueSelected failed: " . $e->getMessage());
+            $this->flash('danger', 'Could not issue certificates — no changes were made. Please try again.');
+            $this->redirect('/school/certificates?academic_year_id='.$academicYearId);
+        }
+        $this->flash($created > 0 ? 'success' : 'warning', "Issued {$created} certificate(s)." . ($skipped > 0 ? " {$skipped} student(s) were skipped (already issued)." : ''));
+        $this->redirect('/school/certificates?academic_year_id='.$academicYearId);
+    }
+
     public function printCertificate(string $id): void {
         $this->requirePermission(['certificates.manage']);
         $cert = $this->db->fetchOne(

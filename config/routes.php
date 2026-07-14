@@ -76,6 +76,7 @@ $router->get('/school/grades/rankings/print',       ['GradeController', 'printRa
 $router->get('/school/certificates',              ['CertificateController', 'index']);
 $router->post('/school/certificates/generate',     ['CertificateController', 'generate']);
 $router->post('/school/certificates/bulk-generate', ['CertificateController', 'bulkGenerate']);
+$router->post('/school/certificates/issue-selected', ['CertificateController', 'issueSelected']);
 $router->get('/school/certificates/{id}/print',    ['CertificateController', 'printCertificate']);
 $router->post('/school/certificates/{id}/delete',  ['CertificateController', 'delete']);
 
