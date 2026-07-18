@@ -50,7 +50,7 @@
 /* Quick Links */
 .ql-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
 .ql-btn {
-  background: rgba(255,255,255,0.03);
+  background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 16px 10px;
@@ -58,8 +58,8 @@
   cursor: pointer; transition: all 0.2s;
   text-align: center;
 }
-.ql-btn:hover { background: rgba(16,185,129,0.1); border-color: var(--primary); }
-.ql-btn svg { width: 24px; height: 24px; color: var(--primary); }
+.ql-btn:hover { background: var(--ql-soft, rgba(16,185,129,0.1)); border-color: var(--ql-accent, var(--primary)); }
+.ql-btn svg { width: 24px; height: 24px; color: var(--ql-accent, var(--primary)); }
 .ql-btn span { font-size: 11px; font-weight: 600; color: var(--text); }
 
 /* Calendar */
@@ -276,8 +276,9 @@
       <div class="dash-card-title">Quick Links</div>
     </div>
     <div class="ql-grid">
-      <?php foreach ($visibleQuickLinks as $l): ?>
-      <a href="<?= $cfg['url'] . $l['url'] ?>" class="ql-btn">
+      <?php $qlAccents = ['--primary','--blue','--purple','--pink','--orange','--teal','--indigo','--cyan','--rose']; $qi = 0; ?>
+      <?php foreach ($visibleQuickLinks as $l): $qa = $qlAccents[$qi++ % count($qlAccents)]; ?>
+      <a href="<?= $cfg['url'] . $l['url'] ?>" class="ql-btn" style="--ql-accent:var(<?= $qa ?>);--ql-soft:var(<?= $qa ?>-soft);">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="<?= $l['icon'] ?>"/></svg>
         <span><?= htmlspecialchars($l['label']) ?></span>
       </a>
