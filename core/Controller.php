@@ -389,6 +389,157 @@ abstract class Controller {
         $this->db->execute("UPDATE teachers SET class_id=? WHERE id=? AND tenant_id=?", [$classId, $teacherId, $tenantId]);
     }
 
+    /**
+     * Builds the view-data for the shared report card (school/report_card view), used by
+     * both the admin Grades module and the Parent portal ($publishedOnly hides draft exams).
+     * Three modes, chosen from the query string:
+     *   ?exam_id=N  — single exam (default: latest exam with grades)
+     *   ?term_id=N  — one period/term: per-subject averages across that term's exams
+     *   ?year_id=N  — annual: subject × period matrix for the academic year + yearly average
+     */
+    protected function buildReportCardData(string $studentId, array $student, bool $publishedOnly): array {
+        $tid = $this->tenantId() ?? 0;
+        $pub = $publishedOnly ? " AND e.status='published'" : "";
+        $letterFor = fn(float $p) => $p>=90?'A+':($p>=80?'A':($p>=70?'B':($p>=60?'C':($p>=50?'D':'F'))));
+        // An exam belongs to an academic year either directly or through its term.
+        $yearOfExam = "COALESCE(e.academic_year_id, (SELECT t2.academic_year_id FROM terms t2 WHERE t2.id=e.term_id))";
+
+        $examOptions = $this->db->fetchAll(
+            "SELECT DISTINCT e.id, e.name, e.exam_date FROM grades g JOIN exams e ON g.exam_id=e.id
+             WHERE g.student_id=? AND g.tenant_id=?{$pub} ORDER BY e.exam_date DESC",
+            [$studentId, $tid]
+        );
+        $termOptions = $this->db->fetchAll(
+            "SELECT DISTINCT t.id, t.name, t.start_date, ay.name AS year_name
+             FROM grades g JOIN exams e ON g.exam_id=e.id JOIN terms t ON e.term_id=t.id
+             LEFT JOIN academic_years ay ON t.academic_year_id=ay.id
+             WHERE g.student_id=? AND g.tenant_id=?{$pub} ORDER BY t.start_date DESC",
+            [$studentId, $tid]
+        );
+        $yearOptions = $this->db->fetchAll(
+            "SELECT DISTINCT ay.id, ay.name FROM grades g JOIN exams e ON g.exam_id=e.id
+             JOIN academic_years ay ON ay.id={$yearOfExam}
+             WHERE g.student_id=? AND g.tenant_id=?{$pub} ORDER BY ay.start_date DESC",
+            [$studentId, $tid]
+        );
+
+        $mode = 'exam'; $exam = null; $examId = null; $term = null; $year = null;
+        if (!empty($_GET['term_id'])) {
+            $mode = 'term';
+            $term = $this->db->fetchOne("SELECT t.*, ay.name AS year_name FROM terms t LEFT JOIN academic_years ay ON t.academic_year_id=ay.id WHERE t.id=? AND t.tenant_id=?", [$_GET['term_id'], $tid]);
+            if (!$term) { $mode = 'exam'; }
+        } elseif (!empty($_GET['year_id'])) {
+            $mode = 'annual';
+            $year = $this->db->fetchOne("SELECT * FROM academic_years WHERE id=? AND tenant_id=?", [$_GET['year_id'], $tid]);
+            if (!$year) { $mode = 'exam'; }
+        }
+        if ($mode === 'exam') {
+            $examId = $_GET['exam_id'] ?? ($examOptions[0]['id'] ?? null);
+            $exam = $examId ? $this->db->fetchOne("SELECT * FROM exams e WHERE e.id=? AND e.tenant_id=?{$pub}", [$examId, $tid]) : null;
+        }
+
+        $grades = []; $termRows = []; $annual = null;
+        $totalObtained = 0; $totalPossible = 0;
+        $rankScopeSql = null; $rankParams = [];
+        $attendanceRange = null; $docLabel = 'No exam selected';
+
+        if ($mode === 'exam' && $exam) {
+            $docLabel = $exam['name'];
+            $grades = $this->db->fetchAll(
+                "SELECT g.*, c.name AS course_name FROM grades g LEFT JOIN courses c ON g.course_id=c.id
+                 WHERE g.student_id=? AND g.exam_id=? AND g.tenant_id=? ORDER BY c.name",
+                [$studentId, $exam['id'], $tid]
+            );
+            foreach ($grades as $g) { $totalObtained += $g['marks_obtained']; $totalPossible += $g['total_marks']; }
+            $rankScopeSql = "e.id=?"; $rankParams = [$exam['id']];
+            if ($exam['term_id']) {
+                $t = $this->db->fetchOne("SELECT start_date, end_date FROM terms WHERE id=?", [$exam['term_id']]);
+                if ($t) { $attendanceRange = [$t['start_date'], $t['end_date']]; }
+            }
+        } elseif ($mode === 'term') {
+            $docLabel = $term['name'] . ($term['year_name'] ? ' — ' . $term['year_name'] : '');
+            $termRows = $this->db->fetchAll(
+                "SELECT c.name AS course_name, AVG(g.marks_obtained/g.total_marks*100) AS avg_pct,
+                        SUM(g.marks_obtained) obtained, SUM(g.total_marks) possible, COUNT(*) AS exam_count
+                 FROM grades g JOIN exams e ON g.exam_id=e.id LEFT JOIN courses c ON g.course_id=c.id
+                 WHERE g.student_id=? AND g.tenant_id=? AND e.term_id=? AND g.total_marks>0{$pub}
+                 GROUP BY g.course_id, c.name ORDER BY c.name",
+                [$studentId, $tid, $term['id']]
+            );
+            foreach ($termRows as $r) { $totalObtained += $r['obtained']; $totalPossible += $r['possible']; }
+            $rankScopeSql = "e.term_id=?"; $rankParams = [$term['id']];
+            $attendanceRange = [$term['start_date'], $term['end_date']];
+        } elseif ($mode === 'annual') {
+            $docLabel = 'Annual Report — ' . $year['name'];
+            $periods = $this->db->fetchAll("SELECT id, name FROM terms WHERE academic_year_id=? AND tenant_id=? ORDER BY start_date", [$year['id'], $tid]);
+            $cells = $this->db->fetchAll(
+                "SELECT g.course_id, c.name AS course_name, e.term_id,
+                        AVG(g.marks_obtained/g.total_marks*100) AS pct,
+                        SUM(g.marks_obtained) obtained, SUM(g.total_marks) possible
+                 FROM grades g JOIN exams e ON g.exam_id=e.id LEFT JOIN courses c ON g.course_id=c.id
+                 WHERE g.student_id=? AND g.tenant_id=? AND g.total_marks>0{$pub} AND {$yearOfExam}=?
+                 GROUP BY g.course_id, c.name, e.term_id",
+                [$studentId, $tid, $year['id']]
+            );
+            $rows = []; $hasOther = false;
+            foreach ($cells as $cell) {
+                $key = $cell['course_id'] ?? ('x'.$cell['course_name']);
+                $rows[$key]['course_name'] = $cell['course_name'] ?? '—';
+                $tk = $cell['term_id'] ?? 'other';
+                if ($tk === 'other') { $hasOther = true; }
+                $rows[$key]['periods'][$tk] = round((float)$cell['pct'], 1);
+                $rows[$key]['obtained'] = ($rows[$key]['obtained'] ?? 0) + $cell['obtained'];
+                $rows[$key]['possible'] = ($rows[$key]['possible'] ?? 0) + $cell['possible'];
+                $totalObtained += $cell['obtained']; $totalPossible += $cell['possible'];
+            }
+            foreach ($rows as &$r) {
+                $r['yearly_pct'] = $r['possible'] > 0 ? round($r['obtained'] / $r['possible'] * 100, 1) : null;
+                $r['grade_letter'] = $r['yearly_pct'] !== null ? $letterFor($r['yearly_pct']) : null;
+            }
+            unset($r);
+            usort($rows, fn($a, $b) => strcmp($a['course_name'], $b['course_name']));
+            $annual = ['periods' => $periods, 'hasOther' => $hasOther, 'rows' => array_values($rows)];
+            $rankScopeSql = "{$yearOfExam}=?"; $rankParams = [$year['id']];
+            $attendanceRange = [$year['start_date'], $year['end_date']];
+        }
+
+        $overallPct = $totalPossible > 0 ? round($totalObtained / $totalPossible * 100, 1) : 0;
+        $overallGrade = $letterFor($overallPct);
+
+        $rank = null; $rankOf = null;
+        if ($rankScopeSql && $student['class_id']) {
+            $classTotals = $this->db->fetchAll(
+                "SELECT g.student_id, SUM(g.marks_obtained) obtained
+                 FROM grades g JOIN exams e ON g.exam_id=e.id JOIN students s2 ON g.student_id=s2.id
+                 WHERE {$rankScopeSql} AND g.tenant_id=? AND s2.class_id=?{$pub}
+                 GROUP BY g.student_id ORDER BY obtained DESC",
+                array_merge($rankParams, [$tid, $student['class_id']])
+            );
+            $rankOf = count($classTotals);
+            foreach ($classTotals as $i => $row) {
+                if ((int)$row['student_id'] === (int)$studentId) { $rank = $i + 1; break; }
+            }
+        }
+
+        $attendance = null;
+        if ($attendanceRange) {
+            $total = $this->db->fetchOne("SELECT COUNT(*) c FROM attendance WHERE student_id=? AND tenant_id=? AND date BETWEEN ? AND ?", [$studentId, $tid, $attendanceRange[0], $attendanceRange[1]])['c'];
+            $present = $this->db->fetchOne("SELECT COUNT(*) c FROM attendance WHERE student_id=? AND tenant_id=? AND status='present' AND date BETWEEN ? AND ?", [$studentId, $tid, $attendanceRange[0], $attendanceRange[1]])['c'];
+            $attendance = ['total'=>$total, 'present'=>$present, 'pct'=>$total>0 ? round($present/$total*100,1) : null];
+        }
+
+        return [
+            'mode' => $mode, 'docLabel' => $docLabel,
+            'exam' => $exam, 'examOptions' => $examOptions, 'selectedExamId' => $examId,
+            'term' => $term, 'termOptions' => $termOptions,
+            'year' => $year, 'yearOptions' => $yearOptions,
+            'grades' => $grades, 'termRows' => $termRows, 'annual' => $annual,
+            'totalObtained' => $totalObtained, 'totalPossible' => $totalPossible,
+            'overallPct' => $overallPct, 'overallGrade' => $overallGrade,
+            'rank' => $rank, 'rankOf' => $rankOf, 'attendance' => $attendance,
+        ];
+    }
+
     /** Random 4-digit login PIN (zero-padded), hashed/verified the same way a password is. */
     protected function generateUniquePin(): string {
         return str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
