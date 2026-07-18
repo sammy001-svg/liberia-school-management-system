@@ -8,16 +8,22 @@ class TeacherController extends Controller {
     public function index(): void {
         $this->requirePermission(['teachers.manage']);
         $search = $_GET['q'] ?? '';
-        $deptId = $_GET['department_id'] ?? '';
+        $classId = $_GET['class_id'] ?? '';
         $params = [$this->tid];
         $where = "t.tenant_id=?";
         if ($search) { $where .= " AND (u.name LIKE ? OR t.employee_no LIKE ?)"; $params[] = "%$search%"; $params[] = "%$search%"; }
-        if ($deptId) { $where .= " AND t.department_id=?"; $params[] = $deptId; }
+        if ($classId) {
+            // "Classes taught" = homeroom class OR any class whose subjects this teacher is assigned to
+            // (via the teacher_courses multi-assignment, since a subject already belongs to one class).
+            $where .= " AND (t.class_id=? OR EXISTS (SELECT 1 FROM teacher_courses tc JOIN courses co ON tc.course_id=co.id WHERE tc.teacher_id=t.id AND co.class_id=?))";
+            $params[] = $classId; $params[] = $classId;
+        }
 
         $totalCount = $this->db->fetchOne("SELECT COUNT(*) c FROM teachers t JOIN users u ON t.user_id=u.id WHERE $where", $params)['c'];
         $p = $this->paginate($totalCount);
         $teachers = $this->db->fetchAll(
-            "SELECT t.*, u.name, u.email, u.phone, u.gender, c.name AS class_name, d.name AS department_name
+            "SELECT t.*, u.name, u.email, u.phone, u.gender, c.name AS class_name, d.name AS department_name,
+                    (SELECT GROUP_CONCAT(co.name SEPARATOR ', ') FROM teacher_courses tc JOIN courses co ON tc.course_id=co.id WHERE tc.teacher_id=t.id) AS subjects_taught
              FROM teachers t JOIN users u ON t.user_id=u.id LEFT JOIN classes c ON t.class_id=c.id LEFT JOIN departments d ON t.department_id=d.id
              WHERE $where ORDER BY u.name LIMIT {$p['perPage']} OFFSET {$p['offset']}",
             $params
@@ -34,7 +40,7 @@ class TeacherController extends Controller {
         );
         $this->view('school/highschool/teachers/index', [
             'pageTitle'=>'Teachers','panelType'=>'school','teachers'=>$teachers,'classes'=>$classes,'departments'=>$departments,
-            'search'=>$search,'deptId'=>$deptId,'stats'=>$stats,
+            'search'=>$search,'classId'=>$classId,'stats'=>$stats,
             'page'=>$p['page'],'totalPages'=>$p['totalPages'],'total'=>$p['total'],'perPage'=>$p['perPage'],
             'flash'=>$this->getFlash(), 'importErrors'=>$this->getImportErrors(),
         ]);
@@ -190,6 +196,8 @@ class TeacherController extends Controller {
         $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
         $currentYear = $this->db->fetchOne("SELECT * FROM academic_years WHERE tenant_id=? AND is_current=1 LIMIT 1", [$this->tid]);
         $validThru = $currentYear ? date('M Y', strtotime($currentYear['end_date'])) : date('M Y', strtotime('+1 year'));
+        $subjects = $this->db->fetchAll("SELECT co.name FROM teacher_courses tc JOIN courses co ON tc.course_id=co.id WHERE tc.teacher_id=?", [$id]);
+        $subjectNames = implode(', ', array_column($subjects, 'name'));
 
         $this->view('school/id_card', [
             'pageTitle' => 'ID Card', 'tenant' => $tenant,
@@ -199,7 +207,7 @@ class TeacherController extends Controller {
             'photoUrl' => $teacher['avatar'] ?? null,
             'fields' => [
                 'Department' => $department['name'] ?? null,
-                'Subject'    => $teacher['specialization'] ?: null,
+                'Subject'    => $subjectNames ?: null,
                 'Gender'     => $teacher['gender'] ? ucfirst($teacher['gender']) : null,
                 'Qualif.'    => $teacher['qualification'] ?: null,
             ],
@@ -268,6 +276,16 @@ class TeacherController extends Controller {
         $this->db->execute("UPDATE teachers SET qualification=?,specialization=? WHERE id=? AND tenant_id=?", [$_POST['qualification']??'',$_POST['specialization']??'',$id,$this->tid]);
         $this->assignHomeroom($this->tid, (int)$id, $_POST['class_id'] ?: null);
         $this->flash('success','Teacher updated.'); $this->redirect('/school/teachers');
+    }
+
+    public function resetPassword(string $id): void {
+        $this->requirePermission(['teachers.manage']);
+        $teacher = $this->db->fetchOne("SELECT user_id FROM teachers WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        if (!$teacher) { $this->redirect('/school/teachers'); }
+        $password = $this->generateStrongPassword();
+        $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [password_hash($password, PASSWORD_BCRYPT), $teacher['user_id']]);
+        $this->flash('success', "New password: {$password} (write this down, it will not be shown again).");
+        $this->redirect('/school/teachers/'.$id);
     }
 
     // Safe to delete outright: teacher_courses/learning_materials rows cascade away,

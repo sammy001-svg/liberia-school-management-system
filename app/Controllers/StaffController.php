@@ -101,4 +101,14 @@ class StaffController extends Controller {
         $this->flash('success', 'Staff member removed.');
         $this->redirect('/school/staff');
     }
+
+    public function resetPassword(string $id): void {
+        $this->requirePermission(['staff.manage']);
+        $staff = $this->db->fetchOne("SELECT id FROM users WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        if (!$staff) { $this->redirect('/school/staff'); }
+        $password = $this->generateStrongPassword();
+        $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [password_hash($password, PASSWORD_BCRYPT), $id]);
+        $this->flash('success', "New password: {$password} (write this down, it will not be shown again).");
+        $this->redirect('/school/staff');
+    }
 }

@@ -90,6 +90,7 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
         <div class="dropdown-menu">
           <div class="dropdown-item" style="font-size:11px;color:var(--text-muted);cursor:default;"><?= htmlspecialchars($user['email'] ?? '') ?></div>
           <hr class="dropdown-divider">
+          <a href="<?= $base ?>/account/change-password" class="dropdown-item">Change Password</a>
           <a href="<?= $base ?>/logout" class="dropdown-item">Sign Out</a>
         </div>
       </div>

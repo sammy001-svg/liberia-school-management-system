@@ -19,6 +19,10 @@
     <div class="profile-hero-actions">
       <a href="<?= $cfg['url'] ?>/school/teachers/<?= $teacher['id'] ?>/id-card" target="_blank" class="btn btn-outline">🪪 ID Card</a>
       <a href="<?= $cfg['url'] ?>/school/teachers/<?= $teacher['id'] ?>/edit" class="btn btn-secondary">Edit</a>
+      <form method="POST" action="<?= $cfg['url'] ?>/school/teachers/<?= $teacher['id'] ?>/reset-password" data-confirm="Reset the login password for <?= htmlspecialchars($teacher['name']) ?>? The old password will stop working." data-confirm-title="Reset Password" data-confirm-label="Reset Password">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+        <button type="submit" class="btn btn-outline">🔑 Reset Password</button>
+      </form>
       <form method="POST" action="<?= $cfg['url'] ?>/school/teachers/<?= $teacher['id'] ?>/delete" data-confirm="Remove <?= htmlspecialchars($teacher['name']) ?>? This cannot be undone." data-confirm-title="Remove Teacher" data-confirm-label="Remove">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
         <button type="submit" class="btn btn-danger">Delete</button>
@@ -86,7 +90,7 @@
           </div>
           <div class="detail-item">
             <div class="detail-icon">📚</div>
-            <div><div class="detail-label">Specialization</div><div class="detail-value"><?= htmlspecialchars($teacher['specialization'] ?? '—') ?></div></div>
+            <div><div class="detail-label">Area of Expertise</div><div class="detail-value"><?= htmlspecialchars($teacher['specialization'] ?? '—') ?></div></div>
           </div>
           <div class="detail-item">
             <div class="detail-icon">🏢</div>

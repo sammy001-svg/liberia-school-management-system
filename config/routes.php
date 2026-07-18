@@ -8,6 +8,8 @@ $router->get('/login',    ['AuthController', 'loginPage']);
 $router->post('/login',   ['AuthController', 'loginPost']);
 $router->get('/logout',   ['AuthController', 'logout']);
 $router->get('/unauthorized', ['AuthController', 'unauthorized']);
+$router->get('/account/change-password',  ['AuthController', 'changePasswordPage']);
+$router->post('/account/change-password', ['AuthController', 'changePasswordPost']);
 
 // ── SCHOOL (High School) ──────────────────────────────────────
 $router->get('/school',                     ['SchoolDashboardController', 'index']);
@@ -36,6 +38,7 @@ $router->get('/school/teachers/{id}/id-card', ['TeacherController', 'idCard']);
 $router->get('/school/teachers/{id}/edit',  ['TeacherController', 'edit']);
 $router->post('/school/teachers/{id}/update', ['TeacherController', 'update']);
 $router->post('/school/teachers/{id}/delete', ['TeacherController', 'delete']);
+$router->post('/school/teachers/{id}/reset-password', ['TeacherController', 'resetPassword']);
 $router->post('/school/teachers/{id}/courses/assign', ['TeacherController', 'assignCourse']);
 $router->post('/school/teachers/{id}/courses/{courseId}/remove', ['TeacherController', 'removeCourse']);
 $router->post('/school/teachers/{id}/courses/{courseId}/reassign', ['TeacherController', 'reassignCourse']);
@@ -74,6 +77,7 @@ $router->get('/school/grades/rankings/print',       ['GradeController', 'printRa
 $router->get('/school/certificates',              ['CertificateController', 'index']);
 $router->post('/school/certificates/generate',     ['CertificateController', 'generate']);
 $router->post('/school/certificates/bulk-generate', ['CertificateController', 'bulkGenerate']);
+$router->post('/school/certificates/issue-selected', ['CertificateController', 'issueSelected']);
 $router->get('/school/certificates/{id}/print',    ['CertificateController', 'printCertificate']);
 $router->post('/school/certificates/{id}/delete',  ['CertificateController', 'delete']);
 
@@ -207,6 +211,7 @@ $router->post('/school/staff/store',        ['StaffController', 'store']);
 $router->get('/school/staff/{id}/edit',     ['StaffController', 'edit']);
 $router->post('/school/staff/{id}/update',  ['StaffController', 'update']);
 $router->post('/school/staff/{id}/delete',  ['StaffController', 'delete']);
+$router->post('/school/staff/{id}/reset-password', ['StaffController', 'resetPassword']);
 
 // ── ROLES & PERMISSIONS ─────────────────────────────────────────
 $router->get('/school/roles',               ['RoleController', 'index']);

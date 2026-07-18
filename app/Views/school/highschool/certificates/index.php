@@ -51,13 +51,17 @@
 </div>
 
 <div class="card">
-  <div class="card-header"><div class="card-title"><?= htmlspecialchars($selectedYear['name'] ?? '') ?> — Students (<?= count($students) ?>)</div></div>
+  <div class="card-header">
+    <div class="card-title"><?= htmlspecialchars($selectedYear['name'] ?? '') ?> — Students (<?= count($students) ?>)</div>
+    <button type="button" id="issueSelectedBtn" class="btn btn-primary btn-sm" disabled onclick="submitIssueSelected()">Issue to Selected (<span id="selectedCount">0</span>)</button>
+  </div>
   <div class="table-wrapper">
     <table>
-      <thead><tr><th>Student</th><th>Admission No</th><th>Class</th><th>Status</th><th>Actions</th></tr></thead>
+      <thead><tr><th style="width:36px;"><input type="checkbox" id="selectAllStudents"></th><th>Student</th><th>Admission No</th><th>Class</th><th>Status</th><th>Actions</th></tr></thead>
       <tbody>
         <?php foreach($students as $s): ?>
         <tr>
+          <td><?php if(!$s['certificate_id']): ?><input type="checkbox" class="student-select" value="<?= $s['student_id'] ?>" onchange="updateSelectedCount()"><?php endif; ?></td>
           <td class="fw-600"><?= htmlspecialchars($s['student_name']) ?></td>
           <td style="font-family:monospace;font-size:12px"><?= htmlspecialchars($s['admission_no']) ?></td>
           <td><?= htmlspecialchars($s['class_name'] ?? '—') ?></td>
@@ -91,7 +95,7 @@
         </tr>
         <?php endforeach; ?>
         <?php if(empty($students)): ?>
-        <tr><td colspan="5"><div class="empty-state"><div class="empty-state-icon">🎓</div><div class="empty-state-text">No active or graduated students found for this filter.</div></div></td></tr>
+        <tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">🎓</div><div class="empty-state-text">No active or graduated students found for this filter.</div></div></td></tr>
         <?php endif; ?>
       </tbody>
     </table>
@@ -120,6 +124,38 @@
     </form>
   </div>
 </div>
+
+<!-- Issue to Selected Students (hidden form, populated by JS before submit) -->
+<form method="POST" action="<?= $cfg['url'] ?>/school/certificates/issue-selected" id="issueSelectedForm">
+  <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+  <input type="hidden" name="academic_year_id" value="<?= $academicYearId ?>">
+  <input type="hidden" name="type" value="<?= htmlspecialchars($type) ?>">
+</form>
+
+<script>
+function updateSelectedCount() {
+  var checked = document.querySelectorAll('.student-select:checked');
+  document.getElementById('selectedCount').textContent = checked.length;
+  document.getElementById('issueSelectedBtn').disabled = checked.length === 0;
+  var boxes = document.querySelectorAll('.student-select');
+  document.getElementById('selectAllStudents').checked = boxes.length > 0 && checked.length === boxes.length;
+}
+document.getElementById('selectAllStudents').addEventListener('change', function(){
+  document.querySelectorAll('.student-select').forEach(function(cb){ cb.checked = this.checked; }.bind(this));
+  updateSelectedCount();
+});
+function submitIssueSelected() {
+  var form = document.getElementById('issueSelectedForm');
+  document.querySelectorAll('.student-select:checked').forEach(function(cb){
+    var input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'student_ids[]';
+    input.value = cb.value;
+    form.appendChild(input);
+  });
+  form.submit();
+}
+</script>
 
 <?php endif; ?>
 
