@@ -25,10 +25,10 @@
   padding: 20px;
   display: flex;
   flex-direction: column;
-  box-shadow: var(--shadow-card), inset 0 1px 0 var(--card-highlight);
+  box-shadow: var(--card-glow), inset 0 1px 0 var(--card-highlight);
   transition: transform var(--transition), box-shadow var(--transition);
 }
-.dash-card:hover { transform: translateY(-2px); box-shadow: var(--shadow), inset 0 1px 0 var(--card-highlight); }
+.dash-card:hover { transform: translateY(-2px); box-shadow: var(--card-glow-hover), inset 0 1px 0 var(--card-highlight); }
 .dash-card-header {
   display: flex; justify-content: space-between; align-items: center;
   margin-bottom: 16px;
@@ -62,7 +62,7 @@
   text-align: center;
 }
 .ql-btn { box-shadow: 0 2px 6px rgba(0,0,0,0.14), inset 0 1px 0 var(--card-highlight); }
-.ql-btn:hover { background: var(--ql-soft, rgba(16,185,129,0.1)); border-color: var(--ql-accent, var(--primary)); transform: translateY(-2px); box-shadow: 0 6px 14px rgba(0,0,0,0.18); }
+.ql-btn:hover { background: var(--ql-soft, rgba(16,185,129,0.1)); border-color: var(--ql-accent, var(--primary)); transform: translateY(-2px); box-shadow: 0 0 18px var(--ql-soft, rgba(16,185,129,0.2)), 0 6px 14px rgba(0,0,0,0.18); }
 .ql-btn svg { width: 24px; height: 24px; color: var(--ql-accent, var(--primary)); }
 .ql-btn span { font-size: 11px; font-weight: 600; color: var(--text); }
 
