@@ -33,7 +33,7 @@
   </div>
   <div class="table-wrapper">
     <table>
-      <thead><tr><th>Class</th><th>Grade</th><th>Section</th><th>Room</th><th>Class Teacher</th><th>Enrolment</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Class</th><th>Grade</th><th>Section</th><th>Subjects</th><th>Room</th><th>Class Teacher</th><th>Enrolment</th><th>Actions</th></tr></thead>
       <tbody>
         <?php foreach($classes as $c): ?>
         <?php $fillPct = $c['capacity'] > 0 ? min(100, round($c['student_count'] / $c['capacity'] * 100)) : 0; ?>
@@ -41,6 +41,13 @@
           <td><a href="<?= $cfg['url'] ?>/school/classes/<?= $c['id'] ?>" class="fw-600"><?= htmlspecialchars($c['name']) ?></a></td>
           <td><?= htmlspecialchars($c['grade_level']) ?></td>
           <td><?= htmlspecialchars($c['section']??'—') ?></td>
+          <td>
+            <?php if((int)$c['subject_count'] > 0): ?>
+              <span class="badge badge-info"><?= (int)$c['subject_count'] ?></span>
+            <?php else: ?>
+              <span class="badge badge-warning">0</span>
+            <?php endif; ?>
+          </td>
           <td><?= htmlspecialchars($c['room_number']??'—') ?></td>
           <td><?= htmlspecialchars($c['teacher_name']??'—') ?></td>
           <td>
@@ -58,7 +65,7 @@
         </tr>
         <?php endforeach; ?>
         <?php if(empty($classes)): ?>
-        <tr><td colspan="7">
+        <tr><td colspan="8">
           <div class="empty-state">
             <div class="empty-state-icon">🏫</div>
             <div class="empty-state-text">No classes yet. <a href="javascript:void(0)" onclick="document.getElementById('addClassModal').classList.add('open')">Create one</a></div>

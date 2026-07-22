@@ -98,6 +98,13 @@ class AuthController extends Controller {
             );
             $_SESSION['permissions'] = array_map(fn($p) => "{$p['module']}.{$p['action']}", $perms);
 
+            // Anyone with a teachers row is structurally an instructor regardless of their role's
+            // permission grants — used to let every instructor take attendance (see Controller::isInstructor()).
+            $_SESSION['is_instructor'] = (bool)$this->db->fetchOne(
+                "SELECT id FROM teachers WHERE user_id = ? AND tenant_id = ?",
+                [$user['id'], $user['tenant_id']]
+            );
+
             // Update last login
             $this->db->execute("UPDATE users SET last_login = NOW() WHERE id = ?", [$user['id']]);
 

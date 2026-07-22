@@ -6,6 +6,7 @@
     <div class="page-header-sub">Manage student enrolment and profiles</div>
   </div>
   <div style="display:flex;gap:10px;">
+    <a href="<?= $cfg['url'] ?>/school/students/returning" class="btn btn-outline">↩ Register Returning Student</a>
     <button type="button" class="btn btn-secondary" onclick="document.getElementById('bulkUploadModal').classList.add('open')">Bulk Upload</button>
     <button type="button" class="btn btn-primary" onclick="document.getElementById('admitModal').classList.add('open')">+ Admit Student</button>
   </div>
@@ -256,6 +257,7 @@
               <option value="new">New Student</option>
               <option value="old">Old Student</option>
             </select>
+            <div class="form-hint">Returning after withdrawing or graduating? Use <a href="<?= $cfg['url'] ?>/school/students/returning" onclick="document.getElementById('admitModal').classList.remove('open')">Register Returning Student</a> instead, so their old record and history come with them.</div>
           </div>
         </div>
         <div class="form-row">

@@ -373,4 +373,56 @@ class StudentController extends Controller {
         foreach ($pins as $admissionNo => $pin) { $rows[] = [$admissionNo, $pin]; }
         $this->downloadCsv('student_login_pins.csv', ['Admission No', 'PIN'], $rows);
     }
+
+    // --- RETURNING STUDENTS ---
+    // Registering a returning student re-enrols their existing (withdrawn/graduated) record
+    // instead of creating a new one, so their historical grades/attendance/invoices — all
+    // linked by student_id — stay attached rather than being orphaned under a duplicate.
+
+    public function returningSearch(): void {
+        $this->requirePermission(['students.manage']);
+        $search = trim($_GET['q'] ?? '');
+        $results = $search ? $this->db->fetchAll(
+            "SELECT s.id, s.admission_no, s.status, s.admission_date, u.name, c.name AS class_name
+             FROM students s JOIN users u ON s.user_id=u.id LEFT JOIN classes c ON s.class_id=c.id
+             WHERE s.tenant_id=? AND s.status IN ('withdrawn','graduated') AND (u.name LIKE ? OR s.admission_no LIKE ?)
+             ORDER BY u.name", [$this->tid, "%$search%", "%$search%"]
+        ) : [];
+        $this->view('school/highschool/students/returning_search', [
+            'pageTitle' => 'Register Returning Student', 'panelType' => 'school',
+            'search' => $search, 'results' => $results, 'flash' => $this->getFlash(),
+        ]);
+    }
+
+    public function reactivateForm(string $id): void {
+        $this->requirePermission(['students.manage']);
+        $student = $this->db->fetchOne(
+            "SELECT s.*, u.name FROM students s JOIN users u ON s.user_id=u.id
+             WHERE s.id=? AND s.tenant_id=? AND s.status IN ('withdrawn','graduated')", [$id, $this->tid]
+        );
+        if (!$student) { $this->redirect('/school/students/returning'); }
+        $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
+        $this->view('school/highschool/students/reactivate', [
+            'pageTitle' => 'Re-enrol '.$student['name'], 'panelType' => 'school',
+            'student' => $student, 'classes' => $classes, 'flash' => $this->getFlash(),
+        ]);
+    }
+
+    public function reactivate(string $id): void {
+        $this->requirePermission(['students.manage']);
+        $student = $this->db->fetchOne(
+            "SELECT s.*, u.name FROM students s JOIN users u ON s.user_id=u.id
+             WHERE s.id=? AND s.tenant_id=? AND s.status IN ('withdrawn','graduated')", [$id, $this->tid]
+        );
+        if (!$student) { $this->redirect('/school/students/returning'); }
+        $errors = $this->validate($_POST, ['admission_date' => 'date']);
+        if ($errors) { $this->failValidation($errors, '/school/students/'.$id.'/reactivate'); }
+
+        $this->db->execute(
+            "UPDATE students SET status='active', class_id=?, admission_date=?, admission_type='old' WHERE id=? AND tenant_id=?",
+            [$_POST['class_id'] ?: null, $_POST['admission_date'] ?: date('Y-m-d'), $id, $this->tid]
+        );
+        $this->flash('success', "{$student['name']} has been re-enrolled — Admission No: {$student['admission_no']} (unchanged, along with their prior history). Use \"Reset PIN\" on their profile if they no longer remember their login.");
+        $this->redirect('/school/students/'.$id);
+    }
 }

@@ -1,6 +1,7 @@
 <?php
 $base = (require ROOT_DIR.'/config/app.php')['url'];
 $perms = $_SESSION['permissions'] ?? [];
+$isInstructor = $isInstructor ?? false;
 
 // Each item is only rendered if the logged-in user holds at least one of its
 // required permissions, and a section header is only rendered if at least one
@@ -28,7 +29,7 @@ $sections = [
          'icon'=>'<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"/>'],
         ['url'=>'/school/courses', 'label'=>'Subjects', 'perms'=>['academics.view','academics.manage'],
          'icon'=>'<path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/>'],
-        ['url'=>'/school/attendance', 'label'=>'Attendance', 'perms'=>['attendance.manage'],
+        ['url'=>'/school/attendance', 'label'=>'Attendance', 'perms'=>['attendance.manage'], 'bypass'=>$isInstructor,
          'icon'=>'<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>'],
         ['url'=>'/school/timetable', 'label'=>'Timetable', 'perms'=>['timetable.view','timetable.manage'],
          'icon'=>'<path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/>'],
@@ -96,7 +97,7 @@ $sections = [
 ];
 ?>
 <?php foreach ($sections as $section): ?>
-  <?php $items = array_filter($section['items'], fn($i) => empty($i['perms']) || !empty(array_intersect($i['perms'], $perms))); ?>
+  <?php $items = array_filter($section['items'], fn($i) => empty($i['perms']) || !empty(array_intersect($i['perms'], $perms)) || !empty($i['bypass'])); ?>
   <?php if (empty($items)) continue; ?>
   <div class="sidebar-section">
     <div class="sidebar-section-label"><?= htmlspecialchars($section['label']) ?></div>

@@ -59,6 +59,31 @@ abstract class Controller {
         $this->redirect('/unauthorized');
     }
 
+    // True for anyone with a teachers row for this tenant, regardless of which role/permission
+    // set they hold — so a custom role a School Admin forgot to grant a given permission to
+    // doesn't block someone who is, structurally, an instructor. Cached in session at login
+    // (AuthController::loginPost()) rather than queried on every request.
+    protected function isInstructor(): bool {
+        return !empty($_SESSION['is_instructor']);
+    }
+
+    /** Like requirePermission(), but also lets any registered instructor through regardless
+     *  of their role's permission grants — for actions every instructor should be able to do. */
+    protected function requirePermissionOrInstructor(string|array $keys): void {
+        if (!isset($_SESSION['user_id'])) {
+            $this->redirect('/login');
+        }
+        foreach ((array)$keys as $key) {
+            if ($this->hasPermission($key)) {
+                return;
+            }
+        }
+        if ($this->isInstructor()) {
+            return;
+        }
+        $this->redirect('/unauthorized');
+    }
+
     protected function view(string $viewPath, array $data = []): void {
         // Automatically inject tenant data if it exists in session but not in $data
         if (!isset($data['tenant']) && isset($_SESSION['tenant_id'])) {
@@ -66,6 +91,7 @@ abstract class Controller {
         }
         $data['csrf_token'] = $this->csrfToken();
         $data['canManageRoles'] = $this->hasPermission('roles.manage');
+        $data['isInstructor'] = $this->isInstructor();
 
         extract($data);
         $viewFile = dirname(__DIR__) . "/app/Views/{$viewPath}.php";

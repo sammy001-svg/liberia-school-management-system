@@ -21,12 +21,15 @@ $router->post('/school/students/store',     ['StudentController', 'store']);
 $router->get('/school/students/bulk-template', ['StudentController', 'bulkTemplate']);
 $router->post('/school/students/bulk-upload',  ['StudentController', 'bulkUpload']);
 $router->get('/school/students/bulk-credentials', ['StudentController', 'downloadCredentials']);
+$router->get('/school/students/returning',  ['StudentController', 'returningSearch']);
 $router->get('/school/students/{id}',       ['StudentController', 'show']);
 $router->get('/school/students/{id}/id-card', ['StudentController', 'idCard']);
 $router->get('/school/students/{id}/edit',  ['StudentController', 'edit']);
 $router->post('/school/students/{id}/update', ['StudentController', 'update']);
 $router->post('/school/students/{id}/delete', ['StudentController', 'delete']);
 $router->post('/school/students/{id}/reset-pin', ['StudentController', 'resetPin']);
+$router->get('/school/students/{id}/reactivate', ['StudentController', 'reactivateForm']);
+$router->post('/school/students/{id}/reactivate', ['StudentController', 'reactivate']);
 
 $router->get('/school/teachers',            ['TeacherController', 'index']);
 $router->get('/school/teachers/create',     ['TeacherController', 'create']);
@@ -77,6 +80,11 @@ $router->get('/school/certificates',              ['CertificateController', 'ind
 $router->post('/school/certificates/generate',     ['CertificateController', 'generate']);
 $router->post('/school/certificates/bulk-generate', ['CertificateController', 'bulkGenerate']);
 $router->post('/school/certificates/issue-selected', ['CertificateController', 'issueSelected']);
+$router->post('/school/certificates/issue-staff-selected', ['CertificateController', 'issueToStaffSelected']);
+$router->get('/school/certificates/types',          ['CertificateController', 'types']);
+$router->post('/school/certificates/types/store',   ['CertificateController', 'storeType']);
+$router->post('/school/certificates/types/{id}/update', ['CertificateController', 'updateType']);
+$router->post('/school/certificates/types/{id}/delete', ['CertificateController', 'deleteType']);
 $router->get('/school/certificates/{id}/print',    ['CertificateController', 'printCertificate']);
 $router->post('/school/certificates/{id}/delete',  ['CertificateController', 'delete']);
 

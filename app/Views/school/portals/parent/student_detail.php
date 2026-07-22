@@ -30,6 +30,47 @@
 
 <div style="display:grid; grid-template-columns: 1fr; gap:24px;">
     <div class="card">
+        <div class="card-header"><div class="card-title">🚌 Transport</div></div>
+        <div class="card-body">
+            <?php if($busInfo): ?>
+            <div class="detail-list">
+                <div class="detail-item">
+                    <div class="detail-icon">🛣️</div>
+                    <div><div class="detail-label">Route</div><div class="detail-value"><?= htmlspecialchars($busInfo['route_name']) ?></div></div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-icon">📍</div>
+                    <div><div class="detail-label">Pickup Stop</div><div class="detail-value"><?= htmlspecialchars($busInfo['pickup_stop'] ?: 'Not specified') ?></div></div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-icon">⏰</div>
+                    <div><div class="detail-label">Departure / Return</div><div class="detail-value"><?= $busInfo['departure_time'] ? date('g:i A', strtotime($busInfo['departure_time'])) : '—' ?> / <?= $busInfo['return_time'] ? date('g:i A', strtotime($busInfo['return_time'])) : '—' ?></div></div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-icon">🚐</div>
+                    <div><div class="detail-label">Bus</div><div class="detail-value"><?= htmlspecialchars($busInfo['bus_number'] ?? 'Not assigned') ?><?= $busInfo['plate_number'] ? ' ('.htmlspecialchars($busInfo['plate_number']).')' : '' ?></div></div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-icon">🧑‍✈️</div>
+                    <div><div class="detail-label">Driver</div><div class="detail-value"><?= htmlspecialchars($busInfo['driver_name'] ?? 'Not assigned') ?><?= $busInfo['driver_phone'] ? ' — '.htmlspecialchars($busInfo['driver_phone']) : '' ?></div></div>
+                </div>
+                <?php if($busInfo['stops']): ?>
+                <div class="detail-item">
+                    <div class="detail-icon">🗺️</div>
+                    <div><div class="detail-label">All Stops</div><div class="detail-value"><?= htmlspecialchars($busInfo['stops']) ?></div></div>
+                </div>
+                <?php endif; ?>
+            </div>
+            <?php else: ?>
+            <div class="empty-state">
+                <div class="empty-state-icon">🚌</div>
+                <div class="empty-state-text">Not currently assigned to a bus route.</div>
+            </div>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <div class="card">
         <div class="card-header">
           <div class="card-title">Academic Results</div>
           <a href="<?= $cfg['url'] ?>/parent/student/<?= $student['id'] ?>/report-card" target="_blank" class="btn btn-sm btn-primary">📄 View Full Grade Sheet</a>

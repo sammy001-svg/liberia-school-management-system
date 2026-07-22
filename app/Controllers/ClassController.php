@@ -7,7 +7,13 @@ class ClassController extends Controller {
 
     public function index(): void {
         $this->requirePermission(['classes.view','classes.manage']);
-        $classes = $this->db->fetchAll("SELECT c.*, u.name AS teacher_name, (SELECT COUNT(*) FROM students s WHERE s.class_id=c.id) AS student_count FROM classes c LEFT JOIN teachers t ON c.class_teacher_id=t.id LEFT JOIN users u ON t.user_id=u.id WHERE c.tenant_id=? ORDER BY c.grade_level, c.section", [$this->tid]);
+        $classes = $this->db->fetchAll(
+            "SELECT c.*, u.name AS teacher_name,
+                    (SELECT COUNT(*) FROM students s WHERE s.class_id=c.id) AS student_count,
+                    (SELECT COUNT(*) FROM course_classes cc WHERE cc.class_id=c.id) AS subject_count
+             FROM classes c LEFT JOIN teachers t ON c.class_teacher_id=t.id LEFT JOIN users u ON t.user_id=u.id
+             WHERE c.tenant_id=? ORDER BY c.grade_level, c.section", [$this->tid]
+        );
         $teachers = $this->db->fetchAll("SELECT t.id, u.name FROM teachers t JOIN users u ON t.user_id=u.id WHERE t.tenant_id=? ORDER BY u.name", [$this->tid]);
         $academicYears = $this->db->fetchAll("SELECT id,name FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]);
         $stats = $this->db->fetchOne(

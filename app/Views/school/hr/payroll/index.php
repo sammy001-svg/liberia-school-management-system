@@ -12,6 +12,20 @@
     </form>
 </div>
 
+<?php if(!empty($missingSalary)): ?>
+<div class="card" style="border-color:var(--warning);margin-bottom:20px;">
+  <div class="card-header"><div class="card-title" style="color:var(--warning);">⚠️ Missing Salary Info (<?= count($missingSalary) ?>)</div></div>
+  <div class="card-body">
+    <p style="font-size:13px;color:var(--text-light);margin-bottom:12px;">These active staff/teachers won't appear in payroll until a salary is set up for them on the <a href="<?= $cfg['url'] ?>/school/staff">Staff</a> page (click Edit on their row).</p>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+      <?php foreach($missingSalary as $m): ?>
+        <span class="badge badge-warning"><?= htmlspecialchars($m['name']) ?> (<?= htmlspecialchars($m['role_name']) ?>)</span>
+      <?php endforeach; ?>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+
 <form method="GET" class="card" style="padding:16px 20px;margin-bottom:20px;">
   <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
     <label style="color:var(--text-muted);font-size:13px">Period:</label>

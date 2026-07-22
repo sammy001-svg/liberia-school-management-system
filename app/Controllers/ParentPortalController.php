@@ -97,8 +97,21 @@ class ParentPortalController extends Controller {
         );
 
         $invoices = $this->db->fetchAll(
-            "SELECT * FROM invoices WHERE student_id = ? ORDER BY created_at DESC", 
+            "SELECT * FROM invoices WHERE student_id = ? ORDER BY created_at DESC",
             [$sid]
+        );
+
+        $busInfo = $this->db->fetchOne(
+            "SELECT br.name AS route_name, br.stops, br.departure_time, br.return_time,
+                    bs.pickup_stop,
+                    b.bus_number, b.plate_number,
+                    d.name AS driver_name, d.phone AS driver_phone
+             FROM bus_students bs
+             JOIN bus_routes br ON bs.route_id = br.id
+             LEFT JOIN buses b ON br.bus_id = b.id
+             LEFT JOIN bus_drivers d ON br.driver_id = d.id
+             WHERE bs.student_id = ? AND bs.tenant_id = ? AND bs.status = 'active'",
+            [$sid, $this->tid]
         );
 
         $this->view('school/portals/parent/student_detail', [
@@ -107,7 +120,8 @@ class ParentPortalController extends Controller {
             'student' => $student,
             'attendance' => $attendance,
             'grades' => $grades,
-            'invoices' => $invoices
+            'invoices' => $invoices,
+            'busInfo' => $busInfo ?: null,
         ]);
     }
 

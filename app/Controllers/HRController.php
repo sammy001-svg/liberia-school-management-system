@@ -29,6 +29,20 @@ class HRController extends Controller {
             'paid' => count(array_filter($records, fn($r) => $r['status'] === 'paid')),
         ];
 
+        // Payroll is only ever generated for people who already have a staff_salaries row —
+        // but that row is only created from the Staff page's own create/edit form. Teachers in
+        // particular are created through a separate flow that never touches staff_salaries, so
+        // they silently never appear here unless someone remembers to set their salary
+        // afterward. Surface exactly who's missing so "payroll isn't showing everyone" is
+        // self-explanatory instead of a mystery.
+        $missingSalary = $this->db->fetchAll(
+            "SELECT u.id, u.name, r.name AS role_name
+             FROM users u JOIN roles r ON u.role_id=r.id
+             WHERE u.tenant_id=? AND u.status='active' AND r.name IN ('Staff','Accountant','Teacher')
+               AND NOT EXISTS (SELECT 1 FROM staff_salaries s WHERE s.user_id=u.id)
+             ORDER BY u.name", [$this->tid]
+        );
+
         $this->view('school/hr/payroll/index', [
             'pageTitle' => 'Staff Payroll',
             'panelType' => 'school',
@@ -36,6 +50,7 @@ class HRController extends Controller {
             'month' => $month,
             'year' => $year,
             'stats' => $stats,
+            'missingSalary' => $missingSalary,
             'flash' => $this->getFlash()
         ]);
     }
@@ -53,22 +68,32 @@ class HRController extends Controller {
 
         // Get all active staff with set salaries
         $salaries = $this->db->fetchAll(
-            "SELECT s.* FROM staff_salaries s 
-             JOIN users u ON s.user_id = u.id 
-             WHERE s.tenant_id = ? AND u.status = 'active'", 
+            "SELECT s.* FROM staff_salaries s
+             JOIN users u ON s.user_id = u.id
+             WHERE s.tenant_id = ? AND u.status = 'active'",
             [$this->tid]
         );
 
         foreach ($salaries as $s) {
             $net = $s['basic_salary'] + $s['allowances'] - $s['deductions'];
             $this->db->insert(
-                "INSERT INTO payroll (tenant_id, user_id, month, year, basic_salary, allowances, deductions, net_salary, status) 
+                "INSERT INTO payroll (tenant_id, user_id, month, year, basic_salary, allowances, deductions, net_salary, status)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft')",
                 [$this->tid, $s['user_id'], $month, $year, $s['basic_salary'], $s['allowances'], $s['deductions'], $net]
             );
         }
 
-        $this->flash('success', 'Payroll draft generated for ' . date("F", mktime(0, 0, 0, $month, 10)) . ' ' . $year);
+        $skipped = $this->db->fetchOne(
+            "SELECT COUNT(*) c FROM users u JOIN roles r ON u.role_id=r.id
+             WHERE u.tenant_id=? AND u.status='active' AND r.name IN ('Staff','Accountant','Teacher')
+               AND NOT EXISTS (SELECT 1 FROM staff_salaries s WHERE s.user_id=u.id)", [$this->tid]
+        )['c'] ?? 0;
+
+        $message = 'Payroll draft generated for ' . count($salaries) . ' staff (' . date("F", mktime(0, 0, 0, $month, 10)) . ' ' . $year . ').';
+        if ($skipped > 0) {
+            $message .= " {$skipped} active staff/teacher(s) were skipped because they have no salary set up yet — see below.";
+        }
+        $this->flash($skipped > 0 ? 'warning' : 'success', $message);
         $this->redirect('/school/hr/payroll');
     }
 

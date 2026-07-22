@@ -5,24 +5,25 @@
 </div>
 <div class="page-header"><div class="page-header-title">Enter Grades</div></div>
 <form method="GET" class="card" style="padding:16px 20px;margin-bottom:20px;">
-  <div style="display:flex;gap:12px;align-items:center;">
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
     <select name="class_id" class="form-control" style="max-width:220px;">
       <option value="">— Select Class —</option>
       <?php foreach($classes as $c): ?><option value="<?= $c['id'] ?>" <?= $selectedClass==$c['id']?'selected':'' ?>><?= htmlspecialchars($c['name']) ?></option><?php endforeach; ?>
+    </select>
+    <select name="exam_id" class="form-control" style="max-width:220px;">
+      <option value="">— No Exam —</option>
+      <?php foreach($exams as $e): ?><option value="<?= $e['id'] ?>" <?= (string)$selectedExam===(string)$e['id']?'selected':'' ?>><?= htmlspecialchars($e['name']) ?></option><?php endforeach; ?>
     </select>
     <button type="submit" class="btn btn-secondary">Load Students</button>
   </div>
 </form>
 <?php if (!empty($students)): ?>
+<?php if(!$canEditGrades): ?>
+<div class="alert alert-info" style="margin-bottom:16px;">Cells with an existing grade are locked — only a School Admin can change a grade once it's recorded. You can still enter marks for anything left blank.</div>
+<?php endif; ?>
 <form method="POST" action="<?= $cfg['url'] ?>/school/grades/store">
   <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
-  <div class="form-group" style="max-width:300px;margin-bottom:20px;">
-    <label class="form-label">Exam</label>
-    <select name="exam_id" class="form-control">
-      <option value="">— No Exam —</option>
-      <?php foreach($exams as $e): ?><option value="<?= $e['id'] ?>"><?= htmlspecialchars($e['name']) ?></option><?php endforeach; ?>
-    </select>
-  </div>
+  <input type="hidden" name="exam_id" value="<?= htmlspecialchars($selectedExam) ?>">
   <div class="card">
     <div class="card-header">
       <div class="card-title">Enter Marks (out of 100) — <?= count($students) ?> students</div>
@@ -41,7 +42,11 @@
         <tr>
           <td class="fw-600"><?= htmlspecialchars($s['name']) ?></td>
           <?php foreach($courses as $c): ?>
-          <td><input type="number" name="grades[<?= $s['id'] ?>][<?= $c['id'] ?>]" class="form-control mark-input" min="0" max="100" style="width:70px;padding:6px;"></td>
+          <?php
+            $existingMark = $existingGrades[$s['id']][$c['id']] ?? null;
+            $locked = $existingMark !== null && !$canEditGrades;
+          ?>
+          <td><input type="number" name="grades[<?= $s['id'] ?>][<?= $c['id'] ?>]" value="<?= $existingMark !== null ? htmlspecialchars($existingMark) : '' ?>" class="form-control mark-input" min="0" max="100" style="width:70px;padding:6px;<?= $locked ? 'background:var(--bg-muted,#f3f4f6);cursor:not-allowed;' : '' ?>" <?= $locked ? 'readonly title="Already graded — only a School Admin can change this."' : '' ?>></td>
           <?php endforeach; ?>
         </tr>
         <?php endforeach; ?>

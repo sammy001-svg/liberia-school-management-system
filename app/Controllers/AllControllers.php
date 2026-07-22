@@ -158,29 +158,63 @@ class GradeController extends Controller {
         $this->requirePermission(['grades.manage']);
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?", [$this->tid]);
         $exams   = $this->db->fetchAll("SELECT id,name FROM exams WHERE tenant_id=?", [$this->tid]);
-        $students = []; $courses = [];
+        $students = []; $courses = []; $existingGrades = [];
+        $selectedExam = $_GET['exam_id'] ?? '';
         if (!empty($_GET['class_id'])) {
             $students = $this->db->fetchAll("SELECT s.id,u.name FROM students s JOIN users u ON s.user_id=u.id WHERE s.class_id=? AND s.tenant_id=? AND s.status='active' ORDER BY u.name",[$_GET['class_id'],$this->tid]);
             $courses  = $this->db->fetchAll(
                 "SELECT c.id,c.name FROM courses c JOIN course_classes cc ON cc.course_id=c.id
                  WHERE cc.class_id=? AND c.tenant_id=?",[$_GET['class_id'],$this->tid]
             );
+            // Prefill already-recorded marks for this exam so re-opening the screen shows what's
+            // there instead of blank cells — needed now that a Teacher without grades.edit can no
+            // longer silently overwrite them (see store()).
+            $rows = $this->db->fetchAll(
+                "SELECT student_id, course_id, marks_obtained FROM grades WHERE tenant_id=? AND exam_id <=> ?",
+                [$this->tid, $selectedExam ?: null]
+            );
+            foreach ($rows as $r) { $existingGrades[$r['student_id']][$r['course_id']] = $r['marks_obtained']; }
         }
-        $this->view('school/highschool/grades/enter', ['pageTitle'=>'Enter Grades','panelType'=>'school','classes'=>$classes,'exams'=>$exams,'students'=>$students,'courses'=>$courses,'selectedClass'=>$_GET['class_id']??'','flash'=>$this->getFlash()]);
+        $this->view('school/highschool/grades/enter', [
+            'pageTitle'=>'Enter Grades','panelType'=>'school','classes'=>$classes,'exams'=>$exams,'students'=>$students,'courses'=>$courses,
+            'selectedClass'=>$_GET['class_id']??'','selectedExam'=>$selectedExam,'existingGrades'=>$existingGrades,
+            'canEditGrades'=>$this->hasPermission('grades.edit'),'flash'=>$this->getFlash(),
+        ]);
     }
 
     public function store(): void {
         $this->requirePermission(['grades.manage']);
+        $canEdit = $this->hasPermission('grades.edit');
+        $examId = $_POST['exam_id'] ?: null;
+        $skipped = 0;
         foreach ($_POST['grades'] ?? [] as $studentId => $marks) {
             foreach ($marks as $courseId => $score) {
+                if ($score === '') { continue; }
                 $pct = (float)$score;
                 $letter = $pct>=90?'A+':($pct>=80?'A':($pct>=70?'B':($pct>=60?'C':($pct>=50?'D':'F'))));
                 $gpa    = $pct>=90?4.0:($pct>=80?3.5:($pct>=70?3.0:($pct>=60?2.5:($pct>=50?2.0:0.0))));
-                $this->db->insert("INSERT INTO grades (tenant_id,student_id,course_id,exam_id,marks_obtained,total_marks,grade_letter,gpa_points,graded_by) VALUES (?,?,?,?,?,100,?,?,?) ON DUPLICATE KEY UPDATE marks_obtained=VALUES(marks_obtained),grade_letter=VALUES(grade_letter)",
-                    [$this->tid,$studentId,$courseId,$_POST['exam_id']??null,$pct,$letter,$gpa,$_SESSION['user_id']]);
+                $existing = $this->db->fetchOne(
+                    "SELECT id FROM grades WHERE tenant_id=? AND student_id=? AND course_id=? AND exam_id <=> ?",
+                    [$this->tid, $studentId, $courseId, $examId]
+                );
+                if ($existing) {
+                    if (!$canEdit) { $skipped++; continue; }
+                    $this->db->execute("UPDATE grades SET marks_obtained=?,grade_letter=?,gpa_points=?,graded_by=? WHERE id=?",
+                        [$pct, $letter, $gpa, $_SESSION['user_id'], $existing['id']]);
+                } else {
+                    $this->db->insert(
+                        "INSERT INTO grades (tenant_id,student_id,course_id,exam_id,marks_obtained,total_marks,grade_letter,gpa_points,graded_by) VALUES (?,?,?,?,?,100,?,?,?)",
+                        [$this->tid,$studentId,$courseId,$examId,$pct,$letter,$gpa,$_SESSION['user_id']]
+                    );
+                }
             }
         }
-        $this->flash('success','Grades saved.'); $this->redirect('/school/grades');
+        if ($skipped > 0) {
+            $this->flash('warning', "Grades saved. {$skipped} already-recorded grade(s) were left unchanged — only a School Admin can overwrite an existing grade.");
+        } else {
+            $this->flash('success','Grades saved.');
+        }
+        $this->redirect('/school/grades');
     }
 
     public function report(string $studentId): void {
