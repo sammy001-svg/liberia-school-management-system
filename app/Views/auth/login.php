@@ -135,6 +135,7 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
         <button type="button" class="login-tab active" data-tab="staff">Staff &amp; Admin</button>
         <button type="button" class="login-tab" data-tab="student">Student</button>
         <button type="button" class="login-tab" data-tab="parent">Parent</button>
+        <a href="<?= $cfg['url'] ?>/apply" class="login-tab">Online Application</a>
       </div>
 
       <div class="login-tab-panel active" data-panel="staff">

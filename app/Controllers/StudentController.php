@@ -227,6 +227,10 @@ class StudentController extends Controller {
         $attendance = $this->db->fetchAll("SELECT * FROM attendance WHERE student_id=? AND tenant_id=? ORDER BY date DESC LIMIT 10",[$id,$this->tid]);
         $invoices = $this->db->fetchAll("SELECT * FROM invoices WHERE student_id=? AND tenant_id=? ORDER BY created_at DESC",[$id,$this->tid]);
         $rankings = $this->db->fetchAll("SELECT * FROM student_rankings WHERE student_id=? AND tenant_id=? ORDER BY created_at",[$id,$this->tid]);
+        $discipline = $this->db->fetchAll(
+            "SELECT d.*, ru.name AS reported_by_name FROM disciplinary_records d LEFT JOIN users ru ON d.reported_by=ru.id
+             WHERE d.student_id=? AND d.tenant_id=? ORDER BY d.incident_date DESC, d.id DESC",[$id,$this->tid]
+        );
 
         $homework = $student['class_id'] ? $this->db->fetchAll(
             "SELECT h.id, h.title, h.due_date, h.max_score, co.name AS course_name,
@@ -269,8 +273,9 @@ class StudentController extends Controller {
 
         $this->view('school/highschool/students/show',[
             'pageTitle'=>$student['name'],'panelType'=>'school','student'=>$student,'grades'=>$grades,'attendance'=>$attendance,'invoices'=>$invoices,
-            'rankings'=>$rankings,'homework'=>$homework,'onlineExams'=>$onlineExams,
+            'rankings'=>$rankings,'homework'=>$homework,'onlineExams'=>$onlineExams,'discipline'=>$discipline,
             'attendanceRate'=>$attendanceRate,'avgGrade'=>$avgGrade,'outstandingFees'=>$feesStats['outstanding'],
+            'canManageDiscipline'=>$this->hasPermission('discipline.manage'),
             'flash'=>$this->getFlash(),
         ]);
     }

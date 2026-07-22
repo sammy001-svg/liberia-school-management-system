@@ -11,6 +11,10 @@ $router->get('/unauthorized', ['AuthController', 'unauthorized']);
 $router->get('/account/change-password',  ['AuthController', 'changePasswordPage']);
 $router->post('/account/change-password', ['AuthController', 'changePasswordPost']);
 
+// Online Application (public, no login required)
+$router->get('/apply',         ['AdmissionController', 'applyPage']);
+$router->post('/apply/submit', ['AdmissionController', 'applySubmit']);
+
 // ── SCHOOL (High School) ──────────────────────────────────────
 $router->get('/school',                     ['SchoolDashboardController', 'index']);
 $router->get('/school/dashboard',           ['SchoolDashboardController', 'index']);
@@ -30,6 +34,11 @@ $router->post('/school/students/{id}/delete', ['StudentController', 'delete']);
 $router->post('/school/students/{id}/reset-pin', ['StudentController', 'resetPin']);
 $router->get('/school/students/{id}/reactivate', ['StudentController', 'reactivateForm']);
 $router->post('/school/students/{id}/reactivate', ['StudentController', 'reactivate']);
+
+$router->get('/school/admissions',              ['AdmissionController', 'index']);
+$router->get('/school/admissions/{id}',         ['AdmissionController', 'show']);
+$router->post('/school/admissions/{id}/approve', ['AdmissionController', 'approve']);
+$router->post('/school/admissions/{id}/reject',  ['AdmissionController', 'reject']);
 
 $router->get('/school/teachers',            ['TeacherController', 'index']);
 $router->get('/school/teachers/create',     ['TeacherController', 'create']);
@@ -75,6 +84,11 @@ $router->get('/school/grades/rankings/bulk-template', ['GradeController', 'bulkT
 $router->post('/school/grades/rankings/bulk-upload',  ['GradeController', 'bulkUploadRankings']);
 $router->get('/school/grades/rankings/export',      ['GradeController', 'exportRankingsCsv']);
 $router->get('/school/grades/rankings/print',       ['GradeController', 'printRankings']);
+
+// ── DISCIPLINE ───────────────────────────────────────────────────
+$router->get('/school/discipline',              ['DisciplineController', 'index']);
+$router->post('/school/discipline/store',       ['DisciplineController', 'store']);
+$router->post('/school/discipline/{id}/delete', ['DisciplineController', 'delete']);
 
 // ── CERTIFICATES ─────────────────────────────────────────────────
 $router->get('/school/certificates',              ['CertificateController', 'index']);
