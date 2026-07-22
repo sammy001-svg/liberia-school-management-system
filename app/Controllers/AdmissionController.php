@@ -130,8 +130,8 @@ class AdmissionController extends Controller {
         $roleId = $this->db->fetchOne("SELECT id FROM roles WHERE name='Student' LIMIT 1")['id'] ?? 7;
         $pin = $this->generateUniquePin();
         $userId = $this->db->insert(
-            "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,date_of_birth,address,status) VALUES (?,?,?,?,?,?,?,?,?)",
-            [$tid, $roleId, $name, $application['guardian_email'] ?: null, $application['guardian_phone'] ?? '', $application['gender'], $application['date_of_birth'], $application['address'] ?? '', 'active']
+            "INSERT INTO users (tenant_id,role_id,name,phone,gender,date_of_birth,address,status) VALUES (?,?,?,?,?,?,?,?)",
+            [$tid, $roleId, $name, '', $application['gender'], $application['date_of_birth'], $application['address'] ?? '', 'active']
         );
         $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [password_hash($pin, PASSWORD_BCRYPT), $userId]);
 
