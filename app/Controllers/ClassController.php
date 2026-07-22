@@ -75,6 +75,28 @@ class ClassController extends Controller {
         $this->flash('success','Class updated.'); $this->redirect('/school/classes');
     }
 
+    // Blocked while students are still assigned (protects live enrollment data).
+    // On delete, FKs cascade the class-link/homework/online-class/online-exam rows
+    // and SET NULL students/timetable; the remaining class_id columns have no FK
+    // (teachers, attendance, exams, fee_structures, announcements,
+    // learning_materials) so they're cleared manually to avoid dangling pointers.
+    public function delete(string $id): void {
+        $this->requirePermission(['classes.manage']);
+        $class = $this->db->fetchOne("SELECT id, name FROM classes WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        if (!$class) { $this->redirect('/school/classes'); }
+        $students = $this->db->fetchOne("SELECT COUNT(*) c FROM students WHERE class_id=? AND tenant_id=?", [$id, $this->tid])['c'] ?? 0;
+        if ($students > 0) {
+            $this->flash('danger', "Cannot delete {$class['name']} — {$students} student(s) are still assigned to it. Move them to another class first.");
+            $this->redirect('/school/classes');
+        }
+        foreach (['teachers','attendance','exams','fee_structures','announcements','learning_materials'] as $table) {
+            $this->db->execute("UPDATE {$table} SET class_id=NULL WHERE class_id=? AND tenant_id=?", [$id, $this->tid]);
+        }
+        $this->db->execute("DELETE FROM classes WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        $this->flash('success', "Class {$class['name']} deleted.");
+        $this->redirect('/school/classes');
+    }
+
     public function show(string $id): void {
         $this->requirePermission(['classes.view','classes.manage']);
         $class = $this->db->fetchOne(

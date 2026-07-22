@@ -7,6 +7,14 @@
   <button type="button" class="btn btn-primary" onclick="document.getElementById('applyLeaveModal').classList.add('open')">+ Apply for Leave</button>
 </div>
 
+<?php if (in_array('hr.manage', $_SESSION['permissions'] ?? [], true)): ?>
+<div class="card" style="padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;gap:10px;border-left:3px solid var(--info);">
+  <span style="font-size:18px;">ℹ️</span>
+  <div style="font-size:13px;">This page shows <b>your own</b> requests only. Staff requests awaiting review are in
+    <a href="<?= $cfg['url'] ?>/school/hr/leaves" class="fw-600">Leave Approvals</a>.</div>
+</div>
+<?php endif; ?>
+
 <div class="stat-grid">
   <div class="stat-card" style="--card-color: var(--warning);">
     <div class="stat-label">Pending</div>

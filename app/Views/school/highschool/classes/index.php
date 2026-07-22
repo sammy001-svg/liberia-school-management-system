@@ -60,6 +60,12 @@
             <div style="display:flex;gap:6px;">
               <a href="<?= $cfg['url'] ?>/school/classes/<?= $c['id'] ?>" class="btn btn-sm btn-outline">View</a>
               <a href="<?= $cfg['url'] ?>/school/classes/<?= $c['id'] ?>/edit" class="btn btn-sm btn-secondary">Edit</a>
+              <?php if ((int)$c['student_count'] === 0): ?>
+              <form method="POST" action="<?= $cfg['url'] ?>/school/classes/<?= $c['id'] ?>/delete" data-confirm="Delete <?= htmlspecialchars($c['name']) ?>? Homework, online classes and online exams created for this class will also be removed. This cannot be undone." data-confirm-title="Delete Class" data-confirm-label="Delete">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+                <button type="submit" class="btn btn-sm btn-danger">Del</button>
+              </form>
+              <?php endif; ?>
             </div>
           </td>
         </tr>

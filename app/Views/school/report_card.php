@@ -65,14 +65,30 @@ $schoolName = $tenant['name'] ?? ($cfg['name'] ?? 'School');
 <body>
 
 <div class="toolbar">
-  <?php if (count($examOptions) > 1): ?>
-  <form method="GET" style="display:flex;gap:8px;">
-    <select name="exam_id" onchange="this.form.submit()">
+  <?php if (count($examOptions) + count($termOptions) + count($yearOptions) > 0): ?>
+  <select onchange="if(this.value) location.search=this.value;">
+    <?php if(!empty($examOptions)): ?>
+    <optgroup label="Single Exam">
       <?php foreach($examOptions as $opt): ?>
-        <option value="<?= $opt['id'] ?>" <?= (int)$opt['id']===(int)$selectedExamId?'selected':'' ?>><?= htmlspecialchars($opt['name']) ?><?= $opt['exam_date'] ? ' — '.date('M Y', strtotime($opt['exam_date'])) : '' ?></option>
+        <option value="?exam_id=<?= $opt['id'] ?>" <?= $mode==='exam' && (int)$opt['id']===(int)$selectedExamId?'selected':'' ?>><?= htmlspecialchars($opt['name']) ?><?= $opt['exam_date'] ? ' — '.date('M Y', strtotime($opt['exam_date'])) : '' ?></option>
       <?php endforeach; ?>
-    </select>
-  </form>
+    </optgroup>
+    <?php endif; ?>
+    <?php if(!empty($termOptions)): ?>
+    <optgroup label="Period Report">
+      <?php foreach($termOptions as $opt): ?>
+        <option value="?term_id=<?= $opt['id'] ?>" <?= $mode==='term' && (int)$opt['id']===(int)($term['id'] ?? 0)?'selected':'' ?>><?= htmlspecialchars($opt['name']) ?><?= $opt['year_name'] ? ' — '.htmlspecialchars($opt['year_name']) : '' ?></option>
+      <?php endforeach; ?>
+    </optgroup>
+    <?php endif; ?>
+    <?php if(!empty($yearOptions)): ?>
+    <optgroup label="Annual Report">
+      <?php foreach($yearOptions as $opt): ?>
+        <option value="?year_id=<?= $opt['id'] ?>" <?= $mode==='annual' && (int)$opt['id']===(int)($year['id'] ?? 0)?'selected':'' ?>>Annual — <?= htmlspecialchars($opt['name']) ?></option>
+      <?php endforeach; ?>
+    </optgroup>
+    <?php endif; ?>
+  </select>
   <?php endif; ?>
   <div class="spacer"></div>
   <button onclick="window.print()">🖨️ Print / Save as PDF</button>
@@ -87,22 +103,30 @@ $schoolName = $tenant['name'] ?? ($cfg['name'] ?? 'School');
       <div class="sub"><?= htmlspecialchars(trim(implode(', ', array_filter([$tenant['address'] ?? null, $tenant['city'] ?? null, $tenant['country'] ?? null])))) ?></div>
     </div>
     <div class="doctitle">
-      <div class="tag">ACADEMIC REPORT CARD</div>
-      <div class="examname"><?= htmlspecialchars($exam['name'] ?? 'No exam selected') ?></div>
+      <div class="tag"><?= $mode==='annual' ? 'ANNUAL REPORT CARD' : ($mode==='term' ? 'PERIOD REPORT CARD' : 'ACADEMIC REPORT CARD') ?></div>
+      <div class="examname"><?= htmlspecialchars($docLabel) ?></div>
     </div>
   </div>
 
-  <?php if (!$exam): ?>
-    <div class="remark-box">This student has no recorded grades for any exam yet.</div>
+  <?php $noData = ($mode==='exam' && !$exam) || ($mode==='term' && empty($termRows)) || ($mode==='annual' && empty($annual['rows'])); ?>
+  <?php if ($noData): ?>
+    <div class="remark-box">This student has no recorded grades for this selection yet.</div>
   <?php else: ?>
 
   <div class="studentbar">
     <div><span class="lbl">Student Name</span><span class="val"><?= htmlspecialchars($student['name']) ?></span></div>
     <div><span class="lbl">Admission No</span><span class="val"><?= htmlspecialchars($student['admission_no']) ?></span></div>
     <div><span class="lbl">Class</span><span class="val"><?= htmlspecialchars($class['name'] ?? '—') ?></span></div>
+    <?php if ($mode==='exam'): ?>
     <div><span class="lbl">Exam Date</span><span class="val"><?= $exam['exam_date'] ? date('M d, Y', strtotime($exam['exam_date'])) : '—' ?></span></div>
+    <?php elseif ($mode==='term'): ?>
+    <div><span class="lbl">Period</span><span class="val"><?= date('M d', strtotime($term['start_date'])) ?> – <?= date('M d, Y', strtotime($term['end_date'])) ?></span></div>
+    <?php else: ?>
+    <div><span class="lbl">Academic Year</span><span class="val"><?= htmlspecialchars($year['name']) ?></span></div>
+    <?php endif; ?>
   </div>
 
+  <?php if ($mode==='exam'): ?>
   <table class="grades">
     <thead><tr><th>Subject</th><th>Marks Obtained</th><th>Total Marks</th><th>Percentage</th><th>Grade</th><th>Remark</th></tr></thead>
     <tbody>
@@ -125,6 +149,54 @@ $schoolName = $tenant['name'] ?? ($cfg['name'] ?? 'School');
     <tfoot><tr><td>TOTAL</td><td><?= number_format($totalObtained,1) ?></td><td><?= number_format($totalPossible,1) ?></td><td colspan="2"><?= $overallPct ?>%</td><td><?= $overallGrade ?></td></tr></tfoot>
     <?php endif; ?>
   </table>
+
+  <?php elseif ($mode==='term'): ?>
+  <table class="grades">
+    <thead><tr><th>Subject</th><th>Assessments</th><th>Marks Obtained</th><th>Total Marks</th><th>Period Average</th><th>Grade</th><th>Remark</th></tr></thead>
+    <tbody>
+      <?php foreach($termRows as $r):
+        $pct = round((float)$r['avg_pct'],1);
+        $gl = $pct>=90?'A+':($pct>=80?'A':($pct>=70?'B':($pct>=60?'C':($pct>=50?'D':'F'))));
+        $remark = $pct>=80?'Excellent':($pct>=70?'Very Good':($pct>=60?'Good':($pct>=50?'Fair':'Needs Improvement')));
+      ?>
+      <tr>
+        <td><?= htmlspecialchars($r['course_name'] ?? '—') ?></td>
+        <td><?= (int)$r['exam_count'] ?></td>
+        <td><?= number_format($r['obtained'],1) ?></td>
+        <td><?= number_format($r['possible'],1) ?></td>
+        <td><?= $pct ?>%</td>
+        <td><?= $gl ?></td>
+        <td><?= $remark ?></td>
+      </tr>
+      <?php endforeach; ?>
+    </tbody>
+    <tfoot><tr><td>TOTAL</td><td></td><td><?= number_format($totalObtained,1) ?></td><td><?= number_format($totalPossible,1) ?></td><td><?= $overallPct ?>%</td><td colspan="2"><?= $overallGrade ?></td></tr></tfoot>
+  </table>
+
+  <?php else: ?>
+  <table class="grades">
+    <thead><tr>
+      <th>Subject</th>
+      <?php foreach($annual['periods'] as $p): ?><th><?= htmlspecialchars($p['name']) ?></th><?php endforeach; ?>
+      <?php if($annual['hasOther']): ?><th>Other</th><?php endif; ?>
+      <th>Yearly Avg</th><th>Grade</th>
+    </tr></thead>
+    <tbody>
+      <?php foreach($annual['rows'] as $r): ?>
+      <tr>
+        <td><?= htmlspecialchars($r['course_name']) ?></td>
+        <?php foreach($annual['periods'] as $p): ?>
+          <td><?= isset($r['periods'][$p['id']]) ? $r['periods'][$p['id']].'%' : '—' ?></td>
+        <?php endforeach; ?>
+        <?php if($annual['hasOther']): ?><td><?= isset($r['periods']['other']) ? $r['periods']['other'].'%' : '—' ?></td><?php endif; ?>
+        <td style="font-weight:700;"><?= $r['yearly_pct'] !== null ? $r['yearly_pct'].'%' : '—' ?></td>
+        <td><?= htmlspecialchars($r['grade_letter'] ?? '—') ?></td>
+      </tr>
+      <?php endforeach; ?>
+    </tbody>
+    <tfoot><tr><td>YEARLY AVERAGE</td><td colspan="<?= count($annual['periods']) + ($annual['hasOther']?1:0) ?>"></td><td><?= $overallPct ?>%</td><td><?= $overallGrade ?></td></tr></tfoot>
+  </table>
+  <?php endif; ?>
 
   <div class="summary-grid">
     <div class="summary-card"><div class="lbl">Overall Average</div><div class="val"><?= $overallPct ?>%</div></div>

@@ -1,5 +1,10 @@
 <?php require ROOT_DIR . '/app/Views/layouts/header.php'; ?>
 <div class="page-header"><div class="page-header-title">Online Classes</div><div class="text-muted">Scheduled virtual sessions for your class</div></div>
+<?php if (empty($_SESSION['class_id'])): ?>
+<div class="card" style="padding:12px 16px;margin-bottom:20px;border-left:3px solid var(--warning);font-size:13px;">
+  ⚠️ You have not been assigned to a class yet, so nothing can appear here. Please contact the school office.
+</div>
+<?php endif; ?>
 
 <div class="card">
   <div class="table-wrapper">

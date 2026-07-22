@@ -51,6 +51,7 @@ $router->get('/school/classes/create',      ['ClassController', 'create']);
 $router->post('/school/classes/store',      ['ClassController', 'store']);
 $router->get('/school/classes/{id}/edit',   ['ClassController', 'edit']);
 $router->post('/school/classes/{id}/update', ['ClassController', 'update']);
+$router->post('/school/classes/{id}/delete', ['ClassController', 'delete']);
 $router->get('/school/classes/{id}',        ['ClassController', 'show']);
 
 $router->get('/school/attendance',          ['AttendanceController', 'index']);
