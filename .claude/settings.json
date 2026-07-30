@@ -37,7 +37,8 @@
       "Bash(/c/xampp/mysql/bin/mysql.exe -u root -N -e \"SELECT id, invoice_no, amount_due, amount_paid, status FROM school_mgmt.invoices LIMIT 3;\")",
       "Bash(curl -s -o /dev/null -w \"Login page: %{http_code}\\\\n\" http://localhost:8080/login)",
       "Bash(curl -s http://localhost:8080/login)",
-      "PowerShell(Start-Process \"http://localhost:8080/\")"
+      "PowerShell(Start-Process \"http://localhost:8080/\")",
+      "Bash(php -l core/Router.php)"
     ],
     "additionalDirectories": [
       "C:\\xampp\\apache\\conf",

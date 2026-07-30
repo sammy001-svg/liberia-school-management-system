@@ -76,9 +76,12 @@ class Router {
                         throw $e;
                     }
                     error_log($e->getMessage());
-                    $_SESSION['flash'] = ['type' => 'danger', 'message' => $this->friendlyError($e, false)];
-                    header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? '/'));
-                    exit;
+                    // Never redirect back to HTTP_REFERER here. Authenticated pages send
+                    // failures toward /login, and /login sends logged-in users straight back
+                    // to their dashboard — so any crash became an infinite redirect loop
+                    // ("redirected you too many times") that completely hid the real error.
+                    // Render the failure instead, so a broken page is diagnosable.
+                    $this->renderError($e);
                 }
                 return;
             }
@@ -86,6 +89,39 @@ class Router {
 
         http_response_code(404);
         require dirname(__DIR__) . '/app/Views/layouts/404.php';
+    }
+
+    /**
+     * Render a terminal error page instead of redirecting. Technical details are shown
+     * to a logged-in School Admin (a trusted operator who needs to act on them) or when
+     * debug is on; everyone else gets the friendly message only.
+     */
+    private function renderError(\Throwable $e): never {
+        // Drop any half-rendered markup so the error isn't buried inside a broken layout.
+        while (ob_get_level()) { ob_end_clean(); }
+        if (!headers_sent()) {
+            http_response_code(500);
+            header('Content-Type: text/html; charset=UTF-8');
+        }
+        $showDetail = ($_SESSION['role'] ?? '') === 'School Admin';
+        $friendly   = htmlspecialchars($this->friendlyError($e, false));
+        echo "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
+           . "<title>Something went wrong</title><style>"
+           . "body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#0f172a;color:#e2e8f0;display:flex;"
+           . "align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px}"
+           . ".box{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:32px;max-width:720px;width:100%}"
+           . "h1{margin:0 0 8px;font-size:20px}p{color:#94a3b8;line-height:1.6}"
+           . "pre{background:#0f172a;border:1px solid #334155;border-radius:8px;padding:14px;overflow-x:auto;"
+           . "font-size:12px;color:#fca5a5;white-space:pre-wrap;word-break:break-word}"
+           . "a{color:#38bdf8}</style></head><body><div class='box'>"
+           . "<h1>Something went wrong</h1><p>{$friendly}</p>";
+        if ($showDetail) {
+            echo "<p style='color:#64748b;font-size:12px'>Shown because you are signed in as School Admin:</p><pre>"
+               . htmlspecialchars($e->getMessage()) . "\n\n"
+               . htmlspecialchars($e->getFile()) . ':' . (int)$e->getLine() . "</pre>";
+        }
+        echo "<p><a href='javascript:history.back()'>Go back</a></p></div></body></html>";
+        exit;
     }
 
     private function verifyCsrf(): bool {
