@@ -98,6 +98,18 @@ class GradeController extends Controller {
     private int $tid;
     public function __construct() { parent::__construct(); $this->tid = $this->tenantId() ?? 0; }
 
+    /**
+     * Who may overwrite an already-recorded grade.
+     *
+     * A School Admin always can — checked by role name, which is set from the roles table at
+     * login and so does not depend on the grades.edit row existing in role_permissions. That
+     * seed is missing on some installs, which silently locked every recorded grade for
+     * everyone. The permission is still honoured so a custom role can also be granted it.
+     */
+    private function canEditGrades(): bool {
+        return $this->hasPermission('grades.edit') || ($_SESSION['role'] ?? '') === 'School Admin';
+    }
+
     public function index(): void {
         $this->requirePermission(['grades.manage']);
         $exams = $this->db->fetchAll(
@@ -178,13 +190,13 @@ class GradeController extends Controller {
         $this->view('school/highschool/grades/enter', [
             'pageTitle'=>'Enter Grades','panelType'=>'school','classes'=>$classes,'exams'=>$exams,'students'=>$students,'courses'=>$courses,
             'selectedClass'=>$_GET['class_id']??'','selectedExam'=>$selectedExam,'existingGrades'=>$existingGrades,
-            'canEditGrades'=>$this->hasPermission('grades.edit'),'flash'=>$this->getFlash(),
+            'canEditGrades'=>$this->canEditGrades(),'flash'=>$this->getFlash(),
         ]);
     }
 
     public function store(): void {
         $this->requirePermission(['grades.manage']);
-        $canEdit = $this->hasPermission('grades.edit');
+        $canEdit = $this->canEditGrades();
         $examId = $_POST['exam_id'] ?: null;
         $skipped = 0;
         foreach ($_POST['grades'] ?? [] as $studentId => $marks) {

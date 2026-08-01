@@ -56,12 +56,18 @@
           <?php endif; ?>
         </td>
         <td>
-          <form method="POST" action="<?= $cfg['url'] ?>/school/grades/<?= $e['id'] ?>/publish"
-                data-confirm="<?= $e['status']==='published' ? 'Unpublish '.htmlspecialchars($e['name']).'? Students and parents will no longer see these grades.' : 'Publish '.htmlspecialchars($e['name']).'? Students and parents will be able to see these grades.' ?>"
-                data-confirm-title="<?= $e['status']==='published' ? 'Unpublish Exam' : 'Publish Exam' ?>" data-confirm-label="<?= $e['status']==='published' ? 'Unpublish' : 'Publish' ?>">
-            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
-            <button type="submit" class="btn btn-sm <?= $e['status']==='published' ? 'btn-outline' : 'btn-primary' ?>"><?= $e['status']==='published' ? 'Unpublish' : 'Publish' ?></button>
-          </form>
+          <div style="display:flex;gap:6px;align-items:center;justify-content:flex-end;">
+            <a href="<?= $cfg['url'] ?>/school/grades/enter?exam_id=<?= $e['id'] ?><?= $e['class_id'] ? '&class_id='.$e['class_id'] : '' ?>"
+               class="btn btn-sm btn-secondary">
+              <?= $e['graded_count'] > 0 ? '✏️ Edit Grades' : '✏️ Enter Grades' ?>
+            </a>
+            <form method="POST" action="<?= $cfg['url'] ?>/school/grades/<?= $e['id'] ?>/publish"
+                  data-confirm="<?= $e['status']==='published' ? 'Unpublish '.htmlspecialchars($e['name']).'? Students and parents will no longer see these grades.' : 'Publish '.htmlspecialchars($e['name']).'? Students and parents will be able to see these grades.' ?>"
+                  data-confirm-title="<?= $e['status']==='published' ? 'Unpublish Exam' : 'Publish Exam' ?>" data-confirm-label="<?= $e['status']==='published' ? 'Unpublish' : 'Publish' ?>">
+              <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+              <button type="submit" class="btn btn-sm <?= $e['status']==='published' ? 'btn-outline' : 'btn-primary' ?>"><?= $e['status']==='published' ? 'Unpublish' : 'Publish' ?></button>
+            </form>
+          </div>
         </td>
       </tr>
       <?php endforeach; ?>
