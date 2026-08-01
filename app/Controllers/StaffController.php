@@ -5,6 +5,19 @@ class StaffController extends Controller {
     private int $tid;
     public function __construct() { parent::__construct(); $this->tid = $this->tenantId() ?? 0; }
 
+    /**
+     * Roles a staff member may be put on: the built-in staff roles, plus every custom role
+     * this school created on the Roles & Permissions screen. Without the custom half, a role
+     * created there could never actually be assigned to anyone from this page.
+     */
+    private function assignableRoles(): array {
+        return $this->db->fetchAll(
+            "SELECT id, name, tenant_id FROM roles
+             WHERE (tenant_id IS NULL AND name IN ('Staff','Accountant')) OR tenant_id = ?
+             ORDER BY (tenant_id IS NOT NULL), name", [$this->tid]
+        );
+    }
+
     public function index(): void {
         $this->requirePermission(['staff.manage']);
         $staff = $this->db->fetchAll(
@@ -14,16 +27,19 @@ class StaffController extends Controller {
              JOIN roles r ON u.role_id = r.id
              LEFT JOIN staff_salaries sal ON sal.user_id = u.id
              LEFT JOIN teachers t ON t.user_id = u.id
-             WHERE u.tenant_id = ? AND r.name IN ('Staff','Accountant','Teacher')
+             WHERE u.tenant_id = ? AND (r.name IN ('Staff','Accountant','Teacher') OR r.tenant_id = ?)
              ORDER BY u.name",
-            [$this->tid]
+            [$this->tid, $this->tid]
         );
         $stats = [
             'total' => count($staff),
             'monthlyCost' => array_sum(array_map(fn($s) => (float)($s['basic_salary'] ?? 0) + (float)($s['allowances'] ?? 0) - (float)($s['deductions'] ?? 0), $staff)),
             'noSalary' => count(array_filter($staff, fn($s) => $s['basic_salary'] === null)),
         ];
-        $this->view('school/hr/staff/index', ['pageTitle' => 'Staff', 'panelType' => 'school', 'staff' => $staff, 'stats' => $stats, 'flash' => $this->getFlash()]);
+        $this->view('school/hr/staff/index', [
+            'pageTitle' => 'Staff', 'panelType' => 'school', 'staff' => $staff, 'stats' => $stats,
+            'assignableRoles' => $this->assignableRoles(), 'flash' => $this->getFlash(),
+        ]);
     }
 
     public function store(): void {
@@ -32,15 +48,24 @@ class StaffController extends Controller {
             'name'          => 'required|max:150',
             'email'         => 'required|email|max:150',
             'phone'         => 'max:30',
-            'role'          => 'required|in:Staff,Accountant',
+            'role_id'       => 'required',
             'basic_salary'  => 'required|numeric',
             'allowances'    => 'numeric',
             'deductions'    => 'numeric',
             'effective_from'=> 'date',
         ]);
+
+        // Resolve against the assignable set rather than trusting the posted value — this also
+        // scopes custom roles to this school, so one tenant can't be put on another's role.
+        $role = $this->db->fetchOne(
+            "SELECT id FROM roles
+             WHERE id = ? AND ((tenant_id IS NULL AND name IN ('Staff','Accountant')) OR tenant_id = ?)",
+            [$_POST['role_id'] ?? 0, $this->tid]
+        );
+        if (!$role) { $errors['role_id'] = 'Select a valid role.'; }
         if ($errors) { $this->failValidation($errors, '/school/staff'); }
 
-        $roleId = $this->db->fetchOne("SELECT id FROM roles WHERE name=? LIMIT 1", [$_POST['role']])['id'];
+        $roleId = $role['id'];
         $pw = password_hash($_POST['password'] ?: 'Staff@123', PASSWORD_BCRYPT);
         $userId = $this->db->insert(
             "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,employee_no,position,status) VALUES (?,?,?,?,?,?,?,?,?)",
@@ -62,10 +87,13 @@ class StaffController extends Controller {
         $staff = $this->db->fetchOne(
             "SELECT u.*, r.name AS role_name, sal.basic_salary, sal.allowances, sal.deductions, sal.effective_from
              FROM users u JOIN roles r ON u.role_id=r.id LEFT JOIN staff_salaries sal ON sal.user_id=u.id
-             WHERE u.id=? AND u.tenant_id=? AND r.name IN ('Staff','Accountant')", [$id, $this->tid]
+             WHERE u.id=? AND u.tenant_id=? AND (r.name IN ('Staff','Accountant') OR r.tenant_id=?)", [$id, $this->tid, $this->tid]
         );
         if (!$staff) { $this->redirect('/school/staff'); }
-        $this->view('school/hr/staff/form', ['pageTitle'=>'Edit Staff','panelType'=>'school','staff'=>$staff,'flash'=>$this->getFlash()]);
+        $this->view('school/hr/staff/form', [
+            'pageTitle'=>'Edit Staff','panelType'=>'school','staff'=>$staff,
+            'assignableRoles'=>$this->assignableRoles(),'flash'=>$this->getFlash(),
+        ]);
     }
 
     public function update(string $id): void {

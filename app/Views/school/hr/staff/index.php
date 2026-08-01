@@ -119,10 +119,14 @@
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Role *</label>
-            <select name="role" class="form-control" required>
-              <option value="Staff">Staff</option>
-              <option value="Accountant">Accountant</option>
+            <select name="role_id" class="form-control" required>
+              <?php foreach($assignableRoles as $r): ?>
+                <option value="<?= $r['id'] ?>"><?= htmlspecialchars($r['name']) ?><?= $r['tenant_id'] ? ' (custom)' : '' ?></option>
+              <?php endforeach; ?>
             </select>
+            <?php if(count($assignableRoles) <= 2): ?>
+            <div class="form-hint">Create additional roles under <a href="<?= $cfg['url'] ?>/school/roles">Roles &amp; Permissions</a>.</div>
+            <?php endif; ?>
           </div>
           <div class="form-group">
             <label class="form-label">Position / Title</label>
