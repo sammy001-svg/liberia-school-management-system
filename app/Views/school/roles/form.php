@@ -31,6 +31,16 @@
   <div class="card mt-16">
     <div class="card-header"><div class="card-title">Permissions</div></div>
     <div class="card-body">
+      <?php if(empty($permissionsByModule)): ?>
+        <div class="empty-state">
+          <div class="empty-state-icon">🔐</div>
+          <div class="empty-state-text">
+            No permissions are defined in this database yet, so there is nothing to grant.<br>
+            Run <code>sql/add_role_permissions_data.sql</code> to load the permission catalogue,
+            then reload this page.
+          </div>
+        </div>
+      <?php endif; ?>
       <?php foreach($permissionsByModule as $module => $perms): ?>
         <div class="modal-section-title" style="text-transform:capitalize;">
           <?= htmlspecialchars(str_replace('_',' ',$module)) ?>

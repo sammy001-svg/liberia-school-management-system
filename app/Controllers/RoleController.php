@@ -18,10 +18,27 @@ class RoleController extends Controller {
         return [$sql, self::ASSIGNABLE_BUILTIN_ROLES];
     }
 
+    /**
+     * The permission catalogue, grouped by module.
+     *
+     * Selects only module/action/description and excludes roles.manage by those two columns
+     * rather than by `name` — the name column is absent on some older installs, and depending
+     * on it made this whole screen fail with a blank page. A missing or unreadable permissions
+     * table now degrades to an empty catalogue (the view explains it) instead of a fatal.
+     */
     private function allPermissionsByModule(): array {
-        $perms = $this->db->fetchAll("SELECT * FROM permissions WHERE name != 'roles.manage' ORDER BY module, action");
+        try {
+            $perms = $this->db->fetchAll("SELECT module, action, description FROM permissions ORDER BY module, action");
+        } catch (\Throwable $e) {
+            error_log('Permission catalogue unavailable: ' . $e->getMessage());
+            return [];
+        }
         $grouped = [];
-        foreach ($perms as $p) { $grouped[$p['module']][] = $p; }
+        foreach ($perms as $p) {
+            if (($p['module'] ?? '') === 'roles' && ($p['action'] ?? '') === 'manage') { continue; }
+            if (empty($p['module']) || empty($p['action'])) { continue; }
+            $grouped[$p['module']][] = $p;
+        }
         return $grouped;
     }
 
