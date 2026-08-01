@@ -34,9 +34,9 @@ $router->post('/school/students/{id}/delete', ['StudentController', 'delete']);
 $router->post('/school/students/{id}/reset-pin', ['StudentController', 'resetPin']);
 $router->get('/school/students/{id}/reactivate', ['StudentController', 'reactivateForm']);
 $router->post('/school/students/{id}/reactivate', ['StudentController', 'reactivate']);
-$router->get('/school/students/{id}/transcript', ['TranscriptController', 'download']);
-$router->post('/school/students/{id}/transcript/upload', ['TranscriptController', 'upload']);
-$router->post('/school/transcripts/{id}/delete', ['TranscriptController', 'delete']);
+$router->get('/school/students/{id}/transcript', ['DocumentController', 'transcript']);
+$router->post('/school/students/{id}/documents/upload', ['DocumentController', 'upload']);
+$router->post('/school/documents/{id}/delete', ['DocumentController', 'delete']);
 
 $router->get('/school/admissions',              ['AdmissionController', 'index']);
 $router->get('/school/admissions/{id}',         ['AdmissionController', 'show']);

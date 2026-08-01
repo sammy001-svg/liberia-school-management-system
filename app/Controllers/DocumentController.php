@@ -1,11 +1,25 @@
 <?php
 require_once ROOT_DIR . '/core/Controller.php';
 
-class TranscriptController extends Controller {
+class DocumentController extends Controller {
     private int $tid;
     public function __construct() { parent::__construct(); $this->tid = $this->tenantId() ?? 0; }
 
-    // --- INCOMING: transcript brought from a previous school ---
+    /** Preset categories offered in the upload dropdown. Stored as plain text, so a school
+     *  can record anything not listed here via "Other" without a schema change. */
+    public const DOCUMENT_TYPES = [
+        'Transcript',
+        'Report Card',
+        'Letter of Recommendation',
+        'Birth Certificate',
+        'Transfer Certificate',
+        'Health / Immunization Record',
+        'National ID / Passport',
+        'Photograph',
+        'Other',
+    ];
+
+    // --- STORED DOCUMENTS ---
 
     public function upload(string $studentId): void {
         $this->requirePermission(['students.manage']);
@@ -13,35 +27,44 @@ class TranscriptController extends Controller {
         if (!$student) { $this->redirect('/school/students'); }
 
         $backTo = '/school/students/' . $studentId;
-        $errors = $this->validate($_POST, ['title' => 'required|max:150']);
-        [$fileUrl, $origName] = $this->handleFileUpload('transcript_file', 'transcripts', $errors);
-        if (!$errors && !$fileUrl) { $errors['transcript_file'] = 'Choose a transcript file to upload.'; }
+        $errors = $this->validate($_POST, [
+            'document_type' => 'required|max:80',
+            'title'         => 'required|max:150',
+            'issue_date'    => 'date',
+        ]);
+        // "Other" reveals a free-text box in the modal; prefer whatever was typed there.
+        $type = trim($_POST['document_type'] ?? '');
+        if ($type === 'Other' && trim($_POST['custom_type'] ?? '') !== '') {
+            $type = trim($_POST['custom_type']);
+        }
+        [$fileUrl, $origName] = $this->handleFileUpload('document_file', 'student_documents', $errors);
+        if (!$errors && !$fileUrl) { $errors['document_file'] = 'Choose a file to upload.'; }
         if ($errors) { $this->failValidation($errors, $backTo); }
 
         $this->db->insert(
-            "INSERT INTO student_transcripts (tenant_id,student_id,title,previous_school,file_url,file_name,notes,uploaded_by)
-             VALUES (?,?,?,?,?,?,?,?)",
+            "INSERT INTO student_documents (tenant_id,student_id,document_type,title,issued_by,issue_date,file_url,file_name,notes,uploaded_by)
+             VALUES (?,?,?,?,?,?,?,?,?,?)",
             [
-                $this->tid, $studentId, $_POST['title'], $_POST['previous_school'] ?: null,
-                $fileUrl, $origName, $_POST['notes'] ?: null, $_SESSION['user_id'],
+                $this->tid, $studentId, $type, $_POST['title'], $_POST['issued_by'] ?: null,
+                $_POST['issue_date'] ?: null, $fileUrl, $origName, $_POST['notes'] ?: null, $_SESSION['user_id'],
             ]
         );
-        $this->flash('success', 'Transcript uploaded.');
+        $this->flash('success', 'Document uploaded.');
         $this->redirect($backTo);
     }
 
     public function delete(string $id): void {
         $this->requirePermission(['students.manage']);
-        $record = $this->db->fetchOne("SELECT student_id FROM student_transcripts WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        $record = $this->db->fetchOne("SELECT student_id FROM student_documents WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         if (!$record) { $this->redirect('/school/students'); }
-        $this->db->execute("DELETE FROM student_transcripts WHERE id=? AND tenant_id=?", [$id, $this->tid]);
-        $this->flash('success', 'Transcript removed.');
+        $this->db->execute("DELETE FROM student_documents WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        $this->flash('success', 'Document removed.');
         $this->redirect('/school/students/' . $record['student_id']);
     }
 
-    // --- OUTGOING: cumulative transcript generated from this school's records ---
+    // --- GENERATED TRANSCRIPT (outgoing: student leaving for another school) ---
 
-    public function download(string $studentId): void {
+    public function transcript(string $studentId): void {
         $this->requirePermission(['students.view','students.edit','students.manage']);
         $student = $this->db->fetchOne(
             "SELECT s.*, u.name, u.gender, u.date_of_birth, c.name AS class_name
@@ -77,8 +100,7 @@ class TranscriptController extends Controller {
             $courseName = $r['course_name'] ?: 'General';
             $total      = (float)($r['total_marks'] ?: 0);
             if ($total <= 0) { continue; }
-            $pct = (float)$r['marks_obtained'] / $total * 100;
-            $years[$yearKey]['subjects'][$courseName][] = $pct;
+            $years[$yearKey]['subjects'][$courseName][] = (float)$r['marks_obtained'] / $total * 100;
         }
 
         $letterFor = fn(float $p) => $p>=90?'A+':($p>=80?'A':($p>=70?'B':($p>=60?'C':($p>=50?'D':'F'))));
@@ -111,10 +133,10 @@ class TranscriptController extends Controller {
         $attendanceRate = ($attendance['total'] ?? 0) > 0
             ? round($attendance['present'] / $attendance['total'] * 100) : null;
 
-        $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
-
         $this->view('school/transcript_print', [
-            'pageTitle' => 'Transcript', 'tenant' => $tenant, 'student' => $student,
+            'pageTitle' => 'Transcript',
+            'tenant' => $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]),
+            'student' => $student,
             'years' => $years, 'overall' => $overall,
             'overallLetter' => $overall !== null ? $letterFor($overall) : null,
             'overallGpa' => $overall !== null ? $gpaFor($overall) : null,

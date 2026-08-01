@@ -1,5 +1,8 @@
 <?php
 require_once ROOT_DIR . '/core/Controller.php';
+// Needed for DOCUMENT_TYPES on the profile's upload modal — the router only
+// autoloads the controller matching the current route.
+require_once ROOT_DIR . '/app/Controllers/DocumentController.php';
 
 class StudentController extends Controller {
     private int $tid;
@@ -231,9 +234,9 @@ class StudentController extends Controller {
             "SELECT d.*, ru.name AS reported_by_name FROM disciplinary_records d LEFT JOIN users ru ON d.reported_by=ru.id
              WHERE d.student_id=? AND d.tenant_id=? ORDER BY d.incident_date DESC, d.id DESC",[$id,$this->tid]
         );
-        $transcripts = $this->db->fetchAll(
-            "SELECT t.*, uu.name AS uploaded_by_name FROM student_transcripts t LEFT JOIN users uu ON t.uploaded_by=uu.id
-             WHERE t.student_id=? AND t.tenant_id=? ORDER BY t.created_at DESC",[$id,$this->tid]
+        $documents = $this->db->fetchAll(
+            "SELECT d.*, uu.name AS uploaded_by_name FROM student_documents d LEFT JOIN users uu ON d.uploaded_by=uu.id
+             WHERE d.student_id=? AND d.tenant_id=? ORDER BY d.document_type, d.created_at DESC",[$id,$this->tid]
         );
 
         $homework = $student['class_id'] ? $this->db->fetchAll(
@@ -278,7 +281,7 @@ class StudentController extends Controller {
         $this->view('school/highschool/students/show',[
             'pageTitle'=>$student['name'],'panelType'=>'school','student'=>$student,'grades'=>$grades,'attendance'=>$attendance,'invoices'=>$invoices,
             'rankings'=>$rankings,'homework'=>$homework,'onlineExams'=>$onlineExams,'discipline'=>$discipline,
-            'transcripts'=>$transcripts,
+            'documents'=>$documents,'documentTypes'=>DocumentController::DOCUMENT_TYPES,
             'attendanceRate'=>$attendanceRate,'avgGrade'=>$avgGrade,'outstandingFees'=>$feesStats['outstanding'],
             'canManageDiscipline'=>$this->hasPermission('discipline.manage'),
             'canManageStudents'=>$this->hasPermission('students.manage'),

@@ -268,36 +268,42 @@
 
     <div class="card">
       <div class="card-header">
-        <div class="card-title">Transcripts</div>
+        <div class="card-title">Documents</div>
         <?php if(!empty($canManageStudents)): ?>
-        <button type="button" class="btn btn-sm btn-secondary" onclick="document.getElementById('uploadTranscriptModal').classList.add('open')">+ Upload</button>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="document.getElementById('uploadDocumentModal').classList.add('open')">+ Upload</button>
         <?php endif; ?>
       </div>
       <div class="card-body" style="padding-bottom:8px;">
         <p style="font-size:12px;color:var(--text-muted);margin:0;">
-          Records brought from a previous school. To issue this school's own transcript for a student
-          transferring out, use <a href="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/transcript" target="_blank">📜 Transcript</a> above.
+          Transcripts, report cards, recommendation letters, birth certificates and other records held on file.
+          To issue <em>this</em> school's transcript for a student transferring out, use
+          <a href="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/transcript" target="_blank">📜 Transcript</a> above.
         </p>
       </div>
       <div class="table-wrapper"><table>
-        <thead><tr><th>Title</th><th>Previous School</th><th>Uploaded</th><th></th></tr></thead>
+        <thead><tr><th>Type</th><th>Title</th><th>Issued By</th><th>Uploaded</th><th></th></tr></thead>
         <tbody>
-          <?php foreach($transcripts as $t): ?>
+          <?php foreach($documents as $d): ?>
+          <?php $typeBadge = ['Transcript'=>'primary','Report Card'=>'info','Letter of Recommendation'=>'success','Birth Certificate'=>'warning'][$d['document_type']] ?? 'muted'; ?>
           <tr>
+            <td><span class="badge badge-<?= $typeBadge ?>"><?= htmlspecialchars($d['document_type']) ?></span></td>
             <td class="fw-600">
-              <?= htmlspecialchars($t['title']) ?>
-              <?php if($t['notes']): ?><div style="font-size:11px;color:var(--text-muted);"><?= htmlspecialchars($t['notes']) ?></div><?php endif; ?>
+              <?= htmlspecialchars($d['title']) ?>
+              <?php if($d['notes']): ?><div style="font-size:11px;color:var(--text-muted);"><?= htmlspecialchars($d['notes']) ?></div><?php endif; ?>
             </td>
-            <td><?= htmlspecialchars($t['previous_school'] ?? '—') ?></td>
             <td>
-              <?= date('d M Y', strtotime($t['created_at'])) ?>
-              <?php if($t['uploaded_by_name']): ?><div style="font-size:11px;color:var(--text-muted);"><?= htmlspecialchars($t['uploaded_by_name']) ?></div><?php endif; ?>
+              <?= htmlspecialchars($d['issued_by'] ?? '—') ?>
+              <?php if($d['issue_date']): ?><div style="font-size:11px;color:var(--text-muted);"><?= date('d M Y', strtotime($d['issue_date'])) ?></div><?php endif; ?>
+            </td>
+            <td>
+              <?= date('d M Y', strtotime($d['created_at'])) ?>
+              <?php if($d['uploaded_by_name']): ?><div style="font-size:11px;color:var(--text-muted);"><?= htmlspecialchars($d['uploaded_by_name']) ?></div><?php endif; ?>
             </td>
             <td>
               <div style="display:flex;gap:6px;">
-                <a href="<?= htmlspecialchars($t['file_url']) ?>" target="_blank" class="btn btn-sm btn-outline">View</a>
+                <a href="<?= htmlspecialchars($d['file_url']) ?>" target="_blank" class="btn btn-sm btn-outline">View</a>
                 <?php if(!empty($canManageStudents)): ?>
-                <form method="POST" action="<?= $cfg['url'] ?>/school/transcripts/<?= $t['id'] ?>/delete" data-confirm="Remove this transcript?" data-confirm-title="Remove Transcript" data-confirm-label="Remove">
+                <form method="POST" action="<?= $cfg['url'] ?>/school/documents/<?= $d['id'] ?>/delete" data-confirm="Remove &quot;<?= htmlspecialchars($d['title']) ?>&quot;? The uploaded file will no longer be accessible." data-confirm-title="Remove Document" data-confirm-label="Remove">
                   <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
                   <button type="submit" class="btn btn-sm btn-danger">Del</button>
                 </form>
@@ -306,8 +312,8 @@
             </td>
           </tr>
           <?php endforeach; ?>
-          <?php if(empty($transcripts)): ?>
-          <tr><td colspan="4"><div class="empty-state"><div class="empty-state-icon">📜</div><div class="empty-state-text">No transcripts uploaded for this student.</div></div></td></tr>
+          <?php if(empty($documents)): ?>
+          <tr><td colspan="5"><div class="empty-state"><div class="empty-state-icon">📎</div><div class="empty-state-text">No documents on file for this student.</div></div></td></tr>
           <?php endif; ?>
         </tbody>
       </table></div>
@@ -377,30 +383,45 @@
 </div>
 
 <?php if(!empty($canManageStudents)): ?>
-<!-- Upload Transcript Modal -->
-<div class="modal-overlay" id="uploadTranscriptModal">
+<!-- Upload Document Modal -->
+<div class="modal-overlay" id="uploadDocumentModal">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">Upload Transcript</div>
-      <button class="modal-close" onclick="document.getElementById('uploadTranscriptModal').classList.remove('open')">&times;</button>
+      <div class="modal-title">Upload Document</div>
+      <button class="modal-close" onclick="document.getElementById('uploadDocumentModal').classList.remove('open')">&times;</button>
     </div>
-    <form method="POST" action="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/transcript/upload" enctype="multipart/form-data">
+    <form method="POST" action="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/documents/upload" enctype="multipart/form-data">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
       <div class="modal-body">
-        <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">
-          For a student transferring in from another school — attach their transcript or academic record.
-        </p>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Document Type *</label>
+            <select name="document_type" id="docTypeSelect" class="form-control" required>
+              <?php foreach($documentTypes as $dt): ?>
+                <option value="<?= htmlspecialchars($dt) ?>"><?= htmlspecialchars($dt) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Date on Document</label>
+            <input type="date" name="issue_date" class="form-control">
+          </div>
+        </div>
+        <div class="form-group" id="customTypeGroup" style="display:none;">
+          <label class="form-label">Specify Type</label>
+          <input type="text" name="custom_type" class="form-control" placeholder="e.g. Medical Report" maxlength="80">
+        </div>
         <div class="form-group">
           <label class="form-label">Title *</label>
           <input type="text" name="title" class="form-control" required placeholder="e.g. Grade 8 Transcript — 2025">
         </div>
         <div class="form-group">
-          <label class="form-label">Previous School</label>
-          <input type="text" name="previous_school" class="form-control" value="<?= htmlspecialchars($student['previous_school'] ?? '') ?>" placeholder="School the record came from">
+          <label class="form-label">Issued By</label>
+          <input type="text" name="issued_by" class="form-control" value="<?= htmlspecialchars($student['previous_school'] ?? '') ?>" placeholder="Previous school, hospital, government office…">
         </div>
         <div class="form-group">
-          <label class="form-label">Transcript File *</label>
-          <input type="file" name="transcript_file" class="form-control" required accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp">
+          <label class="form-label">File *</label>
+          <input type="file" name="document_file" class="form-control" required accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp">
           <div class="form-hint">PDF, Word document or a scan/photo. Maximum 10MB.</div>
         </div>
         <div class="form-group">
@@ -409,12 +430,23 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" onclick="document.getElementById('uploadTranscriptModal').classList.remove('open')">Cancel</button>
-        <button type="submit" class="btn btn-primary">Upload Transcript</button>
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('uploadDocumentModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Upload Document</button>
       </div>
     </form>
   </div>
 </div>
+<script>
+(function(){
+  var sel = document.getElementById('docTypeSelect');
+  var grp = document.getElementById('customTypeGroup');
+  if (sel && grp) {
+    sel.addEventListener('change', function(){
+      grp.style.display = this.value === 'Other' ? '' : 'none';
+    });
+  }
+})();
+</script>
 <?php endif; ?>
 
 <?php if(!empty($canManageDiscipline)): ?>
