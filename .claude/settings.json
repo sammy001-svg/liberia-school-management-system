@@ -39,7 +39,9 @@
       "Bash(curl -s http://localhost:8080/login)",
       "PowerShell(Start-Process \"http://localhost:8080/\")",
       "Bash(php -l core/Router.php)",
-      "Bash(awk '/^CREATE TABLE/{t=$3} /created_at/{if\\(t\\)print t}' sql/schema.sql)"
+      "Bash(awk '/^CREATE TABLE/{t=$3} /created_at/{if\\(t\\)print t}' sql/schema.sql)",
+      "Bash(grep -oE '\\\\$\\(cert|tenant\\)\\\\[.[a-z_]+.\\\\]' app/Views/school/certificate_print.php)",
+      "Bash(grep -oE '\\\\$[a-zA-Z_]+' app/Views/school/certificate_print.php)"
     ],
     "additionalDirectories": [
       "C:\\xampp\\apache\\conf",

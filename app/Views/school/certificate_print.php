@@ -1,141 +1,240 @@
 <?php
 $cfg = require ROOT_DIR . '/config/app.php';
 $schoolName = $tenant['name'] ?? ($cfg['name'] ?? 'School');
-$certTitle = $cert['title'] ?: ('Certificate of '.$cert['type_name']);
-// Student certificates (tied to an academic year) keep the original "completed the
-// academic year" phrasing; certificates with no academic year (typically staff/teacher
-// recognitions) get a generic phrasing built around the type name instead.
-$hasYear = !empty($cert['academic_year_id']);
 
-// CELDI Academy gets its own designed look (fixed navy/gold palette + seal watermark)
-// instead of the generic theme-colored layout every other school on the platform uses —
-// matched by name rather than a settings flag since this is a one-off for this tenant,
-// not a template choice meant to be exposed to schools generally.
-$isCeldi = stripos($schoolName, 'CELDI') !== false;
-$primary   = $isCeldi ? '#1B2A4A' : ($tenant['primary_color'] ?? '#10B981');
-$secondary = $isCeldi ? '#C9A227' : ($tenant['secondary_color'] ?? '#059669');
-$sheetBg   = $isCeldi ? '#fffdf6' : '#fdfcf8';
+// Fixed award palette — deliberately independent of the tenant's UI theme colours,
+// because this is a designed certificate rather than a themed document.
+$GOLD_LIGHT = '#F7E5A3';
+$GOLD_MID   = '#D9B451';
+$GOLD_DEEP  = '#A97C1B';
+$RED_LIGHT  = '#D6202F';
+$RED_DEEP   = '#8E0F1C';
+$INK        = '#1E1D1D';
+
+// "CERTIFICATE" / "OF ACHIEVEMENT" — the second line follows the certificate's type.
+$typeLine = 'OF ' . strtoupper($cert['type_name'] ?? 'ACHIEVEMENT');
+
+// Student certificates (tied to an academic year) keep the "completed the academic year"
+// phrasing; those without one (typically staff/teacher recognitions) get generic wording.
+$hasYear = !empty($cert['academic_year_id']);
+if (!empty($cert['remarks'])) {
+    $citation = $cert['remarks'];
+} elseif ($hasYear) {
+    $citation = 'This is to certify that the above-named has successfully completed the '
+        . ($cert['year_name'] ?? '') . ' academic year'
+        . (!empty($cert['class_name']) ? ' in ' . $cert['class_name'] : '')
+        . ' at ' . $schoolName . ', and is hereby awarded this certificate in recognition of '
+        . 'diligence, good conduct and academic achievement throughout the year.';
+} else {
+    $citation = 'This is to certify that the above-named is hereby recognised by ' . $schoolName
+        . ' in respect of ' . ($cert['type_name'] ?? 'outstanding service')
+        . ', in acknowledgement of dedication, commitment and valued contribution to the school community.';
+}
+
+// The rosette carries the year on top and the placement beneath it when one was
+// recorded (1st / 2nd / 3rd), falling back to "AWARD" exactly like the design.
+$sealTop    = $cert['year_name'] ?: ($cert['issued_date'] ? date('Y', strtotime($cert['issued_date'])) : date('Y'));
+$sealBottom = $cert['placement'] ? strtoupper($cert['placement']) : 'AWARD';
+
+$subLine = trim(implode('  ·  ', array_filter([
+    strtoupper($schoolName),
+    !empty($cert['class_name']) ? strtoupper($cert['class_name']) : null,
+    !empty($cert['admission_no']) ? 'ADM ' . $cert['admission_no'] : null,
+])));
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title><?= htmlspecialchars($certTitle) ?> — <?= htmlspecialchars($cert['recipient_name']) ?></title>
+<title><?= htmlspecialchars($cert['title'] ?: 'Certificate') ?> — <?= htmlspecialchars($cert['recipient_name']) ?></title>
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'Segoe UI', Arial, sans-serif; background:#e5e7eb; padding:28px; display:flex; flex-direction:column; align-items:center; }
+  body {
+    font-family:'Segoe UI', Arial, sans-serif; background:#d8d5d0; padding:28px;
+    display:flex; flex-direction:column; align-items:center;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
   .toolbar { display:flex; align-items:center; gap:12px; margin-bottom:18px; width:11.69in; max-width:100%; }
-  .toolbar button { padding:10px 20px; border-radius:8px; border:none; font-weight:600; font-size:13px; cursor:pointer; background:<?= htmlspecialchars($primary) ?>; color:#fff; margin-left:auto; }
+  .toolbar a { font-size:13px; color:#374151; text-decoration:none; }
+  .toolbar button {
+    padding:10px 22px; border-radius:8px; border:none; font-weight:600; font-size:13px;
+    cursor:pointer; background:<?= $INK ?>; color:<?= $GOLD_LIGHT ?>; margin-left:auto;
+  }
 
-  .sheet { width:11.69in; height:8.27in; background:<?= htmlspecialchars($sheetBg) ?>; box-shadow:0 8px 24px rgba(0,0,0,0.18); padding:0.4in; position:relative; overflow:hidden; }
+  .sheet {
+    width:11.69in; height:8.27in; background:<?= $INK ?>;
+    box-shadow:0 10px 30px rgba(0,0,0,0.35); position:relative; overflow:hidden;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
 
-  .border-outer { position:absolute; inset:0.25in; border:<?= $isCeldi ? '4px double' : '3px solid' ?> <?= htmlspecialchars($primary) ?>; }
-  .border-inner { position:absolute; inset:0.34in; border:1px solid <?= htmlspecialchars($secondary) ?>; }
-  .corner { position:absolute; width:34px; height:34px; border:2px solid <?= htmlspecialchars($primary) ?>; }
-  .corner.tl { top:0.2in; left:0.2in; border-right:none; border-bottom:none; }
-  .corner.tr { top:0.2in; right:0.2in; border-left:none; border-bottom:none; }
-  .corner.bl { bottom:0.2in; left:0.2in; border-right:none; border-top:none; }
-  .corner.br { bottom:0.2in; right:0.2in; border-left:none; border-top:none; }
+  /* ── Left decorative panel: red wedge, gold stripe through it, thin gold edge ── */
+  .deco { position:absolute; inset:0; }
+  .deco > div { position:absolute; inset:0; }
+  .deco-red {
+    background:linear-gradient(160deg, <?= $RED_LIGHT ?> 0%, <?= $RED_DEEP ?> 100%);
+    -webkit-clip-path:polygon(0 0, 34% 0, 9% 100%, 0 100%);
+            clip-path:polygon(0 0, 34% 0, 9% 100%, 0 100%);
+  }
+  .deco-gold-band {
+    background:linear-gradient(160deg, <?= $GOLD_LIGHT ?> 0%, <?= $GOLD_MID ?> 45%, <?= $GOLD_DEEP ?> 100%);
+    -webkit-clip-path:polygon(21% 0, 27.5% 0, 2.5% 100%, -4% 100%);
+            clip-path:polygon(21% 0, 27.5% 0, 2.5% 100%, -4% 100%);
+  }
+  .deco-gold-edge {
+    background:linear-gradient(160deg, <?= $GOLD_LIGHT ?> 0%, <?= $GOLD_MID ?> 50%, <?= $GOLD_DEEP ?> 100%);
+    -webkit-clip-path:polygon(34% 0, 35.4% 0, 10.4% 100%, 9% 100%);
+            clip-path:polygon(34% 0, 35.4% 0, 10.4% 100%, 9% 100%);
+  }
 
-  <?php if($isCeldi): ?>
-  /* Faint central seal watermark behind the content — the "customized" CELDI signature. */
-  .watermark { position:absolute; top:50%; left:50%; width:5in; height:5in; transform:translate(-50%,-50%); border-radius:50%; border:14px solid <?= htmlspecialchars($secondary) ?>; opacity:0.05; z-index:0; }
-  <?php endif; ?>
+  /* ── Diamond badge with rosette seal ── */
+  .badge { position:absolute; left:9.5%; top:50%; width:2.15in; height:2.15in; transform:translateY(-50%) rotate(45deg);
+           background:<?= $INK ?>; border:2px solid <?= $GOLD_MID ?>; }
+  .badge-inner { position:absolute; inset:0; transform:rotate(-45deg); display:flex; align-items:center; justify-content:center; }
 
-  .content { position:relative; z-index:1; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:0 0.7in; }
+  .seal-wrap { position:relative; width:1.15in; height:1.45in; display:flex; justify-content:center; }
+  .ribbon { position:absolute; top:0.72in; width:0.26in; height:0.68in;
+            background:linear-gradient(180deg, <?= $GOLD_MID ?>, <?= $GOLD_DEEP ?>);
+            -webkit-clip-path:polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+                    clip-path:polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%); }
+  .ribbon.l { left:0.18in; transform:rotate(11deg); }
+  .ribbon.r { right:0.18in; transform:rotate(-11deg); }
 
-  .crest { width:64px; height:64px; border-radius:50%; background:linear-gradient(135deg,<?= htmlspecialchars($primary) ?>,<?= htmlspecialchars($secondary) ?>); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:26px; margin-bottom:10px; box-shadow:0 4px 10px rgba(0,0,0,0.15); overflow:hidden; <?= $isCeldi ? 'border:2px solid '.htmlspecialchars($secondary).';' : '' ?> }
-  .crest img { width:100%; height:100%; object-fit:cover; }
+  .seal-outer {
+    position:absolute; top:0; width:1.15in; height:1.15in; border-radius:50%;
+    background:repeating-conic-gradient(<?= $GOLD_LIGHT ?> 0deg 7deg, <?= $GOLD_DEEP ?> 7deg 14deg);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .seal-ring { width:0.99in; height:0.99in; border-radius:50%;
+               background:linear-gradient(145deg, <?= $GOLD_LIGHT ?>, <?= $GOLD_MID ?> 50%, <?= $GOLD_DEEP ?>);
+               display:flex; align-items:center; justify-content:center; }
+  .seal-core {
+    width:0.84in; height:0.84in; border-radius:50%; border:1.5px solid <?= $GOLD_MID ?>;
+    background:radial-gradient(circle at 35% 30%, #2C3E63 0%, #16223C 70%);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+  }
+  .seal-core .top { font-size:12px; font-weight:800; letter-spacing:0.06em; color:<?= $GOLD_LIGHT ?>; line-height:1; }
+  .seal-core .rule { width:0.44in; height:1px; background:<?= $GOLD_MID ?>; margin:3px 0; }
+  .seal-core .bot { font-size:8.5px; font-weight:800; letter-spacing:0.1em; color:<?= $GOLD_LIGHT ?>; line-height:1.1; padding:0 3px; }
 
-  .school-name { font-size:15px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:<?= $isCeldi ? htmlspecialchars($primary) : '#111827' ?>; }
-  .school-sub { font-size:10px; color:#6b7280; margin-top:2px; letter-spacing:0.03em; }
+  /* Optional school logo, small, top-left of the dark field */
+  .school-mark { position:absolute; right:0.55in; top:0.5in; display:flex; align-items:center; gap:9px; }
+  .school-mark img { width:40px; height:40px; object-fit:contain; }
+  .school-mark span { font-size:9.5px; letter-spacing:0.16em; color:#8A8A8A; text-transform:uppercase; }
 
-  .placement-ribbon { display:inline-block; margin-top:10px; padding:5px 18px; border-radius:20px; font-size:11px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:#fff; background:linear-gradient(135deg,<?= htmlspecialchars($primary) ?>,<?= htmlspecialchars($secondary) ?>); box-shadow:0 3px 8px rgba(0,0,0,0.18); }
+  /* ── Main content ── */
+  .content { position:absolute; left:40%; right:0.7in; top:0.9in; bottom:0.6in; display:flex; flex-direction:column; }
 
-  .cert-title { font-family:'Georgia','Times New Roman',serif; font-size:34px; font-weight:700; color:<?= htmlspecialchars($primary) ?>; margin:18px 0 4px; letter-spacing:0.02em; <?= $isCeldi ? 'font-variant:small-caps;' : '' ?> }
-  .cert-subtitle { font-size:11px; letter-spacing:0.25em; text-transform:uppercase; color:#9ca3af; margin-bottom:22px; }
+  .gold-text {
+    background:linear-gradient(180deg, <?= $GOLD_LIGHT ?> 0%, <?= $GOLD_MID ?> 55%, <?= $GOLD_DEEP ?> 100%);
+    -webkit-background-clip:text; background-clip:text;
+    color:<?= $GOLD_MID ?>; -webkit-text-fill-color:transparent;
+  }
+  @supports not ((-webkit-background-clip:text) or (background-clip:text)) {
+    .gold-text { color:<?= $GOLD_MID ?>; -webkit-text-fill-color:<?= $GOLD_MID ?>; }
+  }
 
-  .presented-to { font-size:11px; letter-spacing:0.15em; text-transform:uppercase; color:#6b7280; }
-  .student-name { font-family:'Georgia','Times New Roman',serif; font-style:italic; font-size:32px; font-weight:700; color:#111827; margin:8px 0 14px; padding-bottom:10px; border-bottom:1.5px solid <?= htmlspecialchars($secondary) ?>; display:inline-block; min-width:4in; }
+  h1.title { font-size:47px; font-weight:800; letter-spacing:0.045em; line-height:1; }
+  .subtitle { font-size:18px; font-weight:600; letter-spacing:0.34em; margin-top:9px; }
 
-  .cert-body { font-size:13.5px; color:#374151; line-height:1.8; max-width:7in; }
-  .cert-body strong { color:#111827; }
+  .presented { font-size:11px; letter-spacing:0.3em; color:#B9B9B9; text-transform:uppercase; margin-top:30px; }
 
-  .meta-row { display:flex; justify-content:center; gap:60px; margin-top:22px; font-size:10.5px; color:#6b7280; }
-  .meta-row .meta-label { text-transform:uppercase; letter-spacing:0.05em; font-size:9px; color:#9ca3af; }
-  .meta-row .meta-value { font-family:monospace; font-size:12px; color:#111827; font-weight:700; margin-top:2px; }
+  .recipient {
+    font-family:'Brush Script MT','Segoe Script','Lucida Handwriting',cursive;
+    font-size:50px; line-height:1.08; margin-top:8px; padding-bottom:6px;
+  }
+  .name-rule { height:1px; background:#6E6E6E; margin-top:2px; }
+  .sub-line { font-size:9px; letter-spacing:0.12em; color:#9A9A9A; margin-top:9px; text-transform:uppercase; }
 
-  .signatures { display:flex; justify-content:center; gap:110px; margin-top:34px; }
-  .signatures div { text-align:center; font-size:10.5px; color:#374151; }
-  .signatures .line { width:2.2in; border-top:1px solid #9ca3af; margin-bottom:6px; padding-top:30px; }
+  .citation { font-size:10.5px; line-height:1.85; color:#A6A6A6; margin-top:14px; text-align:justify; max-width:5.6in; }
 
-  .doc-footer { position:absolute; bottom:0.45in; left:0; right:0; text-align:center; font-size:8.5px; color:#b0b5bd; }
+  .signatures { margin-top:auto; display:flex; gap:0.9in; }
+  .signatures div { flex:1; max-width:2in; }
+  .signatures .line { height:1px; background:#6E6E6E; }
+  .signatures .lbl { font-size:8.5px; letter-spacing:0.22em; color:#9A9A9A; text-transform:uppercase; margin-top:7px; text-align:center; }
+  .signatures .val { font-size:10.5px; color:#D2D2D2; text-align:center; margin-bottom:5px; }
+
+  .cert-no { position:absolute; right:0.55in; bottom:0.3in; font-size:8px; letter-spacing:0.1em; color:#6A6A6A; }
 
   @media print {
     body { background:#fff; padding:0; }
     .toolbar { display:none; }
-    .sheet { box-shadow:none; }
-    @page { size: A4 landscape; margin: 0; }
+    .sheet { box-shadow:none; width:11.69in; height:8.27in; }
+    @page { size: A4 landscape; margin:0; }
   }
 </style>
 </head>
 <body>
 
 <div class="toolbar">
-  <button onclick="window.print()">🖨️ Print / Save as PDF</button>
+  <a href="<?= $cfg['url'] ?>/school/certificates">&larr; Back to certificates</a>
+  <button onclick="window.print()">Print / Save as PDF</button>
 </div>
 
 <div class="sheet">
-  <div class="border-outer"></div>
-  <div class="border-inner"></div>
-  <div class="corner tl"></div>
-  <div class="corner tr"></div>
-  <div class="corner bl"></div>
-  <div class="corner br"></div>
-  <?php if($isCeldi): ?><div class="watermark"></div><?php endif; ?>
 
-  <div class="content">
-    <div class="crest"><?php if(!empty($tenant['logo'])): ?><img src="<?= htmlspecialchars($tenant['logo']) ?>" alt=""><?php else: ?><?= htmlspecialchars(strtoupper(substr($schoolName,0,1))) ?><?php endif; ?></div>
-    <div class="school-name"><?= htmlspecialchars($schoolName) ?></div>
-    <div class="school-sub"><?= htmlspecialchars(trim(implode(', ', array_filter([$tenant['address'] ?? null, $tenant['city'] ?? null, $tenant['country'] ?? null])))) ?></div>
+  <div class="deco">
+    <div class="deco-red"></div>
+    <div class="deco-gold-band"></div>
+    <div class="deco-gold-edge"></div>
+  </div>
 
-    <div class="cert-title"><?= htmlspecialchars($certTitle) ?></div>
-    <div class="cert-subtitle">This certificate is proudly presented to</div>
-
-    <div class="student-name"><?= htmlspecialchars($cert['recipient_name']) ?></div>
-    <?php if(!empty($cert['placement'])): ?><div class="placement-ribbon">🏅 <?= htmlspecialchars($cert['placement']) ?> Place</div><?php endif; ?>
-
-    <div class="cert-body" style="margin-top:<?= !empty($cert['placement']) ? '14px' : '0' ?>;">
-      <?php if($hasYear): ?>
-        who has successfully completed the <strong><?= htmlspecialchars($cert['year_name'] ?? 'academic year') ?></strong> academic year
-        <?php if($cert['class_name']): ?>in <strong><?= htmlspecialchars($cert['class_name']) ?></strong><?php endif; ?>
-        at <strong><?= htmlspecialchars($schoolName) ?></strong>, demonstrating consistent effort, dedication, and achievement throughout the year.
-      <?php else: ?>
-        is recognized by <strong><?= htmlspecialchars($schoolName) ?></strong> in respect of <strong><?= htmlspecialchars($cert['type_name']) ?></strong>.
-      <?php endif; ?>
-      <?php if($cert['remarks']): ?><br><em><?= htmlspecialchars($cert['remarks']) ?></em><?php endif; ?>
-    </div>
-
-    <div class="meta-row">
-      <div><div class="meta-label">Certificate No.</div><div class="meta-value"><?= htmlspecialchars($cert['certificate_no']) ?></div></div>
-      <div><div class="meta-label">Date Issued</div><div class="meta-value"><?= date('d M Y', strtotime($cert['issued_date'])) ?></div></div>
-      <?php if(!empty($cert['admission_no'])): ?>
-      <div><div class="meta-label">Admission No.</div><div class="meta-value"><?= htmlspecialchars($cert['admission_no']) ?></div></div>
-      <?php endif; ?>
-      <?php if(!empty($cert['placement'])): ?>
-      <div><div class="meta-label">Placement</div><div class="meta-value"><?= htmlspecialchars($cert['placement']) ?></div></div>
-      <?php endif; ?>
-    </div>
-
-    <div class="signatures">
-      <div><div class="line">Class Teacher / Registrar</div></div>
-      <div><div class="line">Principal</div></div>
+  <div class="badge">
+    <div class="badge-inner">
+      <div class="seal-wrap">
+        <div class="ribbon l"></div>
+        <div class="ribbon r"></div>
+        <div class="seal-outer">
+          <div class="seal-ring">
+            <div class="seal-core">
+              <div class="top"><?= htmlspecialchars($sealTop) ?></div>
+              <div class="rule"></div>
+              <div class="bot"><?= htmlspecialchars($sealBottom) ?></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="doc-footer">This is an official certificate issued by <?= htmlspecialchars($schoolName) ?> · Generated <?= date('F d, Y') ?></div>
-</div>
+  <?php if (!empty($tenant['logo'])): ?>
+  <div class="school-mark">
+    <img src="<?= htmlspecialchars($tenant['logo']) ?>" alt="">
+    <span><?= htmlspecialchars($schoolName) ?></span>
+  </div>
+  <?php endif; ?>
 
+  <div class="content">
+    <h1 class="title gold-text">CERTIFICATE</h1>
+    <div class="subtitle gold-text"><?= htmlspecialchars($typeLine) ?></div>
+
+    <div class="presented">Proudly Presented To</div>
+    <div class="recipient gold-text"><?= htmlspecialchars($cert['recipient_name']) ?></div>
+    <div class="name-rule"></div>
+    <?php if ($subLine !== ''): ?>
+    <div class="sub-line"><?= htmlspecialchars($subLine) ?></div>
+    <?php endif; ?>
+
+    <p class="citation"><?= htmlspecialchars($citation) ?></p>
+
+    <div class="signatures">
+      <div>
+        <div class="val"><?= $cert['issued_date'] ? date('d M Y', strtotime($cert['issued_date'])) : '&nbsp;' ?></div>
+        <div class="line"></div>
+        <div class="lbl">Date</div>
+      </div>
+      <div>
+        <div class="val">&nbsp;</div>
+        <div class="line"></div>
+        <div class="lbl">Signature</div>
+      </div>
+    </div>
+  </div>
+
+  <?php if (!empty($cert['certificate_no'])): ?>
+  <div class="cert-no">CERT. NO. <?= htmlspecialchars($cert['certificate_no']) ?></div>
+  <?php endif; ?>
+
+</div>
 </body>
 </html>
