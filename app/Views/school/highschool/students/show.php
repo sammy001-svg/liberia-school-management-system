@@ -24,6 +24,7 @@
       <?php if(!empty($student['class_id'])): ?>
       <a href="<?= $cfg['url'] ?>/school/grades/enter?class_id=<?= $student['class_id'] ?>" class="btn btn-outline">✏️ Enter Grades</a>
       <?php endif; ?>
+      <a href="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/transcript" target="_blank" class="btn btn-outline">📜 Transcript</a>
       <a href="<?= $cfg['url'] ?>/school/certificates" class="btn btn-outline">🎓 Certificates</a>
       <a href="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/edit" class="btn btn-secondary">Edit Profile</a>
       <form method="POST" action="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/reset-pin" data-confirm="Reset the login PIN for <?= htmlspecialchars($student['name']) ?>? The old PIN will stop working." data-confirm-title="Reset Login PIN" data-confirm-label="Reset PIN">
@@ -267,6 +268,53 @@
 
     <div class="card">
       <div class="card-header">
+        <div class="card-title">Transcripts</div>
+        <?php if(!empty($canManageStudents)): ?>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="document.getElementById('uploadTranscriptModal').classList.add('open')">+ Upload</button>
+        <?php endif; ?>
+      </div>
+      <div class="card-body" style="padding-bottom:8px;">
+        <p style="font-size:12px;color:var(--text-muted);margin:0;">
+          Records brought from a previous school. To issue this school's own transcript for a student
+          transferring out, use <a href="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/transcript" target="_blank">📜 Transcript</a> above.
+        </p>
+      </div>
+      <div class="table-wrapper"><table>
+        <thead><tr><th>Title</th><th>Previous School</th><th>Uploaded</th><th></th></tr></thead>
+        <tbody>
+          <?php foreach($transcripts as $t): ?>
+          <tr>
+            <td class="fw-600">
+              <?= htmlspecialchars($t['title']) ?>
+              <?php if($t['notes']): ?><div style="font-size:11px;color:var(--text-muted);"><?= htmlspecialchars($t['notes']) ?></div><?php endif; ?>
+            </td>
+            <td><?= htmlspecialchars($t['previous_school'] ?? '—') ?></td>
+            <td>
+              <?= date('d M Y', strtotime($t['created_at'])) ?>
+              <?php if($t['uploaded_by_name']): ?><div style="font-size:11px;color:var(--text-muted);"><?= htmlspecialchars($t['uploaded_by_name']) ?></div><?php endif; ?>
+            </td>
+            <td>
+              <div style="display:flex;gap:6px;">
+                <a href="<?= htmlspecialchars($t['file_url']) ?>" target="_blank" class="btn btn-sm btn-outline">View</a>
+                <?php if(!empty($canManageStudents)): ?>
+                <form method="POST" action="<?= $cfg['url'] ?>/school/transcripts/<?= $t['id'] ?>/delete" data-confirm="Remove this transcript?" data-confirm-title="Remove Transcript" data-confirm-label="Remove">
+                  <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+                  <button type="submit" class="btn btn-sm btn-danger">Del</button>
+                </form>
+                <?php endif; ?>
+              </div>
+            </td>
+          </tr>
+          <?php endforeach; ?>
+          <?php if(empty($transcripts)): ?>
+          <tr><td colspan="4"><div class="empty-state"><div class="empty-state-icon">📜</div><div class="empty-state-text">No transcripts uploaded for this student.</div></div></td></tr>
+          <?php endif; ?>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
         <div class="card-title">Disciplinary Records</div>
         <?php if(!empty($canManageDiscipline)): ?>
         <button type="button" class="btn btn-sm btn-primary" onclick="document.getElementById('addDisciplineModal').classList.add('open')">+ Add Record</button>
@@ -327,6 +375,47 @@
 
   </div>
 </div>
+
+<?php if(!empty($canManageStudents)): ?>
+<!-- Upload Transcript Modal -->
+<div class="modal-overlay" id="uploadTranscriptModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Upload Transcript</div>
+      <button class="modal-close" onclick="document.getElementById('uploadTranscriptModal').classList.remove('open')">&times;</button>
+    </div>
+    <form method="POST" action="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/transcript/upload" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+      <div class="modal-body">
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">
+          For a student transferring in from another school — attach their transcript or academic record.
+        </p>
+        <div class="form-group">
+          <label class="form-label">Title *</label>
+          <input type="text" name="title" class="form-control" required placeholder="e.g. Grade 8 Transcript — 2025">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Previous School</label>
+          <input type="text" name="previous_school" class="form-control" value="<?= htmlspecialchars($student['previous_school'] ?? '') ?>" placeholder="School the record came from">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Transcript File *</label>
+          <input type="file" name="transcript_file" class="form-control" required accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp">
+          <div class="form-hint">PDF, Word document or a scan/photo. Maximum 10MB.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notes</label>
+          <textarea name="notes" class="form-control" rows="2" placeholder="Optional — anything worth recording about this document"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('uploadTranscriptModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Upload Transcript</button>
+      </div>
+    </form>
+  </div>
+</div>
+<?php endif; ?>
 
 <?php if(!empty($canManageDiscipline)): ?>
 <!-- Add Disciplinary Record Modal -->

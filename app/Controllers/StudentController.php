@@ -231,6 +231,10 @@ class StudentController extends Controller {
             "SELECT d.*, ru.name AS reported_by_name FROM disciplinary_records d LEFT JOIN users ru ON d.reported_by=ru.id
              WHERE d.student_id=? AND d.tenant_id=? ORDER BY d.incident_date DESC, d.id DESC",[$id,$this->tid]
         );
+        $transcripts = $this->db->fetchAll(
+            "SELECT t.*, uu.name AS uploaded_by_name FROM student_transcripts t LEFT JOIN users uu ON t.uploaded_by=uu.id
+             WHERE t.student_id=? AND t.tenant_id=? ORDER BY t.created_at DESC",[$id,$this->tid]
+        );
 
         $homework = $student['class_id'] ? $this->db->fetchAll(
             "SELECT h.id, h.title, h.due_date, h.max_score, co.name AS course_name,
@@ -274,8 +278,10 @@ class StudentController extends Controller {
         $this->view('school/highschool/students/show',[
             'pageTitle'=>$student['name'],'panelType'=>'school','student'=>$student,'grades'=>$grades,'attendance'=>$attendance,'invoices'=>$invoices,
             'rankings'=>$rankings,'homework'=>$homework,'onlineExams'=>$onlineExams,'discipline'=>$discipline,
+            'transcripts'=>$transcripts,
             'attendanceRate'=>$attendanceRate,'avgGrade'=>$avgGrade,'outstandingFees'=>$feesStats['outstanding'],
             'canManageDiscipline'=>$this->hasPermission('discipline.manage'),
+            'canManageStudents'=>$this->hasPermission('students.manage'),
             'flash'=>$this->getFlash(),
         ]);
     }

@@ -38,7 +38,8 @@
       "Bash(curl -s -o /dev/null -w \"Login page: %{http_code}\\\\n\" http://localhost:8080/login)",
       "Bash(curl -s http://localhost:8080/login)",
       "PowerShell(Start-Process \"http://localhost:8080/\")",
-      "Bash(php -l core/Router.php)"
+      "Bash(php -l core/Router.php)",
+      "Bash(awk '/^CREATE TABLE/{t=$3} /created_at/{if\\(t\\)print t}' sql/schema.sql)"
     ],
     "additionalDirectories": [
       "C:\\xampp\\apache\\conf",
