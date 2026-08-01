@@ -194,7 +194,7 @@ class StudentController extends Controller {
             [$this->tid, $roleId, $name, $_POST['email']?:null, $_POST['phone']??'', $_POST['gender']??null, $_POST['dob']??null, $_POST['address']??'', $avatarUrl, 'active']
         );
         $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [password_hash($pin, PASSWORD_BCRYPT), $userId]);
-        $admNo = $_POST['admission_no'] ?: ('ADM-'.date('Y').'-'.str_pad($userId, 4, '0', STR_PAD_LEFT));
+        $admNo = $_POST['admission_no'] ?: $this->generateAdmissionNo($this->tid);
         $this->db->insert(
             "INSERT INTO students (
                 tenant_id,user_id,admission_no,class_id,admission_date,status,blood_group,previous_school,

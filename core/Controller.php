@@ -567,6 +567,49 @@ abstract class Controller {
     }
 
     /** Random 4-digit login PIN (zero-padded), hashed/verified the same way a password is. */
+    /**
+     * Next admission number, following whatever numbering this school already uses.
+     *
+     * Existing numbers are split into a text prefix plus a trailing zero-padded counter
+     * ("CAS0077" -> "CAS" + 0077), grouped, and the most-used prefix wins. So a school that
+     * imported CAS-series numbers keeps getting CAS0167 instead of a foreign ADM-2026-0282,
+     * without anyone having to configure a format. Falls back to ADM-<year>-#### only when
+     * there are no parseable numbers yet (a brand-new school).
+     */
+    protected function generateAdmissionNo(int $tenantId): string {
+        $rows = $this->db->fetchAll("SELECT admission_no FROM students WHERE tenant_id=?", [$tenantId]);
+
+        $groups = [];
+        foreach ($rows as $r) {
+            if (preg_match('/^(.*?)(\d+)$/', trim((string)$r['admission_no']), $m)) {
+                $prefix = $m[1];
+                $groups[$prefix]['count'] = ($groups[$prefix]['count'] ?? 0) + 1;
+                $groups[$prefix]['max']   = max($groups[$prefix]['max'] ?? 0, (int)$m[2]);
+                $groups[$prefix]['width'] = max($groups[$prefix]['width'] ?? 0, strlen($m[2]));
+            }
+        }
+
+        if (!$groups) {
+            $prefix = 'ADM-' . date('Y') . '-';
+            $next   = 1;
+            $width  = 4;
+        } else {
+            uasort($groups, fn($a, $b) => $b['count'] <=> $a['count']);
+            $prefix = (string)array_key_first($groups);
+            $next   = $groups[$prefix]['max'] + 1;
+            $width  = $groups[$prefix]['width'];
+        }
+
+        // Numbering can have gaps or manually-entered duplicates — step forward until free.
+        do {
+            $candidate = $prefix . str_pad((string)$next, $width, '0', STR_PAD_LEFT);
+            $taken = $this->db->fetchOne("SELECT id FROM students WHERE admission_no=? AND tenant_id=?", [$candidate, $tenantId]);
+            $next++;
+        } while ($taken);
+
+        return $candidate;
+    }
+
     protected function generateUniquePin(): string {
         return str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
     }

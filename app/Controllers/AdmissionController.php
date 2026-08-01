@@ -244,7 +244,7 @@ class AdmissionController extends Controller {
 
         $classId = $_POST['class_id'] ?: $application['desired_class_id'];
         $admissionDate = $_POST['admission_date'] ?: date('Y-m-d');
-        $admNo = 'ADM-'.date('Y').'-'.str_pad((string)$userId, 4, '0', STR_PAD_LEFT);
+        $admNo = $this->generateAdmissionNo($tid);
         $studentId = $this->db->insert(
             "INSERT INTO students (
                 tenant_id,user_id,admission_no,class_id,admission_date,status,
