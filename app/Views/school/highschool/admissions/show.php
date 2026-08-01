@@ -15,14 +15,25 @@
     <div class="card">
       <div class="card-header"><div class="card-title">Student Information</div></div>
       <div class="card-body">
+        <?php if(!empty($application['student_photo']) || !empty($application['parent_photo'])): ?>
+        <div style="display:flex;gap:16px;margin-bottom:18px;flex-wrap:wrap;">
+          <?php foreach([['student_photo','Student'],['parent_photo','Parent']] as [$field,$label]): ?>
+            <?php if(!empty($application[$field])): ?>
+            <div style="text-align:center;">
+              <a href="<?= htmlspecialchars($application[$field]) ?>" target="_blank">
+                <img src="<?= htmlspecialchars($application[$field]) ?>" alt="<?= $label ?> photo"
+                     style="width:96px;height:96px;object-fit:cover;border-radius:10px;border:1px solid var(--border);display:block;">
+              </a>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:6px;"><?= $label ?>'s Photo</div>
+            </div>
+            <?php endif; ?>
+          <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
         <div class="detail-list">
           <div class="detail-item">
             <div class="detail-icon">🎓</div>
             <div><div class="detail-label">Full Name</div><div class="detail-value"><?= htmlspecialchars(trim($application['first_name'].' '.($application['middle_name']?:'').' '.$application['last_name'])) ?></div></div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-icon"><?= $application['gender']==='female'?'♀':'♂' ?></div>
-            <div><div class="detail-label">Gender</div><div class="detail-value"><?= $application['gender'] ? ucfirst($application['gender']) : '—' ?></div></div>
           </div>
           <div class="detail-item">
             <div class="detail-icon">🎂</div>
@@ -30,61 +41,125 @@
           </div>
           <div class="detail-item">
             <div class="detail-icon">🏫</div>
-            <div><div class="detail-label">Desired Class</div><div class="detail-value"><?= htmlspecialchars($application['desired_class_name'] ?? 'Not sure') ?></div></div>
+            <div><div class="detail-label">Class Promoted To</div><div class="detail-value"><?= htmlspecialchars($application['desired_class_name'] ?? 'Not specified') ?></div></div>
           </div>
         </div>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-header"><div class="card-title">Guardian Information</div></div>
+      <div class="card-header"><div class="card-title">Parents</div></div>
       <div class="card-body">
         <div class="detail-list">
           <div class="detail-item">
-            <div class="detail-icon">👪</div>
-            <div><div class="detail-label">Guardian</div><div class="detail-value"><?= htmlspecialchars($application['guardian_name']) ?><?= $application['guardian_relationship'] ? ' ('.htmlspecialchars($application['guardian_relationship']).')' : '' ?></div></div>
+            <div class="detail-icon">👩</div>
+            <div><div class="detail-label">Mother</div><div class="detail-value"><?= htmlspecialchars($application['mother_name'] ?: '—') ?><?= $application['mother_phone'] ? ' · '.htmlspecialchars($application['mother_phone']) : '' ?></div></div>
           </div>
           <div class="detail-item">
-            <div class="detail-icon">📱</div>
-            <div><div class="detail-label">Phone</div><div class="detail-value"><?= htmlspecialchars($application['guardian_phone']) ?></div></div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-icon">✉️</div>
-            <div><div class="detail-label">Email</div><div class="detail-value"><?= htmlspecialchars($application['guardian_email'] ?? '—') ?></div></div>
+            <div class="detail-icon">👨</div>
+            <div><div class="detail-label">Father</div><div class="detail-value"><?= htmlspecialchars($application['father_name'] ?: '—') ?><?= $application['father_phone'] ? ' · '.htmlspecialchars($application['father_phone']) : '' ?></div></div>
           </div>
           <div class="detail-item">
             <div class="detail-icon">📍</div>
-            <div><div class="detail-label">Address</div><div class="detail-value"><?= htmlspecialchars($application['address'] ?? '—') ?></div></div>
+            <div><div class="detail-label">Home Address</div><div class="detail-value"><?= htmlspecialchars($application['address'] ?: '—') ?></div></div>
           </div>
         </div>
       </div>
     </div>
 
-    <?php if(!empty($application['previous_school']) || !empty($application['previous_class']) || !empty($application['notes'])): ?>
     <div class="card">
-      <div class="card-header"><div class="card-title">Previous School &amp; Notes</div></div>
+      <div class="card-header"><div class="card-title">Previous School Information</div></div>
       <div class="card-body">
         <div class="detail-list">
-          <?php if(!empty($application['previous_school'])): ?>
           <div class="detail-item">
             <div class="detail-icon">🏛️</div>
-            <div><div class="detail-label">Previous School</div><div class="detail-value"><?= htmlspecialchars($application['previous_school']) ?></div></div>
+            <div><div class="detail-label">Last School Attended</div><div class="detail-value"><?= htmlspecialchars($application['previous_school'] ?: '—') ?></div></div>
           </div>
-          <?php endif; ?>
-          <?php if(!empty($application['previous_class'])): ?>
+          <div class="detail-item">
+            <div class="detail-icon">📍</div>
+            <div><div class="detail-label">School Address</div><div class="detail-value"><?= htmlspecialchars($application['previous_school_address'] ?: '—') ?></div></div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-icon">🎓</div>
+            <div><div class="detail-label">Principal</div><div class="detail-value"><?= htmlspecialchars($application['principal_name'] ?: '—') ?><?= $application['principal_phone'] ? ' · '.htmlspecialchars($application['principal_phone']) : '' ?></div></div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-icon">🤝</div>
+            <div><div class="detail-label">Sponsor</div><div class="detail-value"><?= htmlspecialchars($application['sponsor_name'] ?: '—') ?><?= $application['sponsor_phone'] ? ' · '.htmlspecialchars($application['sponsor_phone']) : '' ?></div></div>
+          </div>
           <div class="detail-item">
             <div class="detail-icon">🎒</div>
-            <div><div class="detail-label">Previous Class</div><div class="detail-value"><?= htmlspecialchars($application['previous_class']) ?></div></div>
+            <div><div class="detail-label">Last Class</div><div class="detail-value"><?= htmlspecialchars($application['last_class'] ?: '—') ?></div></div>
           </div>
-          <?php endif; ?>
-          <?php if(!empty($application['notes'])): ?>
-          <div class="detail-item">
-            <div class="detail-icon">📝</div>
-            <div><div class="detail-label">Notes</div><div class="detail-value"><?= nl2br(htmlspecialchars($application['notes'])) ?></div></div>
-          </div>
-          <?php endif; ?>
         </div>
       </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">Emergency Contact</div></div>
+      <div class="card-body">
+        <div class="detail-list">
+          <div class="detail-item">
+            <div class="detail-icon">🚨</div>
+            <div><div class="detail-label">Name</div><div class="detail-value"><?= htmlspecialchars($application['emergency_name'] ?: '—') ?><?= $application['emergency_relationship'] ? ' ('.htmlspecialchars($application['emergency_relationship']).')' : '' ?></div></div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-icon">📱</div>
+            <div><div class="detail-label">Phone</div><div class="detail-value"><?= htmlspecialchars($application['emergency_phone'] ?: '—') ?></div></div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-icon">✉️</div>
+            <div><div class="detail-label">Email</div><div class="detail-value"><?= htmlspecialchars($application['emergency_email'] ?: '—') ?></div></div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-icon">📍</div>
+            <div><div class="detail-label">Address</div><div class="detail-value"><?= htmlspecialchars($application['emergency_address'] ?: '—') ?></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <?php if(!empty($application['medical_conditions']) || !empty($application['allergies'])): ?>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Medical Information</div></div>
+      <div class="card-body">
+        <div class="detail-list">
+          <div class="detail-item">
+            <div class="detail-icon">🩺</div>
+            <div><div class="detail-label">Medical Condition</div><div class="detail-value"><?= nl2br(htmlspecialchars($application['medical_conditions'] ?: '—')) ?></div></div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-icon">⚠️</div>
+            <div><div class="detail-label">Food / Medicine Allergies</div><div class="detail-value"><?= nl2br(htmlspecialchars($application['allergies'] ?: '—')) ?></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <?php endif; ?>
+
+    <?php if(!empty($pickupPersons)): ?>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Authorized to Pick Up</div></div>
+      <div class="table-wrapper"><table>
+        <thead><tr><th>#</th><th>Name</th><th>Phone</th><th>Address</th></tr></thead>
+        <tbody>
+          <?php foreach($pickupPersons as $p): ?>
+          <tr>
+            <td><?= (int)$p['sort_order'] ?></td>
+            <td class="fw-600"><?= htmlspecialchars($p['name']) ?></td>
+            <td><?= htmlspecialchars($p['phone'] ?? '—') ?></td>
+            <td><?= htmlspecialchars($p['address'] ?? '—') ?></td>
+          </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table></div>
+    </div>
+    <?php endif; ?>
+
+    <?php if(!empty($application['notes'])): ?>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Additional Notes</div></div>
+      <div class="card-body"><?= nl2br(htmlspecialchars($application['notes'])) ?></div>
     </div>
     <?php endif; ?>
 
