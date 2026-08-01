@@ -1,5 +1,8 @@
 <?php
 require_once ROOT_DIR . '/core/Controller.php';
+// Ledger posting lives on StudentAccountController; the router only autoloads the
+// controller matching the current route, so pull it in explicitly.
+require_once ROOT_DIR . '/app/Controllers/StudentAccountController.php';
 
 class FinanceController extends Controller {
     private int $tid;
@@ -61,8 +64,24 @@ class FinanceController extends Controller {
         ]);
         if ($errors) { $this->failValidation($errors, '/school/finance/invoices'); }
         $invoiceNo = 'INV-'.date('Ymd').'-'.rand(1000,9999);
-        $this->db->insert("INSERT INTO invoices (tenant_id,student_id,fee_structure_id,invoice_no,amount_due,discount,due_date,notes,status) VALUES (?,?,?,?,?,?,?,?,?)",
+        $invoiceId = $this->db->insert("INSERT INTO invoices (tenant_id,student_id,fee_structure_id,invoice_no,amount_due,discount,due_date,notes,status) VALUES (?,?,?,?,?,?,?,?,?)",
             [$this->tid,$_POST['student_id'],$_POST['fee_structure_id']?:null,$invoiceNo,$_POST['amount_due'],$_POST['discount']??0,$_POST['due_date']??null,$_POST['notes']??'','unpaid']);
+
+        // Mirror onto the student ledger so statements, balances and the arrears
+        // aging report all stay in step with billing.
+        StudentAccountController::post(
+            $this->db, $this->tid, (int)$_POST['student_id'], 'charge', 'Invoice ' . $invoiceNo,
+            (float)$_POST['amount_due'],
+            ['invoice_id' => $invoiceId, 'reference' => $invoiceNo, 'date' => $_POST['due_date'] ?: date('Y-m-d')]
+        );
+        if ((float)($_POST['discount'] ?? 0) > 0) {
+            StudentAccountController::post(
+                $this->db, $this->tid, (int)$_POST['student_id'], 'discount', 'Discount on ' . $invoiceNo,
+                -(float)$_POST['discount'],
+                ['invoice_id' => $invoiceId, 'reference' => $invoiceNo, 'date' => $_POST['due_date'] ?: date('Y-m-d')]
+            );
+        }
+
         $this->flash('success','Invoice '.$invoiceNo.' created.'); $this->redirect('/school/finance/invoices');
     }
 
@@ -173,8 +192,19 @@ class FinanceController extends Controller {
         $invoice = $this->db->fetchOne("SELECT amount_due FROM invoices WHERE id=? AND tenant_id=?", [$invoiceId, $this->tid]);
         if (!$invoice) { $this->redirect('/school/finance/invoices'); }
         $amount    = (float)$_POST['amount'];
-        $this->db->insert("INSERT INTO payments (tenant_id,invoice_id,amount,method,reference,received_by,notes) VALUES (?,?,?,?,?,?,?)",
+        $paymentId = $this->db->insert("INSERT INTO payments (tenant_id,invoice_id,amount,method,reference,received_by,notes) VALUES (?,?,?,?,?,?,?)",
             [$this->tid,$invoiceId,$amount,$_POST['method']??'cash',$_POST['reference']??'',$_SESSION['user_id'],$_POST['notes']??'']);
+
+        // Credit the student's ledger so their statement and balance reflect this receipt.
+        $owner = $this->db->fetchOne("SELECT student_id, invoice_no FROM invoices WHERE id=?", [$invoiceId]);
+        if ($owner) {
+            StudentAccountController::post(
+                $this->db, $this->tid, (int)$owner['student_id'], 'payment',
+                'Payment received — ' . ($_POST['method'] ?? 'cash') . ' (' . $owner['invoice_no'] . ')',
+                -$amount,
+                ['invoice_id' => $invoiceId, 'payment_id' => $paymentId, 'reference' => $_POST['reference'] ?: null]
+            );
+        }
         $paid = $this->db->fetchOne("SELECT COALESCE(SUM(amount),0) AS t FROM payments WHERE invoice_id=?",[$invoiceId])['t']??0;
         $newStatus = $paid >= $invoice['amount_due'] ? 'paid' : ($paid > 0 ? 'partial' : 'unpaid');
         $this->db->execute("UPDATE invoices SET amount_paid=?, status=? WHERE id=? AND tenant_id=?",[$paid,$newStatus,$invoiceId,$this->tid]);

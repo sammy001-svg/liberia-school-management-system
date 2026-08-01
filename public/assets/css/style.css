@@ -320,7 +320,14 @@ ul { list-style: none; }
   color: var(--card-color, var(--primary));
 }
 .stat-icon svg { width: 22px; height: 22px; }
-.stat-value { font-size: 28px; font-weight: 800; color: var(--card-color, var(--text)); line-height: 1; }
+/* Long currency figures (e.g. "LRD 1,249,700.00") must shrink to fit rather than
+   be clipped by the card — hence the clamp and the min-width:0 that lets a flex/grid
+   child actually shrink below its content width. */
+.stat-value {
+  font-size: clamp(18px, 2.2vw, 28px); font-weight: 800;
+  color: var(--card-color, var(--text)); line-height: 1.15;
+  min-width: 0; overflow-wrap: anywhere;
+}
 .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; font-weight: 500; }
 .stat-change { font-size: 12px; margin-top: 8px; display: flex; align-items: center; gap: 4px; }
 .stat-change.up   { color: var(--success); }

@@ -122,6 +122,16 @@ $router->post('/school/finance/expenses/{id}/delete', ['FinanceController', 'del
 $router->get('/school/finance/collection',  ['FinanceController', 'collection']);
 $router->get('/school/finance/bus-billing',  ['FinanceController', 'busBilling']);
 $router->post('/school/finance/bus-billing/generate', ['FinanceController', 'generateBusInvoices']);
+// ── STUDENT ACCOUNTS & RECEIVABLES ──────────────────────────────
+$router->get('/school/finance/accounts',                    ['StudentAccountController', 'index']);
+$router->get('/school/finance/arrears',                     ['StudentAccountController', 'arrears']);
+$router->get('/school/finance/scholarships',                ['StudentAccountController', 'scholarships']);
+$router->post('/school/finance/scholarships/store',         ['StudentAccountController', 'storeScholarship']);
+$router->post('/school/finance/scholarships/{id}/apply',    ['StudentAccountController', 'applyScholarship']);
+$router->post('/school/finance/scholarships/{id}/end',      ['StudentAccountController', 'endScholarship']);
+$router->get('/school/finance/accounts/{id}/statement',     ['StudentAccountController', 'statement']);
+$router->post('/school/finance/accounts/{id}/adjust',       ['StudentAccountController', 'adjust']);
+
 $router->get('/school/finance/reports',      ['FinanceController', 'reports']);
 $router->get('/school/finance/reports/print', ['FinanceController', 'printReport']);
 
