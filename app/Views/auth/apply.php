@@ -45,7 +45,7 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
         </div>
       <?php endif; ?>
 
-      <form action="<?= $cfg['url'] ?>/apply/submit" method="POST">
+      <form action="<?= $cfg['url'] ?>/apply/submit" method="POST" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
 
         <div class="modal-section-title">Student Information</div>
@@ -131,6 +131,18 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
           <label class="form-label">Additional Notes</label>
           <textarea name="notes" class="form-control" rows="3" placeholder="Anything else the school should know"></textarea>
         </div>
+
+        <div class="modal-section-title">Supporting Documents</div>
+        <p style="font-size:12.5px;color:var(--text-muted);margin:-4px 0 14px;">
+          All optional — attach what you have now, and the school can request anything else later.
+          PDF, JPG, PNG or WEBP, up to 5MB each.
+        </p>
+        <?php foreach($documentSlots as $slot => $label): ?>
+        <div class="form-group">
+          <label class="form-label"><?= htmlspecialchars($label) ?></label>
+          <input type="file" name="doc_<?= htmlspecialchars($slot) ?>" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.webp">
+        </div>
+        <?php endforeach; ?>
 
         <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:8px;">Submit Application</button>
       </form>

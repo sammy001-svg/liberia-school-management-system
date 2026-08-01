@@ -88,6 +88,36 @@
     </div>
     <?php endif; ?>
 
+    <div class="card">
+      <div class="card-header"><div class="card-title">Attached Documents (<?= count($documents) ?>)</div></div>
+      <?php if(empty($documents)): ?>
+      <div class="card-body">
+        <div class="empty-state">
+          <div class="empty-state-icon">📎</div>
+          <div class="empty-state-text">No documents were attached to this application.</div>
+        </div>
+      </div>
+      <?php else: ?>
+      <div class="table-wrapper"><table>
+        <thead><tr><th>Type</th><th>File</th><th></th></tr></thead>
+        <tbody>
+          <?php foreach($documents as $doc): ?>
+          <tr>
+            <td><span class="badge badge-info"><?= htmlspecialchars($doc['document_type']) ?></span></td>
+            <td style="font-size:12px;color:var(--text-muted);"><?= htmlspecialchars($doc['file_name'] ?? '—') ?></td>
+            <td><a href="<?= htmlspecialchars($doc['file_url']) ?>" target="_blank" class="btn btn-sm btn-outline">View</a></td>
+          </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table></div>
+      <?php if($application['status'] === 'pending'): ?>
+      <div class="card-body" style="padding-top:12px;">
+        <p style="font-size:12px;color:var(--text-muted);margin:0;">These files are copied to the student's profile automatically on approval.</p>
+      </div>
+      <?php endif; ?>
+      <?php endif; ?>
+    </div>
+
   </div>
 
   <div class="profile-stack">

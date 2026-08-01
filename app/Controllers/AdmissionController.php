@@ -3,6 +3,34 @@ require_once ROOT_DIR . '/core/Controller.php';
 
 class AdmissionController extends Controller {
 
+    /** Document slots offered on the public application form, in display order.
+     *  Key = form field suffix, value = the document_type recorded against the upload. */
+    public const APPLICATION_DOCUMENT_SLOTS = [
+        'birth_certificate' => 'Birth Certificate',
+        'transcript'        => 'Transcript',
+        'report_card'       => 'Report Card',
+        'recommendation'    => 'Letter of Recommendation',
+        'other'             => 'Other Supporting Document',
+    ];
+
+    /** Deliberately narrower than Controller::handleFileUpload()'s internal allowlist:
+     *  /apply is unauthenticated, so anonymous visitors get documents only — no
+     *  archives, office macros or video — and a tighter size cap. */
+    private const PUBLIC_DOC_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
+    private const PUBLIC_DOC_MAX_BYTES  = 5242880; // 5MB
+
+    private function uploadApplicationFile(string $field, array &$errors): array {
+        if (empty($_FILES[$field]) || $_FILES[$field]['error'] === UPLOAD_ERR_NO_FILE) {
+            return [null, null];
+        }
+        $ext = strtolower(pathinfo((string)($_FILES[$field]['name'] ?? ''), PATHINFO_EXTENSION));
+        if (!in_array($ext, self::PUBLIC_DOC_EXTENSIONS, true)) {
+            $errors[$field] = 'Only PDF, JPG, PNG or WEBP files can be attached.';
+            return [null, null];
+        }
+        return $this->handleFileUpload($field, 'applications', $errors, self::PUBLIC_DOC_MAX_BYTES);
+    }
+
     // Same resolution used by AuthController::loginPage() for the public login/apply
     // screens: a custom domain match, falling back to "the one active tenant" for
     // single-school deployments — there's no logged-in session to read tenant_id from.
@@ -31,6 +59,7 @@ class AdmissionController extends Controller {
         $classes = $tenant ? $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$tenant['id']]) : [];
         $this->view('auth/apply', [
             'pageTitle' => 'Online Application', 'branding' => $branding, 'classes' => $classes,
+            'documentSlots' => self::APPLICATION_DOCUMENT_SLOTS,
             'flash' => $this->getFlash(),
         ]);
     }
@@ -49,6 +78,14 @@ class AdmissionController extends Controller {
             'guardian_phone' => 'required|max:30',
             'guardian_email' => 'email|max:150',
         ]);
+
+        // Validate and stage every attachment before creating the application, so a rejected
+        // file never leaves a half-finished application behind.
+        $uploads = [];
+        foreach (self::APPLICATION_DOCUMENT_SLOTS as $slot => $label) {
+            [$url, $origName] = $this->uploadApplicationFile('doc_' . $slot, $errors);
+            if ($url) { $uploads[] = [$label, $url, $origName]; }
+        }
         if ($errors) { $this->failValidation($errors, '/apply'); }
 
         $tid = $tenant['id'];
@@ -68,7 +105,15 @@ class AdmissionController extends Controller {
         $reference = 'APP-' . date('Y') . '-' . str_pad((string)$appId, 4, '0', STR_PAD_LEFT);
         $this->db->execute("UPDATE admission_applications SET reference_no=? WHERE id=?", [$reference, $appId]);
 
-        $this->flash('success', "Application submitted successfully! Your reference number is {$reference}. The school will contact you regarding next steps.");
+        foreach ($uploads as [$label, $url, $origName]) {
+            $this->db->insert(
+                "INSERT INTO application_documents (tenant_id,application_id,document_type,file_url,file_name) VALUES (?,?,?,?,?)",
+                [$tid, $appId, $label, $url, $origName]
+            );
+        }
+
+        $attached = $uploads ? ' ' . count($uploads) . ' document(s) received.' : '';
+        $this->flash('success', "Application submitted successfully! Your reference number is {$reference}.{$attached} The school will contact you regarding next steps.");
         $this->redirect('/apply');
     }
 
@@ -113,9 +158,13 @@ class AdmissionController extends Controller {
         );
         if (!$application) { $this->redirect('/school/admissions'); }
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$tid]);
+        $documents = $this->db->fetchAll(
+            "SELECT * FROM application_documents WHERE application_id=? AND tenant_id=? ORDER BY id", [$id, $tid]
+        );
         $this->view('school/highschool/admissions/show', [
             'pageTitle' => 'Application: ' . $application['first_name'] . ' ' . $application['last_name'],
             'panelType' => 'school', 'application' => $application, 'classes' => $classes,
+            'documents' => $documents,
             'flash' => $this->getFlash(),
         ]);
     }
@@ -152,6 +201,23 @@ class AdmissionController extends Controller {
                 $application['previous_school'], $application['previous_class'], 'new',
             ]
         );
+
+        // Carry any attachments across so the paperwork submitted with the application
+        // lands on the new student's profile instead of being stranded on the application.
+        $documents = $this->db->fetchAll(
+            "SELECT * FROM application_documents WHERE application_id=? AND tenant_id=?", [$id, $tid]
+        );
+        foreach ($documents as $doc) {
+            $this->db->insert(
+                "INSERT INTO student_documents (tenant_id,student_id,document_type,title,issued_by,file_url,file_name,notes,uploaded_by)
+                 VALUES (?,?,?,?,?,?,?,?,?)",
+                [
+                    $tid, $studentId, $doc['document_type'], $doc['document_type'],
+                    $application['previous_school'] ?: null, $doc['file_url'], $doc['file_name'],
+                    'Submitted with online application ' . $application['reference_no'], $_SESSION['user_id'],
+                ]
+            );
+        }
 
         $this->db->execute(
             "UPDATE admission_applications SET status='approved', reviewed_by=?, reviewed_at=NOW(), student_id=? WHERE id=?",
