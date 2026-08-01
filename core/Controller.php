@@ -96,7 +96,20 @@ abstract class Controller {
         extract($data);
         $viewFile = dirname(__DIR__) . "/app/Views/{$viewPath}.php";
         if (!file_exists($viewFile)) {
-            die("View not found: {$viewPath}");
+            // A bare die() here renders as unstyled black-on-white text that reads as a
+            // "blank page" — almost always a file that never made it onto the server.
+            // Say so loudly, and name the exact path that is missing.
+            http_response_code(500);
+            echo "<div style=\"font-family:system-ui,sans-serif;max-width:640px;margin:60px auto;padding:28px;"
+               . "border:1px solid #fca5a5;background:#fef2f2;border-radius:10px;color:#7f1d1d\">"
+               . "<h2 style=\"margin:0 0 10px;font-size:18px\">Missing view file</h2>"
+               . "<p style=\"margin:0 0 12px;line-height:1.6\">This page could not be rendered because its "
+               . "template is not present on the server. This usually means the file was not uploaded "
+               . "during the last deployment.</p>"
+               . "<pre style=\"background:#fff;border:1px solid #fecaca;padding:12px;border-radius:6px;"
+               . "overflow-x:auto;font-size:12px;margin:0\">app/Views/" . htmlspecialchars($viewPath) . ".php</pre>"
+               . "</div>";
+            exit;
         }
         require $viewFile;
     }
