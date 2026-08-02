@@ -372,7 +372,7 @@ class GradeController extends Controller {
             $this->flash('danger', 'Choose a class and academic year first.');
             $this->redirect('/school/grades/marking-periods');
         }
-        $affected = $this->db->execute(
+        $this->db->execute(
             "UPDATE exams SET status=? WHERE tenant_id=? AND class_id=? AND academic_year_id <=> ? AND report_column IS NOT NULL",
             [$status, $this->tid, $classId, $yearId]
         );
