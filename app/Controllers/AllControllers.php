@@ -169,7 +169,17 @@ class GradeController extends Controller {
     public function enter(): void {
         $this->requirePermission(['grades.manage']);
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?", [$this->tid]);
-        $exams   = $this->db->fetchAll("SELECT id,name FROM exams WHERE tenant_id=?", [$this->tid]);
+        // Once a class is chosen, offer only that class's exams — otherwise a teacher
+        // can file marks against another class's marking period, which then never
+        // appears on the report card. Report-card slots sort first, in card order.
+        $selectedClass = $_GET['class_id'] ?? '';
+        $exams = $selectedClass
+            ? $this->db->fetchAll(
+                "SELECT id, name, report_column FROM exams
+                 WHERE tenant_id=? AND class_id=?
+                 ORDER BY report_column IS NULL, FIELD(report_column,'p1','p2','p3','e1','p4','p5','p6','e2'), name",
+                [$this->tid, $selectedClass])
+            : $this->db->fetchAll("SELECT id, name, report_column FROM exams WHERE tenant_id=? ORDER BY name", [$this->tid]);
         $students = []; $courses = []; $existingGrades = [];
         $selectedExam = $_GET['exam_id'] ?? '';
         if (!empty($_GET['class_id'])) {
@@ -203,8 +213,11 @@ class GradeController extends Controller {
             foreach ($marks as $courseId => $score) {
                 if ($score === '') { continue; }
                 $pct = (float)$score;
-                $letter = $pct>=90?'A+':($pct>=80?'A':($pct>=70?'B':($pct>=60?'C':($pct>=50?'D':'F'))));
-                $gpa    = $pct>=90?4.0:($pct>=80?3.5:($pct>=70?3.0:($pct>=60?2.5:($pct>=50?2.0:0.0))));
+                // The school's own scale (E/S/I/N/C) — the same one printed in the
+                // METHOD OF GRADING key on the report card, so a letter shown in the
+                // portal always matches the letter on the card.
+                $letter = self::celdiLetter($pct);
+                $gpa    = ['E'=>4.0,'S'=>3.0,'I'=>2.0,'N'=>1.0,'C'=>0.0][$letter] ?? 0.0;
                 $existing = $this->db->fetchOne(
                     "SELECT id FROM grades WHERE tenant_id=? AND student_id=? AND course_id=? AND exam_id <=> ?",
                     [$this->tid, $studentId, $courseId, $examId]
@@ -227,6 +240,75 @@ class GradeController extends Controller {
             $this->flash('success','Grades saved.');
         }
         $this->redirect('/school/grades');
+    }
+
+    // Default names for the eight recordable slots. The card itself prints the
+    // labels from Controller::CELDI_COLUMNS, so these only need to read well in
+    // the exam list and the grade-entry dropdown — renaming one is harmless.
+    private const MARKING_PERIOD_NAMES = [
+        'p1' => '1st Pd.', 'p2' => '2nd Pd.', 'p3' => '3rd Pd.', 'e1' => '1st Semester Exam',
+        'p4' => '4th Pd.', 'p5' => '5th Pd.', 'p6' => '6th Pd.', 'e2' => '2nd Semester Exam',
+    ];
+
+    /** Setup screen: which classes have their report-card slots wired up for a year. */
+    public function markingPeriods(): void {
+        $this->requirePermission(['grades.manage']);
+        $years = $this->db->fetchAll("SELECT id,name FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]);
+        $yearId = $_GET['year_id'] ?? ($years[0]['id'] ?? null);
+        $classes = $this->db->fetchAll(
+            "SELECT c.id, c.name, c.grade_level, c.report_style,
+                    (SELECT COUNT(*) FROM exams e
+                      WHERE e.tenant_id=c.tenant_id AND e.class_id=c.id
+                        AND e.academic_year_id <=> ? AND e.report_column IS NOT NULL) AS slots,
+                    (SELECT COUNT(*) FROM course_classes cc WHERE cc.class_id=c.id) AS subject_count
+             FROM classes c WHERE c.tenant_id=? ORDER BY c.name", [$yearId, $this->tid]
+        );
+        $this->view('school/highschool/grades/marking_periods', [
+            'pageTitle'=>'Marking Periods','panelType'=>'school','classes'=>$classes,
+            'years'=>$years,'selectedYearId'=>$yearId,
+            'slotNames'=>self::MARKING_PERIOD_NAMES,'flash'=>$this->getFlash(),
+        ]);
+    }
+
+    /**
+     * Creates the eight report-card slots for one class (or every class) in a year.
+     *
+     * Idempotent: the uniq_exam_report_slot index means re-running only fills gaps,
+     * so this is safe to hit again after adding a class. Existing ad-hoc exams are
+     * untouched — they carry a NULL report_column and simply don't appear on the card.
+     */
+    public function setupMarkingPeriods(): void {
+        $this->requirePermission(['grades.manage']);
+        $yearId = $_POST['academic_year_id'] ?: null;
+        if (!$yearId) {
+            $this->flash('danger', 'Choose an academic year first.');
+            $this->redirect('/school/grades/marking-periods');
+        }
+        $classIds = !empty($_POST['class_id'])
+            ? [(int)$_POST['class_id']]
+            : array_map(fn($c) => (int)$c['id'],
+                $this->db->fetchAll("SELECT id FROM classes WHERE tenant_id=?", [$this->tid]));
+
+        $created = 0;
+        foreach ($classIds as $classId) {
+            foreach (self::MARKING_PERIOD_NAMES as $slot => $name) {
+                $exists = $this->db->fetchOne(
+                    "SELECT id FROM exams WHERE tenant_id=? AND class_id=? AND academic_year_id <=> ? AND report_column=?",
+                    [$this->tid, $classId, $yearId, $slot]
+                );
+                if ($exists) { continue; }
+                $this->db->insert(
+                    "INSERT INTO exams (tenant_id,name,class_id,academic_year_id,total_marks,pass_marks,report_column,status)
+                     VALUES (?,?,?,?,100,60,?, 'draft')",
+                    [$this->tid, $name, $classId, $yearId, $slot]
+                );
+                $created++;
+            }
+        }
+        $this->flash('success', $created > 0
+            ? "Marking periods ready — {$created} slot(s) created. Enter marks against them from Enter Grades."
+            : 'Marking periods were already set up for that selection.');
+        $this->redirect('/school/grades/marking-periods?year_id=' . urlencode((string)$yearId));
     }
 
     public function report(string $studentId): void {
