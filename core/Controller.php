@@ -768,7 +768,7 @@ abstract class Controller {
         // card carry completely different lists).
         $subjects = $classId ? $this->db->fetchAll(
             "SELECT c.id, c.name FROM courses c JOIN course_classes cc ON cc.course_id=c.id
-             WHERE cc.class_id=? AND c.tenant_id=? ORDER BY cc.id, c.name", [$classId, $tid]
+             WHERE cc.class_id=? AND c.tenant_id=? ORDER BY cc.sort_order, c.name", [$classId, $tid]
         ) : [];
 
         // Every mark for the whole class in one query — the per-column class rank

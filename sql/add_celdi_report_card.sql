@@ -49,6 +49,18 @@ UPDATE classes SET report_style = 'letter'
  WHERE report_style = 'numeric'
    AND (grade_level IN ('Nursery', 'Day Care') OR name IN ('Nursery', 'Day Care'));
 
+-- --- subject print order ----------------------------------------------------
+-- The card lists subjects in a fixed order per grade level (English, Mathematics,
+-- RME/Bible, ... on the 9th-grade card). course_classes has a composite primary
+-- key and no natural ordering, so the sequence is stored explicitly; ties fall
+-- back to the subject name.
+SET @c := (SELECT COUNT(*) FROM information_schema.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'course_classes' AND COLUMN_NAME = 'sort_order');
+SET @s := IF(@c = 0,
+  'ALTER TABLE course_classes ADD COLUMN sort_order SMALLINT NOT NULL DEFAULT 0',
+  'SELECT 1');
+PREPARE stmt FROM @s; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- --- letterhead room --------------------------------------------------------
 -- The report card prints the school's contact line verbatim, and Liberian schools
 -- commonly list three numbers ("0777982384 | 0886644657 | 0777362210" is 36
