@@ -1,16 +1,16 @@
 <?php require ROOT_DIR . '/app/Views/layouts/header.php'; ?>
 <div class="breadcrumb">
   <a href="<?= $cfg['url'] ?>/school/roles">Roles &amp; Permissions</a>
-  <span>/</span><span><?= $role ? 'Edit' : 'New' ?></span>
+  <span>/</span><span><?= $roleRow ? 'Edit' : 'New' ?></span>
 </div>
 <div class="page-header">
   <div>
-    <div class="page-header-title"><?= $role ? 'Edit Role' : 'New Role' ?></div>
+    <div class="page-header-title"><?= $roleRow ? 'Edit Role' : 'New Role' ?></div>
     <div class="page-header-sub">Choose which modules and actions this role can access</div>
   </div>
 </div>
 
-<form method="POST" action="<?= $cfg['url'] ?>/school/roles/<?= $role ? $role['id'].'/update' : 'store' ?>">
+<form method="POST" action="<?= $cfg['url'] ?>/school/roles/<?= $roleRow ? $roleRow['id'].'/update' : 'store' ?>">
   <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
 
   <div class="card">
@@ -18,11 +18,11 @@
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Role Name *</label>
-          <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($role['name'] ?? '') ?>" required placeholder="e.g. Librarian, Exam Officer">
+          <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($roleRow['name'] ?? '') ?>" required placeholder="e.g. Librarian, Exam Officer">
         </div>
         <div class="form-group">
           <label class="form-label">Description</label>
-          <input type="text" name="description" class="form-control" value="<?= htmlspecialchars($role['description'] ?? '') ?>" placeholder="What is this role for?">
+          <input type="text" name="description" class="form-control" value="<?= htmlspecialchars($roleRow['description'] ?? '') ?>" placeholder="What is this role for?">
         </div>
       </div>
     </div>
@@ -62,7 +62,7 @@
   </div>
 
   <div style="display:flex;gap:12px;margin-top:20px;">
-    <button type="submit" class="btn btn-primary"><?= $role ? 'Save Changes' : 'Create Role' ?></button>
+    <button type="submit" class="btn btn-primary"><?= $roleRow ? 'Save Changes' : 'Create Role' ?></button>
     <a href="<?= $cfg['url'] ?>/school/roles" class="btn btn-secondary">Cancel</a>
   </div>
 </form>

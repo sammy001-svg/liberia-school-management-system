@@ -62,9 +62,12 @@ class RoleController extends Controller {
 
     public function create(): void {
         $this->requirePermission(['roles.manage']);
+        // 'roleRow', not 'role': the layout header defines its own $role (the signed-in
+        // user's role name) and it is included after extract(), so a 'role' key here
+        // would be silently overwritten by a string and blow up on $role['id'].
         $this->view('school/roles/form', [
             'pageTitle' => 'New Role', 'panelType' => 'school',
-            'role' => null, 'checked' => [], 'permissionsByModule' => $this->allPermissionsByModule(),
+            'roleRow' => null, 'checked' => [], 'permissionsByModule' => $this->allPermissionsByModule(),
             'flash' => $this->getFlash(),
         ]);
     }
@@ -112,7 +115,7 @@ class RoleController extends Controller {
 
         $this->view('school/roles/form', [
             'pageTitle' => 'Edit Role', 'panelType' => 'school',
-            'role' => $role, 'checked' => $checked, 'permissionsByModule' => $this->allPermissionsByModule(),
+            'roleRow' => $role, 'checked' => $checked, 'permissionsByModule' => $this->allPermissionsByModule(),
             'flash' => $this->getFlash(),
         ]);
     }
@@ -160,7 +163,7 @@ class RoleController extends Controller {
              ORDER BY u.name", array_merge([$this->tid], $roleParams, [$this->tid])
         );
         $assignableRoles = $this->db->fetchAll(
-            "SELECT id, name FROM roles WHERE {$roleClause} ORDER BY name",
+            "SELECT r.id, r.name FROM roles r WHERE {$roleClause} ORDER BY r.name",
             array_merge($roleParams, [$this->tid])
         );
         $this->view('school/roles/users', [
@@ -180,7 +183,7 @@ class RoleController extends Controller {
 
         [$roleClause, $roleParams] = $this->assignableRoleClause();
         $role = $this->db->fetchOne(
-            "SELECT id, name FROM roles WHERE id=? AND {$roleClause}",
+            "SELECT r.id, r.name FROM roles r WHERE r.id=? AND {$roleClause}",
             array_merge([$_POST['role_id']], $roleParams, [$this->tid])
         );
         if (!$role) {

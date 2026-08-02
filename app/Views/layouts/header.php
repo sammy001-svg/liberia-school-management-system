@@ -1,4 +1,8 @@
 <?php
+// This file is included *after* Controller::view() extract()s the page data, so every
+// name assigned here overwrites whatever the controller passed under the same key.
+// Treat $cfg/$user/$branding/$appName/$base/$role as reserved — a view that needs its
+// own record should use a distinct key (e.g. 'roleRow', not 'role').
 $cfg     = require ROOT_DIR . '/config/app.php';
 $user    = $_SESSION['user'] ?? [];
 $branding = $_SESSION['branding'] ?? [];

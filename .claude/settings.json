@@ -42,7 +42,11 @@
       "Bash(awk '/^CREATE TABLE/{t=$3} /created_at/{if\\(t\\)print t}' sql/schema.sql)",
       "Bash(grep -oE '\\\\$\\(cert|tenant\\)\\\\[.[a-z_]+.\\\\]' app/Views/school/certificate_print.php)",
       "Bash(grep -oE '\\\\$[a-zA-Z_]+' app/Views/school/certificate_print.php)",
-      "Bash(grep -n 'roles\\\\|role_id\\\\|$roles' app/Controllers/StaffController.php)"
+      "Bash(grep -n 'roles\\\\|role_id\\\\|$roles' app/Controllers/StaffController.php)",
+      "Bash(ls -lat \"/c/Users/Elitebook 820G3/Downloads\"/*.pdf 2>/dev/null | head -20; echo \"--- desktop ---\"; ls -lat \"/c/Users/Elitebook 820G3/Desktop\"/*.pdf 2>/dev/null | head -20; echo \"--- documents ---\"; ls -lat \"/c/Users/Elitebook 820G3/Documents\"/*.pdf 2>/dev/null | head -20)",
+      "Read(//c/Users/Elitebook 820G3/Downloads/**)",
+      "Read(//c/Users/Elitebook 820G3/Desktop/**)",
+      "Read(//c/Users/Elitebook 820G3/Documents/**)"
     ],
     "additionalDirectories": [
       "C:\\xampp\\apache\\conf",
