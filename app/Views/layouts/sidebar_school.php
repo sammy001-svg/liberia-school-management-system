@@ -99,6 +99,10 @@ $sections = [
          'icon'=>'<path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342"/>'],
         ['url'=>'/school/finance', 'label'=>'Finance', 'perms'=>['finance.manage'],
          'icon'=>'<path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"/>'],
+        ['url'=>'/school/store/items', 'label'=>'School Store', 'perms'=>['store.sell','store.manage'],
+         'icon'=>'<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12A1.125 1.125 0 0119.75 22H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/>'],
+        ['url'=>'/school/store/sell', 'label'=>'Sell Items', 'perms'=>['store.sell','store.manage'],
+         'icon'=>'<path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"/>'],
     ]],
     ['label' => 'Communication', 'accent' => 'var(--cyan)', 'soft' => 'var(--cyan-soft)', 'items' => [
         ['url'=>'/school/announcements', 'label'=>'Announcements', 'perms'=>['announcements.manage'],
@@ -112,17 +116,23 @@ $sections = [
     ]],
 ];
 ?>
-<?php foreach ($sections as $section): ?>
-  <?php $items = array_filter($section['items'], fn($i) => empty($i['perms']) || !empty(array_intersect($i['perms'], $perms)) || !empty($i['bypass'])); ?>
-  <?php if (empty($items)) continue; ?>
-  <?php $accentStyle = "--sec-accent:{$section['accent']};--nav-accent:{$section['accent']};--nav-soft:{$section['soft']};"; ?>
+<?php
+// $navItems/$navItem, not $items/$item: this file is included after the page data
+// has been extract()ed, so anything named here overwrites the controller's value
+// of the same name for the rest of the page. A view listing "items" is a very
+// natural thing to build, so these stay deliberately namespaced.
+?>
+<?php foreach ($sections as $navSection): ?>
+  <?php $navItems = array_filter($navSection['items'], fn($i) => empty($i['perms']) || !empty(array_intersect($i['perms'], $perms)) || !empty($i['bypass'])); ?>
+  <?php if (empty($navItems)) continue; ?>
+  <?php $accentStyle = "--sec-accent:{$navSection['accent']};--nav-accent:{$navSection['accent']};--nav-soft:{$navSection['soft']};"; ?>
   <div class="sidebar-section" style="<?= $accentStyle ?>">
-    <div class="sidebar-section-label"><?= htmlspecialchars($section['label']) ?></div>
+    <div class="sidebar-section-label"><?= htmlspecialchars($navSection['label']) ?></div>
     <nav class="sidebar-nav">
-      <?php foreach ($items as $item): ?>
-      <a href="<?= $base . $item['url'] ?>">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><?= $item['icon'] ?></svg>
-        <?= htmlspecialchars($item['label']) ?>
+      <?php foreach ($navItems as $navItem): ?>
+      <a href="<?= $base . $navItem['url'] ?>">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><?= $navItem['icon'] ?></svg>
+        <?= htmlspecialchars($navItem['label']) ?>
       </a>
       <?php endforeach; ?>
     </nav>

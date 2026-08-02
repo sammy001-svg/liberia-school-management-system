@@ -141,6 +141,21 @@ $router->post('/school/finance/scholarships/{id}/end',      ['StudentAccountCont
 $router->get('/school/finance/accounts/{id}/statement',     ['StudentAccountController', 'statement']);
 $router->post('/school/finance/accounts/{id}/adjust',       ['StudentAccountController', 'adjust']);
 
+// ── SCHOOL STORE ────────────────────────────────────────────────
+// Literal paths precede the {id} routes so "sales"/"items" are never matched as ids.
+$router->get('/school/store',                       ['StoreController', 'items']);
+$router->get('/school/store/items',                 ['StoreController', 'items']);
+$router->post('/school/store/items/store',          ['StoreController', 'storeItem']);
+$router->post('/school/store/stock/adjust',         ['StoreController', 'adjustStock']);
+$router->get('/school/store/sell',                  ['StoreController', 'sell']);
+$router->get('/school/store/sales',                 ['StoreController', 'sales']);
+$router->post('/school/store/sales/store',          ['StoreController', 'storeSale']);
+$router->get('/school/store/reports',               ['StoreController', 'reports']);
+$router->post('/school/store/items/{id}/update',    ['StoreController', 'updateItem']);
+$router->get('/school/store/items/{id}/movements',  ['StoreController', 'movements']);
+$router->get('/school/store/sales/{id}/receipt',    ['StoreController', 'receipt']);
+$router->post('/school/store/sales/{id}/void',      ['StoreController', 'voidSale']);
+
 $router->get('/school/finance/reports',      ['FinanceController', 'reports']);
 $router->get('/school/finance/reports/print', ['FinanceController', 'printReport']);
 
