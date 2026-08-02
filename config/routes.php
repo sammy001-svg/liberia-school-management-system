@@ -79,11 +79,14 @@ $router->get('/school/grades',              ['GradeController', 'index']);
 $router->get('/school/grades/enter',        ['GradeController', 'enter']);
 $router->post('/school/grades/store',       ['GradeController', 'store']);
 $router->post('/school/exams/store',        ['GradeController', 'storeExam']);
-$router->post('/school/grades/{id}/publish', ['GradeController', 'publish']);
+// Literal /school/grades/... paths must be registered before the {id} wildcard
+// below, or "report-cards" is matched as an exam id and the request is silently
+// handled by the single-exam publish action instead.
 $router->get('/school/grades/marking-periods',       ['GradeController', 'markingPeriods']);
 $router->post('/school/grades/marking-periods/setup', ['GradeController', 'setupMarkingPeriods']);
 $router->get('/school/grades/report-cards/class/{classId}', ['GradeController', 'classReportCards']);
 $router->post('/school/grades/report-cards/publish',  ['GradeController', 'publishReportCards']);
+$router->post('/school/grades/{id}/publish', ['GradeController', 'publish']);
 $router->get('/school/grades/report/{studentId}', ['GradeController', 'report']);
 $router->get('/school/grades/report-card/{studentId}', ['GradeController', 'reportCard']);
 $router->get('/school/grades/rankings',            ['GradeController', 'rankings']);
