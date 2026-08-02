@@ -184,9 +184,11 @@ class GradeController extends Controller {
         $selectedExam = $_GET['exam_id'] ?? '';
         if (!empty($_GET['class_id'])) {
             $students = $this->db->fetchAll("SELECT s.id,u.name FROM students s JOIN users u ON s.user_id=u.id WHERE s.class_id=? AND s.tenant_id=? AND s.status='active' ORDER BY u.name",[$_GET['class_id'],$this->tid]);
+            // Same order as the report card, so a teacher reading down a printed card
+            // and typing across this grid is looking at the same subject sequence.
             $courses  = $this->db->fetchAll(
                 "SELECT c.id,c.name FROM courses c JOIN course_classes cc ON cc.course_id=c.id
-                 WHERE cc.class_id=? AND c.tenant_id=?",[$_GET['class_id'],$this->tid]
+                 WHERE cc.class_id=? AND c.tenant_id=? ORDER BY cc.sort_order, c.name",[$_GET['class_id'],$this->tid]
             );
             // Prefill already-recorded marks for this exam so re-opening the screen shows what's
             // there instead of blank cells — needed now that a Teacher without grades.edit can no
