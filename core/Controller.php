@@ -650,6 +650,297 @@ abstract class Controller {
         return $password;
     }
 
+    // ── CELDI ACADEMY REPORT CARD ───────────────────────────────────────────
+    //
+    // The eleven grid columns, in print order. 'store' => true marks the eight a
+    // teacher actually enters; the three averages are always derived so that
+    // correcting a period mark reflows the semester and yearly figures.
+    public const CELDI_COLUMNS = [
+        ['key'=>'p1', 'label'=>'1st Pd.',  'store'=>true,  'sem'=>1],
+        ['key'=>'p2', 'label'=>'2nd Pd.',  'store'=>true,  'sem'=>1],
+        ['key'=>'p3', 'label'=>'3rd Pd.',  'store'=>true,  'sem'=>1],
+        ['key'=>'e1', 'label'=>'Exam',     'store'=>true,  'sem'=>1],
+        ['key'=>'s1', 'label'=>'Sem. Ave.','store'=>false, 'sem'=>1],
+        ['key'=>'p4', 'label'=>'4th Pd.',  'store'=>true,  'sem'=>2],
+        ['key'=>'p5', 'label'=>'5th Pd.',  'store'=>true,  'sem'=>2],
+        ['key'=>'p6', 'label'=>'6th Pd.',  'store'=>true,  'sem'=>2],
+        ['key'=>'e2', 'label'=>'Exam',     'store'=>true,  'sem'=>2],
+        ['key'=>'s2', 'label'=>'Sem. Ave.','store'=>false, 'sem'=>2],
+        ['key'=>'yr', 'label'=>'Yearly Ave.','store'=>false,'sem'=>0],
+    ];
+
+    /**
+     * The school's grading scale, printed verbatim in the METHOD OF GRADING footer.
+     *
+     * The wording is the school's own, typos included ("Imporving", "Concert Not
+     * Understood") — these cards are handed to parents alongside historical ones,
+     * so silently correcting the text would make our output the odd one out.
+     * Change the strings here if the school ever revises its stationery.
+     */
+    public const CELDI_SCALE = [
+        ['min'=>90, 'max'=>100, 'letter'=>'E', 'label'=>'Excellent'],
+        ['min'=>85, 'max'=>89,  'letter'=>'S', 'label'=>'Satisfactory'],
+        ['min'=>80, 'max'=>84,  'letter'=>'I', 'label'=>'Imporving'],
+        ['min'=>72, 'max'=>79,  'letter'=>'N', 'label'=>'Need Improvement'],
+        ['min'=>0,  'max'=>71,  'letter'=>'C', 'label'=>'Concert Not Understood'],
+    ];
+
+    /** Scale letter (E/S/I/N/C) for a score, or '' when there is no score. */
+    public static function celdiLetter(?float $score): string {
+        if ($score === null) { return ''; }
+        foreach (self::CELDI_SCALE as $band) {
+            if ($score >= $band['min']) { return $band['letter']; }
+        }
+        return 'C';
+    }
+
+    /**
+     * Rounds the way the school's existing cards do: half away from zero, so a
+     * computed 94.5 prints as 95 (verified against Literature/2nd semester and
+     * English/yearly on the 2025-2026 cards).
+     */
+    private static function celdiRound(?float $v, int $dp = 0): ?float {
+        return $v === null ? null : round($v, $dp, PHP_ROUND_HALF_UP);
+    }
+
+    /**
+     * Derives one subject row's five computed cells from its recorded marks.
+     *
+     * Sem. Ave. weighs the three marking periods together at 50% and the semester
+     * exam at 50% — i.e. round((mean(periods) + exam) / 2) — and the Yearly Ave.
+     * is the mean of the two semester averages. Both were reverse-engineered from
+     * the 2025-2026 cards and reproduce every printed figure on them exactly.
+     *
+     * A semester with no exam mark yet falls back to the plain mean of whatever
+     * periods are present, so a card printed mid-term still shows a running average
+     * instead of a blank column.
+     */
+    private static function celdiSemesterAverage(array $periodMarks, ?float $examMark): ?float {
+        $periods = array_values(array_filter($periodMarks, fn($m) => $m !== null));
+        $periodMean = $periods ? array_sum($periods) / count($periods) : null;
+        if ($periodMean === null && $examMark === null) { return null; }
+        if ($examMark === null)  { return self::celdiRound($periodMean); }
+        if ($periodMean === null) { return self::celdiRound($examMark); }
+        return self::celdiRound(($periodMean + $examMark) / 2);
+    }
+
+    /**
+     * Builds the full Celdi report card for one student.
+     *
+     * Everything is scoped to a single class + academic year, because that is what
+     * the printed card represents. $publishedOnly hides marks from unpublished
+     * exams (the Parent/Student portals pass true; staff pass false so they can
+     * proof a card before releasing it).
+     *
+     * Returns subject rows keyed by the CELDI_COLUMNS keys, plus the two footer
+     * rows (Days Absent, Average), the per-column Class Rank, and the header data.
+     */
+    protected function buildCeldiReportCard(string $studentId, array $student, bool $publishedOnly): array {
+        $tid = $this->tenantId() ?? 0;
+        $classId = $student['class_id'] ?? null;
+
+        $class = $classId
+            ? $this->db->fetchOne("SELECT * FROM classes WHERE id=? AND tenant_id=?", [$classId, $tid])
+            : null;
+
+        // Year selection: explicit ?year_id wins, else the class's own year, else
+        // the tenant's most recent — a class with no year set is common on this install.
+        $yearOptions = $this->db->fetchAll(
+            "SELECT id, name, start_date FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$tid]
+        );
+        $yearId = $_GET['year_id'] ?? ($class['academic_year_id'] ?? null) ?: ($yearOptions[0]['id'] ?? null);
+        $year = null;
+        foreach ($yearOptions as $y) { if ((string)$y['id'] === (string)$yearId) { $year = $y; } }
+
+        // The eight recordable slots for this class+year, as exam_id => column key.
+        $pub = $publishedOnly ? " AND e.status='published'" : "";
+        $slotRows = $this->db->fetchAll(
+            "SELECT e.id, e.report_column FROM exams e
+             WHERE e.tenant_id=? AND e.class_id <=> ? AND e.academic_year_id <=> ?
+               AND e.report_column IS NOT NULL{$pub}",
+            [$tid, $classId, $yearId]
+        );
+        $slotOfExam = [];
+        foreach ($slotRows as $r) { $slotOfExam[(int)$r['id']] = $r['report_column']; }
+
+        // Subject list is the class's own course set, so each grade level prints the
+        // subjects it actually teaches (the document's 9th-grade card and its K-II
+        // card carry completely different lists).
+        $subjects = $classId ? $this->db->fetchAll(
+            "SELECT c.id, c.name FROM courses c JOIN course_classes cc ON cc.course_id=c.id
+             WHERE cc.class_id=? AND c.tenant_id=? ORDER BY cc.id, c.name", [$classId, $tid]
+        ) : [];
+
+        // Every mark for the whole class in one query — the per-column class rank
+        // needs classmates' figures anyway, so fetching per-student would be N+1.
+        $marks = [];   // [student_id][course_id][slot] = score
+        if ($slotOfExam) {
+            $ids = implode(',', array_map('intval', array_keys($slotOfExam)));
+            $rows = $this->db->fetchAll(
+                "SELECT g.student_id, g.course_id, g.exam_id, g.marks_obtained, g.total_marks
+                 FROM grades g JOIN students s ON g.student_id=s.id
+                 WHERE g.tenant_id=? AND s.class_id <=> ? AND g.exam_id IN ({$ids})",
+                [$tid, $classId]
+            );
+            foreach ($rows as $r) {
+                $total = (float)$r['total_marks'];
+                // Stored out of whatever the exam was marked over; the card is a percentage grid.
+                $pct = $total > 0 ? ((float)$r['marks_obtained'] / $total) * 100 : null;
+                $marks[(int)$r['student_id']][(int)$r['course_id']][$slotOfExam[(int)$r['exam_id']]] = $pct;
+            }
+        }
+
+        // Absences per marking period, from the attendance register, using each
+        // slot's term date range. Slots with no term keep a null (prints blank),
+        // which is how the school currently leaves the row.
+        $absence = $this->celdiStudentAbsences($studentId, $this->celdiSlotRanges($tid, $classId, $yearId));
+
+        $classmates = $this->db->fetchAll(
+            "SELECT s.id FROM students s WHERE s.class_id <=> ? AND s.tenant_id=? AND s.status='active'",
+            [$classId, $tid]
+        );
+        $classmateIds = array_map(fn($s) => (int)$s['id'], $classmates);
+        if (!in_array((int)$studentId, $classmateIds, true)) { $classmateIds[] = (int)$studentId; }
+
+        // Compute every classmate's grid so ranks can be worked out column by column.
+        $grids = [];
+        foreach ($classmateIds as $sid) {
+            $grids[$sid] = $this->celdiGrid($subjects, $marks[$sid] ?? []);
+        }
+
+        $mine = $grids[(int)$studentId] ?? ['rows' => [], 'columnAverage' => []];
+
+        // Class Rank row: for each column, position among classmates who have a
+        // figure in that column, highest first. Ties share a position (competition
+        // ranking), and the denominator is the number of ranked students, which is
+        // what "9/11" on the printed card counts.
+        $rank = [];
+        foreach (self::CELDI_COLUMNS as $col) {
+            $key = $col['key'];
+            $scores = [];
+            foreach ($grids as $sid => $g) {
+                if (($g['columnAverage'][$key] ?? null) !== null) { $scores[$sid] = $g['columnAverage'][$key]; }
+            }
+            if (!isset($scores[(int)$studentId])) { $rank[$key] = null; continue; }
+            $mineScore = $scores[(int)$studentId];
+            $better = count(array_filter($scores, fn($v) => $v > $mineScore));
+            $rank[$key] = ['position' => $better + 1, 'of' => count($scores)];
+        }
+
+        $promotion = $yearId ? $this->db->fetchOne(
+            "SELECT * FROM student_promotions WHERE student_id=? AND academic_year_id=? AND tenant_id=?",
+            [$studentId, $yearId, $tid]
+        ) : null;
+
+        $sponsor = ($class['class_teacher_id'] ?? null) ? $this->db->fetchOne(
+            "SELECT u.name FROM teachers t JOIN users u ON t.user_id=u.id WHERE t.id=?", [$class['class_teacher_id']]
+        ) : null;
+
+        return [
+            'columns'      => self::CELDI_COLUMNS,
+            'scale'        => self::CELDI_SCALE,
+            'subjects'     => $subjects,
+            'rows'         => $mine['rows'],
+            'columnAverage'=> $mine['columnAverage'],
+            'rank'         => $rank,
+            'absence'      => $absence,
+            'class'        => $class,
+            'letterStyle'  => ($class['report_style'] ?? 'numeric') === 'letter',
+            'year'         => $year,
+            'yearOptions'  => $yearOptions,
+            'selectedYearId' => $yearId,
+            'promotion'    => $promotion,
+            'sponsorName'  => $sponsor['name'] ?? null,
+            'slotsConfigured' => count($slotOfExam),
+        ];
+    }
+
+    /**
+     * One student's grid: per-subject cells for all eleven columns, plus the
+     * bottom "Average" row (each column's mean across the subjects that have a
+     * figure in it, to one decimal place, as printed).
+     */
+    private function celdiGrid(array $subjects, array $studentMarks): array {
+        $rows = [];
+        foreach ($subjects as $s) {
+            $cid = (int)$s['id'];
+            $raw = $studentMarks[$cid] ?? [];
+            $get = fn(string $k) => isset($raw[$k]) ? self::celdiRound((float)$raw[$k]) : null;
+
+            $cells = [
+                'p1' => $get('p1'), 'p2' => $get('p2'), 'p3' => $get('p3'), 'e1' => $get('e1'),
+                'p4' => $get('p4'), 'p5' => $get('p5'), 'p6' => $get('p6'), 'e2' => $get('e2'),
+            ];
+            $cells['s1'] = self::celdiSemesterAverage([$cells['p1'], $cells['p2'], $cells['p3']], $cells['e1']);
+            $cells['s2'] = self::celdiSemesterAverage([$cells['p4'], $cells['p5'], $cells['p6']], $cells['e2']);
+            // Mean of the two semester averages; before the second semester exists
+            // the first one stands in, so a mid-year card still shows a figure.
+            $semesters = array_values(array_filter([$cells['s1'], $cells['s2']], fn($v) => $v !== null));
+            $cells['yr'] = $semesters ? self::celdiRound(array_sum($semesters) / count($semesters)) : null;
+
+            $rows[] = ['subject' => $s['name'], 'course_id' => $cid, 'cells' => $cells];
+        }
+
+        // Average row. The recorded columns hold whole-number marks and the school
+        // prints their mean rounded to a whole number (shown as "88.0"); the three
+        // derived columns keep a real decimal ("85.6"). Rounding the recorded ones
+        // to 1dp instead would print 88.5 where the card reads 88.0, so the two
+        // cases are deliberately different — see the 2025-2026 cards.
+        $columnAverage = [];
+        foreach (self::CELDI_COLUMNS as $col) {
+            $vals = [];
+            foreach ($rows as $r) {
+                if ($r['cells'][$col['key']] !== null) { $vals[] = $r['cells'][$col['key']]; }
+            }
+            if (!$vals) { $columnAverage[$col['key']] = null; continue; }
+            $mean = array_sum($vals) / count($vals);
+            $columnAverage[$col['key']] = self::celdiRound($mean, $col['store'] ? 0 : 1);
+        }
+        return ['rows' => $rows, 'columnAverage' => $columnAverage];
+    }
+
+    /**
+     * Date range of each marking period for a class, keyed by column slot.
+     *
+     * Each slot's exam row points at a term, and the term supplies the range to
+     * count attendance against — so absence figures only appear once terms are set
+     * up. A slot without a term is omitted, and prints as an empty cell rather
+     * than a misleading zero.
+     */
+    private function celdiSlotRanges(int $tid, ?int $classId, $yearId): array {
+        if (!$classId) { return []; }
+        $rows = $this->db->fetchAll(
+            "SELECT e.report_column, t.start_date, t.end_date
+             FROM exams e JOIN terms t ON e.term_id=t.id
+             WHERE e.tenant_id=? AND e.class_id <=> ? AND e.academic_year_id <=> ?
+               AND e.report_column IS NOT NULL",
+            [$tid, $classId, $yearId]
+        );
+        $out = [];
+        foreach ($rows as $r) {
+            $out[$r['report_column']] = [
+                'start' => $r['start_date'],
+                'end'   => $r['end_date'],
+            ];
+        }
+        return $out;
+    }
+
+    /** Absence count for one student within each configured slot's date range. */
+    protected function celdiStudentAbsences(string $studentId, array $slotRanges): array {
+        $out = [];
+        foreach ($slotRanges as $slot => $range) {
+            if (empty($range['start']) || empty($range['end'])) { $out[$slot] = null; continue; }
+            $row = $this->db->fetchOne(
+                "SELECT COUNT(*) c FROM attendance
+                 WHERE student_id=? AND status='absent' AND `date` BETWEEN ? AND ?",
+                [$studentId, $range['start'], $range['end']]
+            );
+            $out[$slot] = (int)($row['c'] ?? 0);
+        }
+        return $out;
+    }
+
     /**
      * Pagination helper: given a total row count, works out the current
      * page (from $_GET['page']), page size, and SQL OFFSET.

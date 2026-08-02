@@ -243,12 +243,12 @@ class GradeController extends Controller {
             [$studentId, $this->tid]
         );
         if (!$student) { $this->redirect('/school/students'); }
-        $class  = $student['class_id'] ? $this->db->fetchOne("SELECT * FROM classes WHERE id=?", [$student['class_id']]) : null;
         $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
 
-        $this->view('school/report_card', array_merge(
-            ['pageTitle' => 'Report Card', 'tenant' => $tenant, 'student' => $student, 'class' => $class],
-            $this->buildReportCardData($studentId, $student, false)
+        // Staff proof the card before release, so unpublished marks are included.
+        $this->view('school/report_card_celdi', array_merge(
+            ['pageTitle' => 'Report Card', 'tenant' => $tenant, 'student' => $student],
+            $this->buildCeldiReportCard($studentId, $student, false)
         ));
     }
 

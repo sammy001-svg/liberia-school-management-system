@@ -151,12 +151,12 @@ class ParentPortalController extends Controller {
             }
         }
 
-        $class  = $student['class_id'] ? $this->db->fetchOne("SELECT * FROM classes WHERE id=?", [$student['class_id']]) : null;
         $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
 
-        $this->view('school/report_card', array_merge(
-            ['pageTitle' => 'Report Card', 'tenant' => $tenant, 'student' => $student, 'class' => $class],
-            $this->buildReportCardData($studentId, $student, true)
+        // publishedOnly: a parent only ever sees marks the school has released.
+        $this->view('school/report_card_celdi', array_merge(
+            ['pageTitle' => 'Report Card', 'tenant' => $tenant, 'student' => $student],
+            $this->buildCeldiReportCard($studentId, $student, true)
         ));
     }
 
