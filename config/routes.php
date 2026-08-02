@@ -82,6 +82,8 @@ $router->post('/school/exams/store',        ['GradeController', 'storeExam']);
 $router->post('/school/grades/{id}/publish', ['GradeController', 'publish']);
 $router->get('/school/grades/marking-periods',       ['GradeController', 'markingPeriods']);
 $router->post('/school/grades/marking-periods/setup', ['GradeController', 'setupMarkingPeriods']);
+$router->get('/school/grades/report-cards/class/{classId}', ['GradeController', 'classReportCards']);
+$router->post('/school/grades/report-cards/publish',  ['GradeController', 'publishReportCards']);
 $router->get('/school/grades/report/{studentId}', ['GradeController', 'report']);
 $router->get('/school/grades/report-card/{studentId}', ['GradeController', 'reportCard']);
 $router->get('/school/grades/rankings',            ['GradeController', 'rankings']);

@@ -262,8 +262,13 @@ class GradeController extends Controller {
                     (SELECT COUNT(*) FROM exams e
                       WHERE e.tenant_id=c.tenant_id AND e.class_id=c.id
                         AND e.academic_year_id <=> ? AND e.report_column IS NOT NULL) AS slots,
+                    (SELECT COUNT(*) FROM exams e
+                      WHERE e.tenant_id=c.tenant_id AND e.class_id=c.id
+                        AND e.academic_year_id <=> ? AND e.report_column IS NOT NULL
+                        AND e.status='published') AS published_slots,
+                    (SELECT COUNT(*) FROM students s WHERE s.class_id=c.id AND s.status='active') AS student_count,
                     (SELECT COUNT(*) FROM course_classes cc WHERE cc.class_id=c.id) AS subject_count
-             FROM classes c WHERE c.tenant_id=? ORDER BY c.name", [$yearId, $this->tid]
+             FROM classes c WHERE c.tenant_id=? ORDER BY c.name", [$yearId, $yearId, $this->tid]
         );
         $this->view('school/highschool/grades/marking_periods', [
             'pageTitle'=>'Marking Periods','panelType'=>'school','classes'=>$classes,
@@ -310,6 +315,70 @@ class GradeController extends Controller {
         $this->flash('success', $created > 0
             ? "Marking periods ready — {$created} slot(s) created. Enter marks against them from Enter Grades."
             : 'Marking periods were already set up for that selection.');
+        $this->redirect('/school/grades/marking-periods?year_id=' . urlencode((string)$yearId));
+    }
+
+    /**
+     * Every card in a class as one printable document.
+     *
+     * This is how the school produces cards in practice — their own year-end export
+     * is a single long PDF of consecutive cards, not 200 separate prints. Each
+     * student's card is built through the same builder the single-student view
+     * uses, so the two outputs cannot disagree.
+     */
+    public function classReportCards(string $classId): void {
+        $this->requirePermission(['grades.manage']);
+        $class = $this->db->fetchOne("SELECT * FROM classes WHERE id=? AND tenant_id=?", [$classId, $this->tid]);
+        if (!$class) { $this->redirect('/school/classes'); }
+        $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
+
+        $students = $this->db->fetchAll(
+            "SELECT s.*, u.name, u.gender, u.date_of_birth FROM students s JOIN users u ON s.user_id=u.id
+             WHERE s.class_id=? AND s.tenant_id=? AND s.status='active' ORDER BY u.name",
+            [$classId, $this->tid]
+        );
+
+        $cards = [];
+        $meta = [];
+        foreach ($students as $s) {
+            $built = $this->buildCeldiReportCard((string)$s['id'], $s, false);
+            $cards[] = array_merge($built, ['student' => $s]);
+            $meta = $built; // year/slot info is identical across the class
+        }
+
+        $this->view('school/report_cards_batch', [
+            'pageTitle' => 'Report Cards — ' . $class['name'],
+            'tenant' => $tenant, 'class' => $class, 'cards' => $cards,
+            'yearOptions' => $meta['yearOptions'] ?? [],
+            'selectedYearId' => $meta['selectedYearId'] ?? null,
+            'yearName' => $meta['year']['name'] ?? null,
+            'slotsConfigured' => $meta['slotsConfigured'] ?? 0,
+        ]);
+    }
+
+    /**
+     * Releases (or withdraws) a class's whole report card for a year.
+     *
+     * The card is only meaningful as a set — publishing the eight slots one at a
+     * time would show parents a card with holes in it — so this flips all of them
+     * together. Ad-hoc exams keep their own per-exam publish button.
+     */
+    public function publishReportCards(): void {
+        $this->requirePermission(['grades.manage']);
+        $classId = $_POST['class_id'] ?? null;
+        $yearId  = $_POST['academic_year_id'] ?: null;
+        $status  = ($_POST['status'] ?? 'published') === 'published' ? 'published' : 'draft';
+        if (!$classId || !$yearId) {
+            $this->flash('danger', 'Choose a class and academic year first.');
+            $this->redirect('/school/grades/marking-periods');
+        }
+        $affected = $this->db->execute(
+            "UPDATE exams SET status=? WHERE tenant_id=? AND class_id=? AND academic_year_id <=> ? AND report_column IS NOT NULL",
+            [$status, $this->tid, $classId, $yearId]
+        );
+        $this->flash('success', $status === 'published'
+            ? 'Report cards released — parents and students can now see them.'
+            : 'Report cards withdrawn — they are hidden from parents and students again.');
         $this->redirect('/school/grades/marking-periods?year_id=' . urlencode((string)$yearId));
     }
 

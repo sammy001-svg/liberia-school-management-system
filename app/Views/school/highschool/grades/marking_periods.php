@@ -42,9 +42,9 @@
   </div>
   <div class="table-wrapper">
     <table>
-      <thead><tr><th>Class</th><th>Report Style</th><th>Subjects</th><th>Report Card Slots</th><th></th></tr></thead>
+      <thead><tr><th>Class</th><th>Report Style</th><th>Students</th><th>Subjects</th><th>Report Card Slots</th><th>Released</th><th>Actions</th></tr></thead>
       <tbody>
-        <?php foreach($classes as $c): $slots = (int)$c['slots']; ?>
+        <?php foreach($classes as $c): $slots = (int)$c['slots']; $pub = (int)$c['published_slots']; ?>
         <tr>
           <td class="fw-600"><?= htmlspecialchars($c['name']) ?></td>
           <td>
@@ -54,6 +54,7 @@
               <span class="badge badge-info">Numbers</span>
             <?php endif; ?>
           </td>
+          <td><?= (int)$c['student_count'] ?></td>
           <td>
             <?php if((int)$c['subject_count'] === 0): ?>
               <span style="color:var(--danger);font-size:12px;">None — add subjects first</span>
@@ -69,21 +70,48 @@
             <?php endif; ?>
           </td>
           <td>
-            <?php if($slots < 8): ?>
-            <form method="POST" action="<?= $cfg['url'] ?>/school/grades/marking-periods/setup">
-              <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
-              <input type="hidden" name="academic_year_id" value="<?= htmlspecialchars($selectedYearId) ?>">
-              <input type="hidden" name="class_id" value="<?= $c['id'] ?>">
-              <button type="submit" class="btn btn-sm btn-secondary">Set Up</button>
-            </form>
+            <?php if($slots > 0 && $pub >= $slots): ?>
+              <span class="badge badge-success">Visible to parents</span>
+            <?php elseif($pub > 0): ?>
+              <span class="badge badge-warning">Partly released</span>
             <?php else: ?>
-            <a href="<?= $cfg['url'] ?>/school/grades/enter?class_id=<?= $c['id'] ?>" class="btn btn-sm btn-secondary">Enter Grades</a>
+              <span class="badge badge-secondary">Not released</span>
             <?php endif; ?>
+          </td>
+          <td>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <?php if($slots < 8): ?>
+              <form method="POST" action="<?= $cfg['url'] ?>/school/grades/marking-periods/setup">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+                <input type="hidden" name="academic_year_id" value="<?= htmlspecialchars($selectedYearId) ?>">
+                <input type="hidden" name="class_id" value="<?= $c['id'] ?>">
+                <button type="submit" class="btn btn-sm btn-secondary">Set Up</button>
+              </form>
+            <?php else: ?>
+              <a href="<?= $cfg['url'] ?>/school/grades/enter?class_id=<?= $c['id'] ?>" class="btn btn-sm btn-secondary">Enter Grades</a>
+              <a href="<?= $cfg['url'] ?>/school/grades/report-cards/class/<?= $c['id'] ?>?year_id=<?= htmlspecialchars($selectedYearId) ?>"
+                 target="_blank" class="btn btn-sm btn-secondary">Print Cards</a>
+              <form method="POST" action="<?= $cfg['url'] ?>/school/grades/report-cards/publish"
+                    data-confirm="<?= $pub >= $slots
+                        ? 'Withdraw this class&#39;s report cards? Parents and students will no longer see them.'
+                        : 'Release this class&#39;s report cards to parents and students?' ?>"
+                    data-confirm-title="<?= $pub >= $slots ? 'Withdraw Report Cards' : 'Release Report Cards' ?>"
+                    data-confirm-label="<?= $pub >= $slots ? 'Withdraw' : 'Release' ?>">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+                <input type="hidden" name="academic_year_id" value="<?= htmlspecialchars($selectedYearId) ?>">
+                <input type="hidden" name="class_id" value="<?= $c['id'] ?>">
+                <input type="hidden" name="status" value="<?= $pub >= $slots ? 'draft' : 'published' ?>">
+                <button type="submit" class="btn btn-sm <?= $pub >= $slots ? 'btn-secondary' : 'btn-primary' ?>">
+                  <?= $pub >= $slots ? 'Withdraw' : 'Release' ?>
+                </button>
+              </form>
+            <?php endif; ?>
+            </div>
           </td>
         </tr>
         <?php endforeach; ?>
         <?php if(empty($classes)): ?>
-        <tr><td colspan="5">
+        <tr><td colspan="7">
           <div class="empty-state">
             <div class="empty-state-icon">🏫</div>
             <div class="empty-state-text">No classes yet. Add them on the <a href="<?= $cfg['url'] ?>/school/classes">Classes</a> page.</div>
