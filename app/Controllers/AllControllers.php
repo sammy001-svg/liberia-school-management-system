@@ -382,6 +382,67 @@ class GradeController extends Controller {
         $this->redirect('/school/grades/marking-periods?year_id=' . urlencode((string)$yearId));
     }
 
+    /**
+     * Year-end promotion decisions for a whole class — the left panel of sheet 1.
+     *
+     * Done per class rather than per student because it is a single end-of-year
+     * sitting for the class sponsor, who works down the roster in one go.
+     */
+    public function promotions(): void {
+        $this->requirePermission(['grades.manage']);
+        $years = $this->db->fetchAll("SELECT id,name FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]);
+        $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
+        $classId = $_GET['class_id'] ?? null;
+        $yearId  = $_GET['year_id'] ?? ($years[0]['id'] ?? null);
+
+        $students = []; $existing = [];
+        if ($classId) {
+            $students = $this->db->fetchAll(
+                "SELECT s.id, u.name FROM students s JOIN users u ON s.user_id=u.id
+                 WHERE s.class_id=? AND s.tenant_id=? AND s.status='active' ORDER BY u.name",
+                [$classId, $this->tid]
+            );
+            $rows = $this->db->fetchAll(
+                "SELECT * FROM student_promotions WHERE tenant_id=? AND academic_year_id <=> ?", [$this->tid, $yearId]
+            );
+            foreach ($rows as $r) { $existing[(int)$r['student_id']] = $r; }
+        }
+        $this->view('school/highschool/grades/promotions', [
+            'pageTitle'=>'Promotion Statements','panelType'=>'school',
+            'years'=>$years,'classes'=>$classes,'students'=>$students,'existing'=>$existing,
+            'selectedClassId'=>$classId,'selectedYearId'=>$yearId,'flash'=>$this->getFlash(),
+        ]);
+    }
+
+    /** Upserts one row per student; blank decisions are stored as NULL so the card prints ruled blanks. */
+    public function savePromotions(): void {
+        $this->requirePermission(['grades.manage']);
+        $yearId  = $_POST['academic_year_id'] ?: null;
+        $classId = $_POST['class_id'] ?: null;
+        if (!$yearId || !$classId) {
+            $this->flash('danger', 'Choose a class and academic year first.');
+            $this->redirect('/school/grades/promotions');
+        }
+        $closing = $_POST['closing_date'] ?: null;
+        $valid = ['promoted','condition','repeat','not_enroll'];
+        $saved = 0;
+        foreach ($_POST['promotion'] ?? [] as $studentId => $p) {
+            $decision = in_array($p['decision'] ?? '', $valid, true) ? $p['decision'] : null;
+            $sat = ($p['satisfactory'] ?? '') === '' ? null : (int)$p['satisfactory'];
+            $detail = trim($p['detail'] ?? '') ?: null;
+            $this->db->execute(
+                "INSERT INTO student_promotions (tenant_id,student_id,academic_year_id,decision,decision_detail,satisfactory,closing_date)
+                 VALUES (?,?,?,?,?,?,?)
+                 ON DUPLICATE KEY UPDATE decision=VALUES(decision), decision_detail=VALUES(decision_detail),
+                                         satisfactory=VALUES(satisfactory), closing_date=VALUES(closing_date)",
+                [$this->tid, (int)$studentId, $yearId, $decision, $detail, $sat, $closing]
+            );
+            $saved++;
+        }
+        $this->flash('success', "Promotion statements saved for {$saved} student(s).");
+        $this->redirect('/school/grades/promotions?class_id=' . urlencode((string)$classId) . '&year_id=' . urlencode((string)$yearId));
+    }
+
     public function report(string $studentId): void {
         $this->requirePermission(['grades.manage']);
         $student = $this->db->fetchOne("SELECT s.*,u.name FROM students s JOIN users u ON s.user_id=u.id WHERE s.id=? AND s.tenant_id=?",[$studentId,$this->tid]);
