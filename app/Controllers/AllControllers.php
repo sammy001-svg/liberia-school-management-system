@@ -252,6 +252,27 @@ class GradeController extends Controller {
         'p4' => '4th Pd.', 'p5' => '5th Pd.', 'p6' => '6th Pd.', 'e2' => '2nd Semester Exam',
     ];
 
+    /**
+     * Switches a class between numeric marks and letter grades on the report card.
+     *
+     * The early-years classes (Nursery, Day Care and any others the school chooses)
+     * print E/S/I/N/C in every cell instead of scores, including the Average row.
+     * Made a per-class toggle rather than inferred from the class name so a school
+     * that renames or adds a section — "Nursery 1", "Nursery 2" — can set it
+     * without a code change.
+     */
+    public function toggleReportStyle(string $id): void {
+        $this->requirePermission(['grades.manage']);
+        $class = $this->db->fetchOne("SELECT id, name, report_style FROM classes WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        if (!$class) { $this->redirect('/school/grades/marking-periods'); }
+        $new = ($class['report_style'] ?? 'numeric') === 'letter' ? 'numeric' : 'letter';
+        $this->db->execute("UPDATE classes SET report_style=? WHERE id=? AND tenant_id=?", [$new, $id, $this->tid]);
+        $this->flash('success', $new === 'letter'
+            ? "{$class['name']} report cards will now print letter grades (E/S/I/N/C)."
+            : "{$class['name']} report cards will now print numeric marks.");
+        $this->redirect('/school/grades/marking-periods?year_id=' . urlencode((string)($_POST['year_id'] ?? '')));
+    }
+
     /** Setup screen: which classes have their report-card slots wired up for a year. */
     public function markingPeriods(): void {
         $this->requirePermission(['grades.manage']);

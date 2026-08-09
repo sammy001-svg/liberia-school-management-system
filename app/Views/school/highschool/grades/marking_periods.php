@@ -48,11 +48,20 @@
         <tr>
           <td class="fw-600"><?= htmlspecialchars($c['name']) ?></td>
           <td>
-            <?php if(($c['report_style'] ?? 'numeric')==='letter'): ?>
-              <span class="badge badge-purple">Letters (E/S/I/N/C)</span>
-            <?php else: ?>
-              <span class="badge badge-info">Numbers</span>
-            <?php endif; ?>
+            <?php $isLetter = ($c['report_style'] ?? 'numeric')==='letter'; ?>
+            <form method="POST" action="<?= $cfg['url'] ?>/school/classes/<?= $c['id'] ?>/report-style"
+                  data-confirm="<?= $isLetter
+                      ? 'Switch ' . htmlspecialchars($c['name']) . ' back to numeric marks on the report card?'
+                      : 'Print letter grades (E/S/I/N/C) instead of numbers on ' . htmlspecialchars($c['name']) . ' report cards?' ?>"
+                  data-confirm-title="Report Style" data-confirm-label="Switch">
+              <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+              <input type="hidden" name="year_id" value="<?= htmlspecialchars($selectedYearId) ?>">
+              <button type="submit" class="badge <?= $isLetter ? 'badge-purple' : 'badge-info' ?>"
+                      style="border:none;cursor:pointer;font:inherit;"
+                      title="Click to switch">
+                <?= $isLetter ? 'Letters (E/S/I/N/C)' : 'Numbers' ?>
+              </button>
+            </form>
           </td>
           <td><?= (int)$c['student_count'] ?></td>
           <td>
