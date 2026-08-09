@@ -96,8 +96,9 @@ class TeacherController extends Controller {
                     if ($deptId === null) { $rowErrors[] = "Row {$line}: department '{$row['department_name']}' not found — teacher added without a department."; }
                 }
                 $userId = $this->db->insert(
-                    "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,date_of_birth,status) VALUES (?,?,?,?,?,?,?,?)",
-                    [$this->tid, $roleId, $name, $email, $row['phone'] ?? '', $row['gender'] ?: null, $row['dob'] ?: null, 'active']
+                    "INSERT INTO users (tenant_id,role_id,name,username,email,phone,gender,date_of_birth,status) VALUES (?,?,?,?,?,?,?,?,?)",
+                    [$this->tid, $roleId, $name, $this->generateUniqueUsername($name, $this->tid), $email,
+                     $row['phone'] ?? '', $row['gender'] ?: null, $row['dob'] ?: null, 'active']
                 );
                 $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [password_hash('Teacher@123', PASSWORD_BCRYPT), $userId]);
                 $empNo = 'EMP-'.date('Y').'-'.str_pad($userId, 4, '0', STR_PAD_LEFT);
@@ -133,8 +134,9 @@ class TeacherController extends Controller {
         $roleId = $this->db->fetchOne("SELECT id FROM roles WHERE name='Teacher' LIMIT 1")['id'] ?? 5;
         $pw = password_hash($_POST['password'] ?: 'Teacher@123', PASSWORD_BCRYPT);
         $userId = $this->db->insert(
-            "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,date_of_birth,address,status) VALUES (?,?,?,?,?,?,?,?,?)",
-            [$this->tid,$roleId,$_POST['name'],$_POST['email'],$_POST['phone']??'',$_POST['gender']??null,$_POST['dob']??null,$_POST['address']??'','active']
+            "INSERT INTO users (tenant_id,role_id,name,username,email,phone,gender,date_of_birth,address,status) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            [$this->tid,$roleId,$_POST['name'],$this->generateUniqueUsername($_POST['name'], $this->tid),$_POST['email'],
+             $_POST['phone']??'',$_POST['gender']??null,$_POST['dob']??null,$_POST['address']??'','active']
         );
         $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [$pw, $userId]);
         $empNo = 'EMP-'.date('Y').'-'.str_pad($userId,4,'0',STR_PAD_LEFT);
@@ -154,7 +156,7 @@ class TeacherController extends Controller {
 
     public function show(string $id): void {
         $this->requirePermission(['teachers.manage']);
-        $teacher = $this->db->fetchOne("SELECT t.*, u.name, u.email, u.phone, u.gender, u.date_of_birth, c.name AS class_name, d.name AS department_name FROM teachers t JOIN users u ON t.user_id=u.id LEFT JOIN classes c ON t.class_id=c.id LEFT JOIN departments d ON t.department_id=d.id WHERE t.id=? AND t.tenant_id=?", [$id,$this->tid]);
+        $teacher = $this->db->fetchOne("SELECT t.*, u.name, u.username, u.email, u.phone, u.gender, u.date_of_birth, c.name AS class_name, d.name AS department_name FROM teachers t JOIN users u ON t.user_id=u.id LEFT JOIN classes c ON t.class_id=c.id LEFT JOIN departments d ON t.department_id=d.id WHERE t.id=? AND t.tenant_id=?", [$id,$this->tid]);
         if (!$teacher) { $this->redirect('/school/teachers'); }
         $assignedCourses = $this->db->fetchAll(
             "SELECT c.*,

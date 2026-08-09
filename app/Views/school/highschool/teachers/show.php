@@ -55,13 +55,40 @@
     </div>
 
     <div class="card">
-      <div class="card-header"><div class="card-title">Contact Info</div></div>
+      <div class="card-header"><div class="card-title">Login Details</div></div>
       <div class="card-body">
         <div class="detail-list">
           <div class="detail-item">
-            <div class="detail-icon">✉️</div>
-            <div><div class="detail-label">Email</div><div class="detail-value"><?= htmlspecialchars($teacher['email']) ?></div></div>
+            <div class="detail-icon">👤</div>
+            <div>
+              <div class="detail-label">Username</div>
+              <div class="detail-value" style="font-family:ui-monospace,Consolas,monospace;">
+                <?= htmlspecialchars($teacher['username'] ?? '—') ?>
+              </div>
+            </div>
           </div>
+          <div class="detail-item">
+            <div class="detail-icon">✉️</div>
+            <div>
+              <div class="detail-label">Email (also works as a sign-in)</div>
+              <div class="detail-value" style="font-family:ui-monospace,Consolas,monospace;">
+                <?= !empty($teacher['email']) ? htmlspecialchars($teacher['email']) : '<span style="font-family:inherit;color:var(--text-muted);">Not set</span>' ?>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:12px;line-height:1.6;">
+          This teacher signs in on the <strong>Staff</strong> tab of the login page using either the
+          username or the email above. Use <strong>Reset Password</strong> to issue a new password —
+          it is shown once, so copy it before leaving the page.
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">Contact Info</div></div>
+      <div class="card-body">
+        <div class="detail-list">
           <div class="detail-item">
             <div class="detail-icon">📞</div>
             <div><div class="detail-label">Phone</div><div class="detail-value"><?= htmlspecialchars($teacher['phone'] ?? '—') ?></div></div>

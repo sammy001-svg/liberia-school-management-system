@@ -62,21 +62,29 @@ class AuthController extends Controller {
         $studentLoginMode = $tenant['student_login_mode'] ?? 'admission_pin';
         $parentLoginMode = $tenant['parent_login_mode'] ?? 'username_password';
 
+        // $params is built alongside $sql rather than after it, because the branches
+        // no longer all bind the identifier exactly once.
         if ($loginType === 'student' && $studentLoginMode === 'admission_pin') {
             $sql = "SELECT u.*, r.name as role_name FROM users u
                     JOIN roles r ON u.role_id = r.id
                     JOIN students s ON s.user_id = u.id
                     WHERE s.admission_no = ? AND u.status = 'active'";
+            $params = [$identifier];
         } elseif ($loginType === 'parent' && $parentLoginMode === 'username_password') {
             $sql = "SELECT u.*, r.name as role_name FROM users u
                     JOIN roles r ON u.role_id = r.id
                     WHERE u.username = ? AND u.status = 'active'";
+            $params = [$identifier];
         } else {
+            // Email OR username. Teachers imported from a CSV often have no email at
+            // all, which previously left them unable to sign in even though the
+            // account looked active. This branch also covers student/parent accounts
+            // configured for email_password, so both columns are matched there too.
             $sql = "SELECT u.*, r.name as role_name FROM users u
                     JOIN roles r ON u.role_id = r.id
-                    WHERE u.email = ? AND u.status = 'active'";
+                    WHERE (u.email = ? OR u.username = ?) AND u.status = 'active'";
+            $params = [$identifier, $identifier];
         }
-        $params = [$identifier];
         if ($tenantId) { $sql .= " AND u.tenant_id = ?"; $params[] = $tenantId; }
 
         $user = $this->db->fetchOne($sql, $params);

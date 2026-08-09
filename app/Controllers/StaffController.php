@@ -68,8 +68,9 @@ class StaffController extends Controller {
         $roleId = $role['id'];
         $pw = password_hash($_POST['password'] ?: 'Staff@123', PASSWORD_BCRYPT);
         $userId = $this->db->insert(
-            "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,employee_no,position,status) VALUES (?,?,?,?,?,?,?,?,?)",
-            [$this->tid, $roleId, $_POST['name'], $_POST['email'], $_POST['phone'] ?? '', $_POST['gender'] ?: null, $_POST['employee_no'] ?: null, $_POST['position'] ?: null, 'active']
+            "INSERT INTO users (tenant_id,role_id,name,username,email,phone,gender,employee_no,position,status) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            [$this->tid, $roleId, $_POST['name'], $this->generateUniqueUsername($_POST['name'], $this->tid), $_POST['email'],
+             $_POST['phone'] ?? '', $_POST['gender'] ?: null, $_POST['employee_no'] ?: null, $_POST['position'] ?: null, 'active']
         );
         $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [$pw, $userId]);
 
