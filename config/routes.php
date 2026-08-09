@@ -209,6 +209,8 @@ $router->post('/school/settings/update',    ['SchoolSettingsController', 'update
 $router->get('/school/departments',         ['AcademicsController', 'departments']);
 $router->get('/school/departments/create',  ['AcademicsController', 'createDepartment']);
 $router->post('/school/departments/store',  ['AcademicsController', 'storeDepartment']);
+$router->post('/school/departments/{id}/update', ['AcademicsController', 'updateDepartment']);
+$router->post('/school/departments/{id}/delete', ['AcademicsController', 'deleteDepartment']);
 
 $router->get('/school/courses',             ['AcademicsController', 'courses']);
 $router->get('/school/courses/create',      ['AcademicsController', 'createCourse']);

@@ -46,6 +46,35 @@ class AcademicsController extends Controller {
         $this->redirect('/school/departments');
     }
 
+    public function updateDepartment(string $id): void {
+        $this->requirePermission(['academics.manage']);
+        $dept = $this->db->fetchOne("SELECT id FROM departments WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        if (!$dept) { $this->redirect('/school/departments'); }
+        $errors = $this->validate($_POST, ['name' => 'required|max:150']);
+        if ($errors) { $this->failValidation($errors, '/school/departments'); }
+        $this->db->execute(
+            "UPDATE departments SET name=?, code=?, head_user_id=?, description=? WHERE id=? AND tenant_id=?",
+            [$_POST['name'], $_POST['code'] ?? '', $_POST['head_user_id'] ?: null, $_POST['description'] ?? '', $id, $this->tid]
+        );
+        $this->flash('success', 'Department updated.');
+        $this->redirect('/school/departments');
+    }
+
+    /**
+     * Deleting a department must not orphan the teachers filed under it, so their
+     * department_id is cleared first — the FK would otherwise block the delete or
+     * leave dangling ids depending on how the table was created.
+     */
+    public function deleteDepartment(string $id): void {
+        $this->requirePermission(['academics.manage']);
+        $dept = $this->db->fetchOne("SELECT id, name FROM departments WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        if (!$dept) { $this->redirect('/school/departments'); }
+        $this->db->execute("UPDATE teachers SET department_id=NULL WHERE department_id=? AND tenant_id=?", [$id, $this->tid]);
+        $this->db->execute("DELETE FROM departments WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        $this->flash('success', "Department {$dept['name']} deleted.");
+        $this->redirect('/school/departments');
+    }
+
     // --- COURSES / SUBJECTS ---
     public function courses(): void {
         $this->requirePermission(['academics.view','academics.manage']);
