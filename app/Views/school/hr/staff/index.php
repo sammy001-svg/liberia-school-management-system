@@ -5,7 +5,10 @@
     <div class="page-header-title">Staff</div>
     <div class="page-header-sub">Non-teaching staff and accountants, with salary details used by Payroll</div>
   </div>
-  <button type="button" class="btn btn-primary" onclick="document.getElementById('addStaffModal').classList.add('open')">+ Add Staff</button>
+  <div style="display:flex;gap:10px;">
+    <a href="<?= $cfg['url'] ?>/school/staff/export" class="btn btn-outline">⬇ Download Data</a>
+    <button type="button" class="btn btn-primary" onclick="document.getElementById('addStaffModal').classList.add('open')">+ Add Staff</button>
+  </div>
 </div>
 
 <div class="stat-grid">

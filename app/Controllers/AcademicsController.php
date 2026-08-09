@@ -40,7 +40,7 @@ class AcademicsController extends Controller {
         if ($errors) { $this->failValidation($errors, '/school/departments'); }
         $this->db->insert(
             "INSERT INTO departments (tenant_id, name, code, head_user_id, description) VALUES (?, ?, ?, ?, ?)",
-            [$this->tid, $_POST['name'], $_POST['code'] ?? '', $_POST['head_user_id'] ?: null, $_POST['description'] ?? '']
+            [$this->tid, $_POST['name'], $_POST['code'] ?? '', ($_POST['head_user_id'] ?? '') ?: null, $_POST['description'] ?? '']
         );
         $this->flash('success', 'Department created successfully.');
         $this->redirect('/school/departments');
@@ -54,7 +54,7 @@ class AcademicsController extends Controller {
         if ($errors) { $this->failValidation($errors, '/school/departments'); }
         $this->db->execute(
             "UPDATE departments SET name=?, code=?, head_user_id=?, description=? WHERE id=? AND tenant_id=?",
-            [$_POST['name'], $_POST['code'] ?? '', $_POST['head_user_id'] ?: null, $_POST['description'] ?? '', $id, $this->tid]
+            [$_POST['name'], $_POST['code'] ?? '', ($_POST['head_user_id'] ?? '') ?: null, $_POST['description'] ?? '', $id, $this->tid]
         );
         $this->flash('success', 'Department updated.');
         $this->redirect('/school/departments');

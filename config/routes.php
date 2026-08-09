@@ -25,6 +25,7 @@ $router->post('/school/students/store',     ['StudentController', 'store']);
 $router->get('/school/students/bulk-template', ['StudentController', 'bulkTemplate']);
 $router->post('/school/students/bulk-upload',  ['StudentController', 'bulkUpload']);
 $router->get('/school/students/bulk-credentials', ['StudentController', 'downloadCredentials']);
+$router->get('/school/students/export',      ['StudentController', 'exportCsv']);
 $router->get('/school/students/returning',  ['StudentController', 'returningSearch']);
 $router->get('/school/students/{id}',       ['StudentController', 'show']);
 $router->get('/school/students/{id}/id-card', ['StudentController', 'idCard']);
@@ -268,6 +269,7 @@ $router->get('/parent/student/{id}/report-card', ['ParentPortalController', 'rep
 $router->get('/parent/finance',             ['ParentPortalController', 'finance']);
 
 // ── HR & PAYROLL ────────────────────────────────────────────────
+$router->get('/school/staff/export',        ['StaffController', 'exportCsv']);
 $router->get('/school/staff',               ['StaffController', 'index']);
 $router->post('/school/staff/store',        ['StaffController', 'store']);
 $router->get('/school/staff/{id}/edit',     ['StaffController', 'edit']);

@@ -70,13 +70,67 @@ class MessageController extends Controller {
         $this->view('school/highschool/messages/compose', ['pageTitle'=>'Compose','panelType'=>'school','users'=>$users,'replyTo'=>$replyTo,'prefillSubject'=>$prefillSubject,'flash'=>$this->getFlash()]);
     }
 
+    /**
+     * Audience filters for a broadcast, as a WHERE fragment on `users u`.
+     *
+     * Students and Parents are matched by role name because those roles are the
+     * system ones every tenant shares; "staff" is everyone else, so a custom role
+     * a school invents (Librarian, Bursar) is included without needing this list
+     * updated.
+     */
+    private const MESSAGE_AUDIENCES = [
+        'all'      => ['label' => 'Everyone',     'where' => ''],
+        'students' => ['label' => 'All Students', 'where' => "AND r.name = 'Student'"],
+        'parents'  => ['label' => 'All Parents',  'where' => "AND r.name = 'Parent'"],
+        'staff'    => ['label' => 'All Staff',    'where' => "AND r.name NOT IN ('Student','Parent')"],
+    ];
+
+    /**
+     * Sends to one person or broadcasts to an audience.
+     *
+     * A broadcast fans out to one message row per recipient rather than storing a
+     * single "to everyone" row, so each person's inbox, read state and reply work
+     * exactly as they do for a direct message. Done as INSERT…SELECT so a whole
+     * school is one statement rather than hundreds of round trips.
+     */
     public function send(): void {
         $this->requireAuth(['School Admin','Teacher','Accountant','Staff']);
-        $errors = $this->validate($_POST, ['recipient_id' => 'required', 'body' => 'required']);
+        $audience = $_POST['audience'] ?? 'individual';
+        $errors = $this->validate($_POST, ['body' => 'required']);
+        if ($audience === 'individual' && empty($_POST['recipient_id'])) {
+            $errors['recipient_id'] = 'Choose who to send this to.';
+        }
+        if ($audience !== 'individual' && !isset(self::MESSAGE_AUDIENCES[$audience])) {
+            $errors['audience'] = 'Choose a valid audience.';
+        }
         if ($errors) { $this->failValidation($errors, '/school/messages/compose'); }
-        $this->db->insert("INSERT INTO messages (tenant_id,sender_id,recipient_id,subject,body) VALUES (?,?,?,?,?)",
-            [$this->tid,$_SESSION['user_id'],$_POST['recipient_id'],$_POST['subject']??'',$_POST['body']]);
-        $this->flash('success','Message sent.'); $this->redirect('/school/messages');
+
+        $subject = $_POST['subject'] ?? '';
+        $body    = $_POST['body'];
+        $me      = $_SESSION['user_id'];
+
+        if ($audience === 'individual') {
+            $this->db->insert("INSERT INTO messages (tenant_id,sender_id,recipient_id,subject,body) VALUES (?,?,?,?,?)",
+                [$this->tid, $me, $_POST['recipient_id'], $subject, $body]);
+            $this->flash('success', 'Message sent.');
+            $this->redirect('/school/messages');
+        }
+
+        $filter = self::MESSAGE_AUDIENCES[$audience]['where'];
+        // Excludes the sender so a broadcast doesn't land in their own inbox.
+        $sent = $this->db->execute(
+            "INSERT INTO messages (tenant_id,sender_id,recipient_id,subject,body)
+             SELECT ?, ?, u.id, ?, ?
+               FROM users u JOIN roles r ON u.role_id = r.id
+              WHERE u.tenant_id = ? AND u.id <> ? AND u.status = 'active' {$filter}",
+            [$this->tid, $me, $subject, $body, $this->tid, $me]
+        );
+
+        $label = self::MESSAGE_AUDIENCES[$audience]['label'];
+        $this->flash($sent > 0 ? 'success' : 'warning', $sent > 0
+            ? "Message sent to {$sent} recipient(s) — {$label}."
+            : "No active recipients matched \"{$label}\", so nothing was sent.");
+        $this->redirect('/school/messages');
     }
 
     public function show(string $id): void {
