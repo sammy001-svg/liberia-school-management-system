@@ -27,6 +27,8 @@ $router->post('/school/students/bulk-upload',  ['StudentController', 'bulkUpload
 $router->get('/school/students/bulk-credentials', ['StudentController', 'downloadCredentials']);
 $router->get('/school/students/export',      ['StudentController', 'exportCsv']);
 $router->get('/school/students/returning',  ['StudentController', 'returningSearch']);
+$router->get('/school/students/by-class/{classId}', ['StudentController', 'classStudents']);
+$router->get('/school/students/{id}/data',  ['StudentController', 'studentData']);
 $router->get('/school/students/{id}',       ['StudentController', 'show']);
 $router->get('/school/students/{id}/id-card', ['StudentController', 'idCard']);
 $router->get('/school/students/{id}/edit',  ['StudentController', 'edit']);

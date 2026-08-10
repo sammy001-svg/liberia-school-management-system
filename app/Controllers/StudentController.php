@@ -169,8 +169,119 @@ class StudentController extends Controller {
         $this->finishBulkImport($success, count($rows), $rowErrors, '/school/students');
     }
 
+    /** JSON: active students in a class, for the re-admission picker on the admit form. */
+    public function classStudents(string $classId): never {
+        $this->requirePermission(['students.manage']);
+        $rows = $this->db->fetchAll(
+            "SELECT s.id, s.admission_no, u.name
+             FROM students s JOIN users u ON s.user_id=u.id
+             WHERE s.tenant_id=? AND s.class_id=? AND s.status='active' ORDER BY u.name",
+            [$this->tid, $classId]
+        );
+        $this->json($rows);
+    }
+
+    /** JSON: one student's details, used to auto-fill the admit form on re-admission. */
+    public function studentData(string $id): never {
+        $this->requirePermission(['students.manage']);
+        $s = $this->db->fetchOne(
+            "SELECT s.*, u.name, u.email, u.phone, u.gender, u.date_of_birth, u.address, c.name AS class_name
+             FROM students s JOIN users u ON s.user_id=u.id
+             LEFT JOIN classes c ON s.class_id=c.id
+             WHERE s.id=? AND s.tenant_id=?", [$id, $this->tid]
+        );
+        if (!$s) { $this->json(['error' => 'Student not found'], 404); }
+        $this->json([
+            'id' => $s['id'], 'admission_no' => $s['admission_no'], 'class_id' => $s['class_id'],
+            'class_name' => $s['class_name'], 'first_name' => $s['first_name'], 'middle_name' => $s['middle_name'],
+            'last_name' => $s['last_name'], 'email' => $s['email'], 'phone' => $s['phone'],
+            'gender' => $s['gender'], 'dob' => $s['date_of_birth'], 'address' => $s['address'],
+            'blood_group' => $s['blood_group'], 'county' => $s['county'], 'country' => $s['country'],
+            'religion' => $s['religion'], 'guardian_name' => $s['guardian_name'],
+            'guardian_phone' => $s['guardian_phone'], 'guardian_relationship' => $s['guardian_relationship'],
+            'emergency_contact_phone' => $s['emergency_contact_phone'],
+            'previous_school' => $s['previous_school'], 'previous_class' => $s['previous_class'],
+        ]);
+    }
+
+    /**
+     * Re-admit an existing student: promote them into a new class and issue a fresh
+     * admission number on their EXISTING row, so every linked record (grades, attendance,
+     * invoices, ledger, documents) follows them instead of being orphaned under a duplicate.
+     */
+    private function readmit(string $studentId): never {
+        $existing = $this->db->fetchOne(
+            "SELECT s.*, u.id AS uid FROM students s JOIN users u ON s.user_id=u.id
+             WHERE s.id=? AND s.tenant_id=?", [$studentId, $this->tid]
+        );
+        if (!$existing) {
+            $this->failValidation(['existing_student_id' => 'Select a valid student to re-admit.'], '/school/students');
+        }
+
+        $errors = $this->validate($_POST, [
+            'first_name' => 'required|max:100',
+            'last_name'  => 'required|max:100',
+            'email'      => 'email|max:150',
+        ]);
+        $avatarUrl = $this->handleImageUpload('photo', 'students', $errors);
+        if ($errors) { $this->failValidation($errors, '/school/students'); }
+
+        $oldAdmNo = $existing['admission_no'];
+        $newAdmNo = trim($_POST['admission_no'] ?? '') ?: $this->generateAdmissionNo($this->tid);
+        if ($newAdmNo !== $oldAdmNo) {
+            $taken = $this->db->fetchOne("SELECT id FROM students WHERE admission_no=? AND tenant_id=? AND id!=?", [$newAdmNo, $this->tid, $studentId]);
+            if ($taken) { $this->failValidation(['admission_no' => 'That admission number is already in use.'], '/school/students'); }
+        }
+
+        $name = trim(preg_replace('/\s+/', ' ', $_POST['first_name'].' '.($_POST['middle_name'] ?? '').' '.$_POST['last_name']));
+        if ($avatarUrl !== null) {
+            $this->db->execute("UPDATE users SET avatar=? WHERE id=?", [$avatarUrl, $existing['uid']]);
+        }
+        $this->db->execute(
+            "UPDATE users SET name=?,email=?,phone=?,gender=?,date_of_birth=?,address=? WHERE id=?",
+            [
+                $name, $_POST['email'] ?: null, $_POST['phone'] ?? '', $_POST['gender'] ?: null,
+                $_POST['dob'] ?: null, $_POST['address'] ?? '', $existing['uid'],
+            ]
+        );
+
+        // The promote target falls back to the plain class field, then to their current class.
+        $newClassId = $_POST['promote_class_id'] ?: ($_POST['class_id'] ?: $existing['class_id']);
+
+        $this->db->execute(
+            "UPDATE students SET
+                admission_no=?, previous_admission_no=?, class_id=?, admission_date=?, status='active', admission_type='old',
+                blood_group=?, first_name=?, middle_name=?, last_name=?, county=?, country=?, religion=?,
+                guardian_name=?, guardian_phone=?, guardian_relationship=?, emergency_contact_phone=?,
+                previous_school=?, previous_class=?
+             WHERE id=? AND tenant_id=?",
+            [
+                $newAdmNo, $oldAdmNo, $newClassId ?: null, $_POST['admission_date'] ?: date('Y-m-d'),
+                $_POST['blood_group'] ?: null,
+                $_POST['first_name'], $_POST['middle_name'] ?: null, $_POST['last_name'],
+                $_POST['county'] ?: null, $_POST['country'] ?: null, $_POST['religion'] ?: null,
+                $_POST['guardian_name'] ?: null, $_POST['guardian_phone'] ?: null,
+                $_POST['guardian_relationship'] ?: null, $_POST['emergency_contact_phone'] ?: null,
+                $_POST['previous_school'] ?: null, $_POST['previous_class'] ?: null,
+                $studentId, $this->tid,
+            ]
+        );
+
+        $newClassName = $newClassId
+            ? ($this->db->fetchOne("SELECT name FROM classes WHERE id=?", [$newClassId])['name'] ?? '')
+            : 'no class';
+        $this->flash('success', "{$name} re-admitted. Admission No: {$oldAdmNo} → {$newAdmNo}, promoted to {$newClassName}. Their existing records were carried over — their login PIN is unchanged.");
+        $this->redirect('/school/students/' . $studentId);
+    }
+
     public function store(): void {
         $this->requirePermission(['students.manage']);
+
+        // "Old Student" with a chosen existing record means re-admission, not a new intake.
+        if (($_POST['admission_type'] ?? 'new') === 'old' && !empty($_POST['existing_student_id'])) {
+            $this->readmit($_POST['existing_student_id']);
+        }
+
         $errors = $this->validate($_POST, [
             'first_name' => 'required|max:100',
             'last_name'  => 'required|max:100',

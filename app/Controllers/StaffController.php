@@ -141,8 +141,26 @@ class StaffController extends Controller {
             'basic_salary' => 'required|numeric', 'allowances' => 'numeric', 'deductions' => 'numeric',
         ]);
         if ($errors) { $this->failValidation($errors, '/school/staff'); }
+
         $this->db->execute("UPDATE users SET name=?,email=?,phone=?,gender=?,employee_no=?,position=? WHERE id=?",
             [$_POST['name'],$_POST['email']?:null,$_POST['phone']??'',$_POST['gender']??null,$_POST['employee_no']?:null,$_POST['position']?:null,$id]);
+
+        // Role changes are optional and re-checked against the assignable set. Teachers are
+        // skipped: their role backs a teachers record holding class and subject assignments,
+        // so switching it here would strand those. Use the Teachers section for them.
+        if (!empty($_POST['role_id'])) {
+            $isTeacher = (bool)$this->db->fetchOne("SELECT id FROM teachers WHERE user_id=? AND tenant_id=?", [$id, $this->tid]);
+            if (!$isTeacher) {
+                $role = $this->db->fetchOne(
+                    "SELECT id FROM roles
+                     WHERE id=? AND ((tenant_id IS NULL AND name IN ('Staff','Accountant')) OR tenant_id=?)",
+                    [$_POST['role_id'], $this->tid]
+                );
+                if ($role) {
+                    $this->db->execute("UPDATE users SET role_id=? WHERE id=? AND tenant_id=?", [$role['id'], $id, $this->tid]);
+                }
+            }
+        }
         $existing = $this->db->fetchOne("SELECT id FROM staff_salaries WHERE user_id=? AND tenant_id=?", [$id, $this->tid]);
         if ($existing) {
             $this->db->execute("UPDATE staff_salaries SET basic_salary=?,allowances=?,deductions=?,effective_from=? WHERE id=?",

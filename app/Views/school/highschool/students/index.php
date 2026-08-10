@@ -114,6 +114,48 @@
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
       <div class="modal-body">
 
+        <div class="modal-section-title">Student Type</div>
+        <div class="form-group">
+          <label class="form-label">Is this a new or an existing student?</label>
+          <select name="admission_type" id="admissionType" class="form-control">
+            <option value="new">New Student — admitting for the first time</option>
+            <option value="old">Old Student — re-admitting / promoting an existing student</option>
+          </select>
+        </div>
+
+        <!-- Re-admission picker: only shown for an existing student -->
+        <div id="readmitBlock" style="display:none;">
+          <input type="hidden" name="existing_student_id" id="existingStudentId" value="">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Current Class</label>
+              <select id="readmitClass" class="form-control">
+                <option value="">— Select class —</option>
+                <?php foreach($classes as $c): ?>
+                  <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['name']) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Student</label>
+              <select id="readmitStudent" class="form-control" disabled>
+                <option value="">— Select a class first —</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Promote To Class</label>
+            <select name="promote_class_id" id="promoteClass" class="form-control">
+              <option value="">— Keep current class —</option>
+              <?php foreach($classes as $c): ?>
+                <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['name']) ?></option>
+              <?php endforeach; ?>
+            </select>
+            <div class="form-hint">The class they move into for the new year.</div>
+          </div>
+          <div id="readmitNotice" class="alert alert-info" style="display:none;font-size:12.5px;"></div>
+        </div>
+
         <div class="modal-section-title">Personal Information</div>
         <div class="form-group">
           <label class="form-label">Photo</label>
@@ -137,7 +179,7 @@
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Admission / TSM No.</label>
-            <input type="text" name="admission_no" class="form-control" placeholder="Leave blank to auto-generate">
+            <input type="text" name="admission_no" id="admissionNoField" class="form-control" placeholder="Leave blank to auto-generate">
           </div>
           <div class="form-group">
             <label class="form-label">Email Address</label>
@@ -254,15 +296,8 @@
               <?php endforeach; ?>
             </select>
           </div>
-          <div class="form-group">
-            <label class="form-label">Student Type</label>
-            <select name="admission_type" class="form-control">
-              <option value="new">New Student</option>
-              <option value="old">Old Student</option>
-            </select>
-            <div class="form-hint">Returning after withdrawing or graduating? Use <a href="<?= $cfg['url'] ?>/school/students/returning" onclick="document.getElementById('admitModal').classList.remove('open')">Register Returning Student</a> instead, so their old record and history come with them.</div>
-          </div>
         </div>
+        <div class="form-hint" style="margin-bottom:12px;">Withdrawn or graduated students are handled separately under <a href="<?= $cfg['url'] ?>/school/students/returning" onclick="document.getElementById('admitModal').classList.remove('open')">Register Returning Student</a>.</div>
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Admission Date</label>
@@ -274,9 +309,99 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="document.getElementById('admitModal').classList.remove('open')">Cancel</button>
-        <button type="submit" class="btn btn-primary">Admit Student</button>
+        <button type="submit" class="btn btn-primary" id="admitSubmitBtn">Admit Student</button>
       </div>
     </form>
+
+<script>
+(function(){
+  var base        = '<?= $cfg['url'] ?>';
+  var typeSel     = document.getElementById('admissionType');
+  var block       = document.getElementById('readmitBlock');
+  var classSel    = document.getElementById('readmitClass');
+  var studentSel  = document.getElementById('readmitStudent');
+  var promoteSel  = document.getElementById('promoteClass');
+  var hiddenId    = document.getElementById('existingStudentId');
+  var notice      = document.getElementById('readmitNotice');
+  var submitBtn   = document.getElementById('admitSubmitBtn');
+  var admNoField  = document.getElementById('admissionNoField');
+  var form        = typeSel.closest('form');
+
+  // Mapping from a form field name to the key returned by /data.
+  var FIELD_MAP = {
+    first_name:'first_name', middle_name:'middle_name', last_name:'last_name',
+    email:'email', phone:'phone', gender:'gender', dob:'dob', address:'address',
+    blood_group:'blood_group', county:'county', country:'country', religion:'religion',
+    guardian_name:'guardian_name', guardian_phone:'guardian_phone',
+    guardian_relationship:'guardian_relationship', emergency_contact_phone:'emergency_contact_phone',
+    previous_school:'previous_school', previous_class:'previous_class'
+  };
+
+  function isReadmit(){ return typeSel.value === 'old'; }
+
+  function syncMode(){
+    block.style.display = isReadmit() ? '' : 'none';
+    submitBtn.textContent = isReadmit() ? 'Re-admit Student' : 'Admit Student';
+    if (!isReadmit()) {
+      hiddenId.value = '';
+      notice.style.display = 'none';
+      if (admNoField) admNoField.readOnly = false;
+    }
+  }
+
+  function fillForm(data){
+    Object.keys(FIELD_MAP).forEach(function(fieldName){
+      var el = form.querySelector('[name="' + fieldName + '"]');
+      if (el) { el.value = data[FIELD_MAP[fieldName]] || ''; }
+    });
+    // A re-admission always issues a fresh number, so leave it blank and locked.
+    if (admNoField) { admNoField.value = ''; admNoField.readOnly = true; }
+    if (data.class_id) { promoteSel.value = ''; }
+    notice.innerHTML = 'Re-admitting <strong>' + (data.first_name || '') + ' ' + (data.last_name || '') +
+      '</strong> — current admission no <strong>' + (data.admission_no || '—') + '</strong>, currently in <strong>' +
+      (data.class_name || 'no class') + '</strong>. A new admission number will be issued and their existing ' +
+      'grades, attendance and fee records will carry over.';
+    notice.style.display = '';
+  }
+
+  typeSel.addEventListener('change', syncMode);
+
+  classSel.addEventListener('change', function(){
+    hiddenId.value = '';
+    notice.style.display = 'none';
+    studentSel.innerHTML = '<option value="">Loading…</option>';
+    studentSel.disabled = true;
+    if (!this.value) { studentSel.innerHTML = '<option value="">— Select a class first —</option>'; return; }
+
+    fetch(base + '/school/students/by-class/' + encodeURIComponent(this.value), {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(function(r){ return r.json(); })
+      .then(function(rows){
+        if (!rows.length) { studentSel.innerHTML = '<option value="">No active students in this class</option>'; return; }
+        studentSel.innerHTML = '<option value="">— Select student —</option>' +
+          rows.map(function(s){
+            return '<option value="' + s.id + '">' + s.name + ' (' + s.admission_no + ')</option>';
+          }).join('');
+        studentSel.disabled = false;
+      })
+      .catch(function(){ studentSel.innerHTML = '<option value="">Could not load students</option>'; });
+  });
+
+  studentSel.addEventListener('change', function(){
+    if (!this.value) { hiddenId.value = ''; notice.style.display = 'none'; return; }
+    hiddenId.value = this.value;
+    fetch(base + '/school/students/' + encodeURIComponent(this.value) + '/data', {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(function(r){ return r.json(); })
+      .then(fillForm)
+      .catch(function(){ notice.textContent = 'Could not load that student.'; notice.style.display = ''; });
+  });
+
+  syncMode();
+})();
+</script>
   </div>
 </div>
 

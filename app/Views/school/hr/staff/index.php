@@ -49,9 +49,10 @@
           <td class="text-danger"><?= $s['deductions']!==null ? '-'.number_format($s['deductions'],2) : '—' ?></td>
           <td>
             <div style="display:flex;gap:6px;">
-              <button type="button" class="btn btn-sm btn-secondary" onclick='openEditSalaryModal(<?= json_encode([
+              <button type="button" class="btn btn-sm btn-secondary" onclick='openEditStaffModal(<?= json_encode([
                 "id" => $s['id'], "name" => $s['name'], "email" => $s['email'], "phone" => $s['phone'],
                 "gender" => $s['gender'], "employee_no" => $s['employee_no'], "position" => $s['position'],
+                "role_id" => $s['role_id'] ?? null, "is_teacher" => $isTeacher,
                 "basic_salary" => $s['basic_salary'], "allowances" => $s['allowances'], "deductions" => $s['deductions'],
                 "effective_from" => $s['effective_from'],
               ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'>Edit</button>
@@ -187,13 +188,54 @@
     </div>
     <form method="POST" id="editStaffForm">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
-      <input type="hidden" name="name" id="editStaffName">
-      <input type="hidden" name="email" id="editStaffEmail">
-      <input type="hidden" name="phone" id="editStaffPhone">
-      <input type="hidden" name="gender" id="editStaffGender">
-      <input type="hidden" name="employee_no" id="editStaffEmployeeNo">
-      <input type="hidden" name="position" id="editStaffPosition">
       <div class="modal-body">
+
+        <div class="modal-section-title">Personal Information</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Full Name *</label>
+            <input type="text" name="name" id="editStaffName" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <input type="email" name="email" id="editStaffEmail" class="form-control">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Phone</label>
+            <input type="text" name="phone" id="editStaffPhone" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Gender</label>
+            <select name="gender" id="editStaffGender" class="form-control">
+              <option value="">— Select —</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Staff / Employee No</label>
+            <input type="text" name="employee_no" id="editStaffEmployeeNo" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Position / Title</label>
+            <input type="text" name="position" id="editStaffPosition" class="form-control" placeholder="e.g. Principal, Business Manager">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Role</label>
+          <select name="role_id" id="editStaffRole" class="form-control">
+            <?php foreach($assignableRoles as $r): ?>
+              <option value="<?= $r['id'] ?>"><?= htmlspecialchars($r['name']) ?><?= $r['tenant_id'] ? ' (custom)' : '' ?></option>
+            <?php endforeach; ?>
+          </select>
+          <div class="form-hint" id="editStaffRoleHint">Changes what this person can access after their next sign-in.</div>
+        </div>
+
         <div class="modal-section-title">Salary Details</div>
         <div class="form-row">
           <div class="form-group">
@@ -218,16 +260,16 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="document.getElementById('editStaffModal').classList.remove('open')">Cancel</button>
-        <button type="submit" class="btn btn-primary">Save Salary</button>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
       </div>
     </form>
   </div>
 </div>
 
 <script>
-function openEditSalaryModal(s) {
+function openEditStaffModal(s) {
   document.getElementById('editStaffForm').action = '<?= $cfg['url'] ?>/school/staff/' + s.id + '/update';
-  document.getElementById('editStaffModalTitle').textContent = 'Edit Salary — ' + s.name;
+  document.getElementById('editStaffModalTitle').textContent = 'Edit — ' + s.name;
   document.getElementById('editStaffName').value = s.name || '';
   document.getElementById('editStaffEmail').value = s.email || '';
   document.getElementById('editStaffPhone').value = s.phone || '';
@@ -238,6 +280,21 @@ function openEditSalaryModal(s) {
   document.getElementById('editStaffAllowances').value = s.allowances || 0;
   document.getElementById('editStaffDeductions').value = s.deductions || 0;
   document.getElementById('editStaffEffectiveFrom').value = s.effective_from || '<?= date('Y-m-d') ?>';
+
+  // A teacher's role is tied to their teachers record, so it is not switchable from here —
+  // moving them to a non-teaching role would orphan their class and subject assignments.
+  var roleSel  = document.getElementById('editStaffRole');
+  var roleHint = document.getElementById('editStaffRoleHint');
+  if (s.is_teacher) {
+    roleSel.value = '';
+    roleSel.disabled = true;
+    roleHint.textContent = 'Teachers keep their role — manage teaching staff under Teachers.';
+  } else {
+    roleSel.disabled = false;
+    roleSel.value = s.role_id || '';
+    roleHint.textContent = 'Changes what this person can access after their next sign-in.';
+  }
+
   document.getElementById('editStaffModal').classList.add('open');
 }
 </script>
