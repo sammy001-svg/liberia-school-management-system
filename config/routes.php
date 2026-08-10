@@ -133,6 +133,19 @@ $router->post('/school/finance/expenses/{id}/delete', ['FinanceController', 'del
 $router->get('/school/finance/collection',  ['FinanceController', 'collection']);
 $router->get('/school/finance/bus-billing',  ['FinanceController', 'busBilling']);
 $router->post('/school/finance/bus-billing/generate', ['FinanceController', 'generateBusInvoices']);
+// ── BUDGETS & OTHER INCOME ──────────────────────────────────────
+// Literal paths first so /budgets/store isn't captured by the {id} wildcard.
+$router->get('/school/finance/budgets',                       ['BudgetController', 'index']);
+$router->post('/school/finance/budgets/store',                ['BudgetController', 'store']);
+$router->get('/school/finance/incomes',                       ['BudgetController', 'incomes']);
+$router->post('/school/finance/incomes/store',                ['BudgetController', 'storeIncome']);
+$router->post('/school/finance/incomes/{id}/delete',          ['BudgetController', 'deleteIncome']);
+$router->post('/school/finance/budget-lines/{id}/delete',     ['BudgetController', 'deleteLine']);
+$router->get('/school/finance/budgets/{id}',                  ['BudgetController', 'show']);
+$router->post('/school/finance/budgets/{id}/delete',          ['BudgetController', 'delete']);
+$router->post('/school/finance/budgets/{id}/status',          ['BudgetController', 'updateStatus']);
+$router->post('/school/finance/budgets/{id}/lines/store',     ['BudgetController', 'storeLine']);
+
 // ── STUDENT ACCOUNTS & RECEIVABLES ──────────────────────────────
 $router->get('/school/finance/accounts',                    ['StudentAccountController', 'index']);
 $router->get('/school/finance/arrears',                     ['StudentAccountController', 'arrears']);
