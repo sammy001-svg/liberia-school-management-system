@@ -18,6 +18,41 @@ class StaffController extends Controller {
         );
     }
 
+    /**
+     * Full staff data export — every staff-side account including teachers.
+     *
+     * Includes the username because that (or the email) is what they sign in with,
+     * which makes this export usable as the handout when issuing logins. Salary
+     * figures are included since this screen already shows them to anyone holding
+     * staff.manage.
+     */
+    public function exportCsv(): void {
+        $this->requirePermission(['staff.manage']);
+        $rows = $this->db->fetchAll(
+            "SELECT COALESCE(t.employee_no, u.employee_no) AS staff_no, u.name, r.name AS role_name,
+                    u.username, u.email, u.phone, u.gender, u.position,
+                    d.name AS department_name, c.name AS class_name,
+                    t.qualification, t.specialization, t.employment_type, t.joined_at,
+                    sal.basic_salary, sal.allowances, sal.deductions,
+                    (COALESCE(sal.basic_salary,0) + COALESCE(sal.allowances,0) - COALESCE(sal.deductions,0)) AS net_pay,
+                    u.status
+               FROM users u
+               JOIN roles r ON u.role_id = r.id
+               LEFT JOIN staff_salaries sal ON sal.user_id = u.id
+               LEFT JOIN teachers t ON t.user_id = u.id
+               LEFT JOIN departments d ON t.department_id = d.id
+               LEFT JOIN classes c ON t.class_id = c.id
+              WHERE u.tenant_id = ? AND (r.name IN ('Staff','Accountant','Teacher','School Admin') OR r.tenant_id = ?)
+              ORDER BY r.name, u.name",
+            [$this->tid, $this->tid]
+        );
+        $this->downloadCsv('staff_' . date('Y-m-d') . '.csv', [
+            'Staff No','Name','Role','Username','Email','Phone','Gender','Position',
+            'Department','Homeroom Class','Qualification','Specialization','Employment Type','Joined',
+            'Basic Salary','Allowances','Deductions','Net Pay','Status',
+        ], $rows);
+    }
+
     public function index(): void {
         $this->requirePermission(['staff.manage']);
         $staff = $this->db->fetchAll(
@@ -68,8 +103,9 @@ class StaffController extends Controller {
         $roleId = $role['id'];
         $pw = password_hash($_POST['password'] ?: 'Staff@123', PASSWORD_BCRYPT);
         $userId = $this->db->insert(
-            "INSERT INTO users (tenant_id,role_id,name,email,phone,gender,employee_no,position,status) VALUES (?,?,?,?,?,?,?,?,?)",
-            [$this->tid, $roleId, $_POST['name'], $_POST['email'], $_POST['phone'] ?? '', $_POST['gender'] ?: null, $_POST['employee_no'] ?: null, $_POST['position'] ?: null, 'active']
+            "INSERT INTO users (tenant_id,role_id,name,username,email,phone,gender,employee_no,position,status) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            [$this->tid, $roleId, $_POST['name'], $this->generateUniqueUsername($_POST['name'], $this->tid), $_POST['email'],
+             $_POST['phone'] ?? '', $_POST['gender'] ?: null, $_POST['employee_no'] ?: null, $_POST['position'] ?: null, 'active']
         );
         $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [$pw, $userId]);
 

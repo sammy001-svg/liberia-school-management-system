@@ -42,17 +42,26 @@
   </div>
   <div class="table-wrapper">
     <table>
-      <thead><tr><th>Class</th><th>Report Style</th><th>Students</th><th>Subjects</th><th>Report Card Slots</th><th>Released</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Class</th><th>Report Style</th><th>Students</th><th>Subjects</th><th>Report Card Slots</th><th>Approval</th><th>Released</th><th>Actions</th></tr></thead>
       <tbody>
         <?php foreach($classes as $c): $slots = (int)$c['slots']; $pub = (int)$c['published_slots']; ?>
         <tr>
           <td class="fw-600"><?= htmlspecialchars($c['name']) ?></td>
           <td>
-            <?php if(($c['report_style'] ?? 'numeric')==='letter'): ?>
-              <span class="badge badge-purple">Letters (E/S/I/N/C)</span>
-            <?php else: ?>
-              <span class="badge badge-info">Numbers</span>
-            <?php endif; ?>
+            <?php $isLetter = ($c['report_style'] ?? 'numeric')==='letter'; ?>
+            <form method="POST" action="<?= $cfg['url'] ?>/school/classes/<?= $c['id'] ?>/report-style"
+                  data-confirm="<?= $isLetter
+                      ? 'Switch ' . htmlspecialchars($c['name']) . ' back to numeric marks on the report card?'
+                      : 'Print letter grades (E/S/I/N/C) instead of numbers on ' . htmlspecialchars($c['name']) . ' report cards?' ?>"
+                  data-confirm-title="Report Style" data-confirm-label="Switch">
+              <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+              <input type="hidden" name="year_id" value="<?= htmlspecialchars($selectedYearId) ?>">
+              <button type="submit" class="badge <?= $isLetter ? 'badge-purple' : 'badge-info' ?>"
+                      style="border:none;cursor:pointer;font:inherit;"
+                      title="Click to switch">
+                <?= $isLetter ? 'Letters (E/S/I/N/C)' : 'Numbers' ?>
+              </button>
+            </form>
           </td>
           <td><?= (int)$c['student_count'] ?></td>
           <td>
@@ -69,13 +78,32 @@
               <span class="badge badge-danger">Not set up</span>
             <?php endif; ?>
           </td>
+          <?php
+            $approval = $c['approval_status'] ?? 'entered';
+            [$aBadge, $aLabel] = [
+                'entered'   => ['badge-muted',   'Not submitted'],
+                'submitted' => ['badge-warning', 'Awaiting principal'],
+                'approved'  => ['badge-success', 'Approved'],
+                'returned'  => ['badge-danger',  'Returned'],
+            ][$approval] ?? ['badge-muted', ucfirst($approval)];
+          ?>
+          <td>
+            <?php if($slots > 0): ?>
+              <span class="badge <?= $aBadge ?>"><?= $aLabel ?></span>
+              <?php if($approval === 'returned' && !empty($c['review_note'])): ?>
+                <div style="font-size:11px;color:var(--danger);margin-top:4px;max-width:210px;">
+                  <?= htmlspecialchars($c['review_note']) ?>
+                </div>
+              <?php endif; ?>
+            <?php else: ?>—<?php endif; ?>
+          </td>
           <td>
             <?php if($slots > 0 && $pub >= $slots): ?>
               <span class="badge badge-success">Visible to parents</span>
             <?php elseif($pub > 0): ?>
               <span class="badge badge-warning">Partly released</span>
             <?php else: ?>
-              <span class="badge badge-secondary">Not released</span>
+              <span class="badge badge-muted">Not released</span>
             <?php endif; ?>
           </td>
           <td>
@@ -91,6 +119,27 @@
               <a href="<?= $cfg['url'] ?>/school/grades/enter?class_id=<?= $c['id'] ?>" class="btn btn-sm btn-secondary">Enter Grades</a>
               <a href="<?= $cfg['url'] ?>/school/grades/report-cards/class/<?= $c['id'] ?>?year_id=<?= htmlspecialchars($selectedYearId) ?>"
                  target="_blank" class="btn btn-sm btn-secondary">Print Cards</a>
+
+              <?php if(in_array($approval, ['entered','returned'], true)): ?>
+              <form method="POST" action="<?= $cfg['url'] ?>/school/grades/submit-approval"
+                    data-confirm="Send <?= htmlspecialchars($c['name']) ?>'s grades to the principal for approval?"
+                    data-confirm-title="Submit for Approval" data-confirm-label="Submit">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+                <input type="hidden" name="academic_year_id" value="<?= htmlspecialchars($selectedYearId) ?>">
+                <input type="hidden" name="class_id" value="<?= $c['id'] ?>">
+                <button type="submit" class="btn btn-sm btn-primary">Submit for Approval</button>
+              </form>
+              <?php elseif($approval === 'submitted'): ?>
+                <?php if($canApprove): ?>
+                  <a href="<?= $cfg['url'] ?>/school/grades/approvals?year_id=<?= htmlspecialchars($selectedYearId) ?>"
+                     class="btn btn-sm btn-primary">Review &amp; Approve</a>
+                <?php else: ?>
+                  <span class="badge badge-warning" style="align-self:center;">With the principal</span>
+                <?php endif; ?>
+              <?php endif; ?>
+
+              <?php // Releasing is blocked server-side until approved; hide the button too. ?>
+              <?php if($approval === 'approved' || $pub > 0): ?>
               <form method="POST" action="<?= $cfg['url'] ?>/school/grades/report-cards/publish"
                     data-confirm="<?= $pub >= $slots
                         ? 'Withdraw this class&#39;s report cards? Parents and students will no longer see them.'
@@ -105,13 +154,14 @@
                   <?= $pub >= $slots ? 'Withdraw' : 'Release' ?>
                 </button>
               </form>
-            <?php endif; ?>
+              <?php endif; // release/withdraw ?>
+            <?php endif; // set-up vs configured ?>
             </div>
           </td>
         </tr>
         <?php endforeach; ?>
         <?php if(empty($classes)): ?>
-        <tr><td colspan="7">
+        <tr><td colspan="8">
           <div class="empty-state">
             <div class="empty-state-icon">🏫</div>
             <div class="empty-state-text">No classes yet. Add them on the <a href="<?= $cfg['url'] ?>/school/classes">Classes</a> page.</div>

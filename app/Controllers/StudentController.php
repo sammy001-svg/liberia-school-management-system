@@ -393,6 +393,42 @@ class StudentController extends Controller {
     // instead of creating a new one, so their historical grades/attendance/invoices — all
     // linked by student_id — stay attached rather than being orphaned under a duplicate.
 
+    /**
+     * Full student data export.
+     *
+     * Deliberately mirrors the bulk-upload template's columns first, so an export
+     * can be edited and re-imported without reshaping it, with the derived fields
+     * (class, balance, guardian) appended after. Honours whatever filters are on
+     * screen, so "export what I'm looking at" and "export everything" are the same
+     * action with different query strings.
+     */
+    public function exportCsv(): void {
+        $this->requirePermission(['students.view','students.manage']);
+        $search  = trim($_GET['q'] ?? '');
+        $classId = $_GET['class_id'] ?? '';
+        $status  = $_GET['status'] ?? '';
+
+        $where = "s.tenant_id=?"; $params = [$this->tid];
+        if ($search !== '') { $where .= " AND (u.name LIKE ? OR s.admission_no LIKE ?)"; $params[] = "%$search%"; $params[] = "%$search%"; }
+        if ($classId !== '') { $where .= " AND s.class_id=?"; $params[] = $classId; }
+        if ($status !== '')  { $where .= " AND s.status=?";   $params[] = $status; }
+
+        $rows = $this->db->fetchAll(
+            "SELECT s.admission_no, u.name, u.gender, u.date_of_birth, u.email, u.phone, u.address,
+                    c.name AS class_name, s.status, s.admission_date,
+                    s.guardian_name, s.guardian_phone, s.guardian_relationship,
+                    (SELECT COALESCE(SUM(i.amount_due - i.amount_paid),0) FROM invoices i
+                      WHERE i.student_id=s.id AND i.status NOT IN ('paid','waived')) AS balance
+               FROM students s JOIN users u ON s.user_id=u.id
+               LEFT JOIN classes c ON s.class_id=c.id
+              WHERE {$where} ORDER BY c.name, u.name", $params
+        );
+        $this->downloadCsv('students_' . date('Y-m-d') . '.csv', [
+            'Admission No','Name','Gender','Date of Birth','Email','Phone','Address',
+            'Class','Status','Admission Date','Guardian Name','Guardian Phone','Guardian Relationship','Outstanding Balance',
+        ], $rows);
+    }
+
     public function returningSearch(): void {
         $this->requirePermission(['students.manage']);
         $search = trim($_GET['q'] ?? '');

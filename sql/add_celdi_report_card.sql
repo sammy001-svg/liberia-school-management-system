@@ -45,9 +45,13 @@ SET @s := IF(@c = 0,
   'SELECT 1');
 PREPARE stmt FROM @s; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- LIKE rather than an exact list so sectioned early-years classes ("Nursery 1",
+-- "Nursery 2") are picked up too. This only ever sets the default; the style is
+-- switchable per class from Grades → Marking Periods afterwards.
 UPDATE classes SET report_style = 'letter'
  WHERE report_style = 'numeric'
-   AND (grade_level IN ('Nursery', 'Day Care') OR name IN ('Nursery', 'Day Care'));
+   AND (grade_level LIKE 'Nursery%' OR name LIKE 'Nursery%'
+     OR grade_level LIKE 'Day Care%' OR name LIKE 'Day Care%');
 
 -- --- subject print order ----------------------------------------------------
 -- The card lists subjects in a fixed order per grade level (English, Mathematics,

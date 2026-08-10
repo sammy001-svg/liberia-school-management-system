@@ -7,6 +7,9 @@
   </div>
   <div style="display:flex;gap:10px;">
     <a href="<?= $cfg['url'] ?>/school/students/returning" class="btn btn-outline">↩ Register Returning Student</a>
+    <?php // Carries the current filters through, so this exports exactly what is on screen. ?>
+    <a href="<?= $cfg['url'] ?>/school/students/export?q=<?= urlencode($search ?? '') ?>&class_id=<?= urlencode($classId ?? '') ?>"
+       class="btn btn-outline">⬇ Download Data</a>
     <button type="button" class="btn btn-secondary" onclick="document.getElementById('bulkUploadModal').classList.add('open')">Bulk Upload</button>
     <button type="button" class="btn btn-primary" onclick="document.getElementById('admitModal').classList.add('open')">+ Admit Student</button>
   </div>

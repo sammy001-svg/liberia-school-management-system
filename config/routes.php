@@ -25,6 +25,7 @@ $router->post('/school/students/store',     ['StudentController', 'store']);
 $router->get('/school/students/bulk-template', ['StudentController', 'bulkTemplate']);
 $router->post('/school/students/bulk-upload',  ['StudentController', 'bulkUpload']);
 $router->get('/school/students/bulk-credentials', ['StudentController', 'downloadCredentials']);
+$router->get('/school/students/export',      ['StudentController', 'exportCsv']);
 $router->get('/school/students/returning',  ['StudentController', 'returningSearch']);
 $router->get('/school/students/{id}',       ['StudentController', 'show']);
 $router->get('/school/students/{id}/id-card', ['StudentController', 'idCard']);
@@ -86,6 +87,7 @@ $router->get('/school/grades/marking-periods',       ['GradeController', 'markin
 $router->post('/school/grades/marking-periods/setup', ['GradeController', 'setupMarkingPeriods']);
 $router->get('/school/grades/report-cards/class/{classId}', ['GradeController', 'classReportCards']);
 $router->post('/school/grades/report-cards/publish',  ['GradeController', 'publishReportCards']);
+$router->post('/school/classes/{id}/report-style', ['GradeController', 'toggleReportStyle']);
 $router->get('/school/grades/promotions',        ['GradeController', 'promotions']);
 $router->post('/school/grades/promotions/save',  ['GradeController', 'savePromotions']);
 $router->post('/school/grades/{id}/publish', ['GradeController', 'publish']);
@@ -208,6 +210,8 @@ $router->post('/school/settings/update',    ['SchoolSettingsController', 'update
 $router->get('/school/departments',         ['AcademicsController', 'departments']);
 $router->get('/school/departments/create',  ['AcademicsController', 'createDepartment']);
 $router->post('/school/departments/store',  ['AcademicsController', 'storeDepartment']);
+$router->post('/school/departments/{id}/update', ['AcademicsController', 'updateDepartment']);
+$router->post('/school/departments/{id}/delete', ['AcademicsController', 'deleteDepartment']);
 
 $router->get('/school/courses',             ['AcademicsController', 'courses']);
 $router->get('/school/courses/create',      ['AcademicsController', 'createCourse']);
@@ -265,6 +269,7 @@ $router->get('/parent/student/{id}/report-card', ['ParentPortalController', 'rep
 $router->get('/parent/finance',             ['ParentPortalController', 'finance']);
 
 // ── HR & PAYROLL ────────────────────────────────────────────────
+$router->get('/school/staff/export',        ['StaffController', 'exportCsv']);
 $router->get('/school/staff',               ['StaffController', 'index']);
 $router->post('/school/staff/store',        ['StaffController', 'store']);
 $router->get('/school/staff/{id}/edit',     ['StaffController', 'edit']);

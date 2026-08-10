@@ -70,13 +70,67 @@ class MessageController extends Controller {
         $this->view('school/highschool/messages/compose', ['pageTitle'=>'Compose','panelType'=>'school','users'=>$users,'replyTo'=>$replyTo,'prefillSubject'=>$prefillSubject,'flash'=>$this->getFlash()]);
     }
 
+    /**
+     * Audience filters for a broadcast, as a WHERE fragment on `users u`.
+     *
+     * Students and Parents are matched by role name because those roles are the
+     * system ones every tenant shares; "staff" is everyone else, so a custom role
+     * a school invents (Librarian, Bursar) is included without needing this list
+     * updated.
+     */
+    private const MESSAGE_AUDIENCES = [
+        'all'      => ['label' => 'Everyone',     'where' => ''],
+        'students' => ['label' => 'All Students', 'where' => "AND r.name = 'Student'"],
+        'parents'  => ['label' => 'All Parents',  'where' => "AND r.name = 'Parent'"],
+        'staff'    => ['label' => 'All Staff',    'where' => "AND r.name NOT IN ('Student','Parent')"],
+    ];
+
+    /**
+     * Sends to one person or broadcasts to an audience.
+     *
+     * A broadcast fans out to one message row per recipient rather than storing a
+     * single "to everyone" row, so each person's inbox, read state and reply work
+     * exactly as they do for a direct message. Done as INSERT…SELECT so a whole
+     * school is one statement rather than hundreds of round trips.
+     */
     public function send(): void {
         $this->requireAuth(['School Admin','Teacher','Accountant','Staff']);
-        $errors = $this->validate($_POST, ['recipient_id' => 'required', 'body' => 'required']);
+        $audience = $_POST['audience'] ?? 'individual';
+        $errors = $this->validate($_POST, ['body' => 'required']);
+        if ($audience === 'individual' && empty($_POST['recipient_id'])) {
+            $errors['recipient_id'] = 'Choose who to send this to.';
+        }
+        if ($audience !== 'individual' && !isset(self::MESSAGE_AUDIENCES[$audience])) {
+            $errors['audience'] = 'Choose a valid audience.';
+        }
         if ($errors) { $this->failValidation($errors, '/school/messages/compose'); }
-        $this->db->insert("INSERT INTO messages (tenant_id,sender_id,recipient_id,subject,body) VALUES (?,?,?,?,?)",
-            [$this->tid,$_SESSION['user_id'],$_POST['recipient_id'],$_POST['subject']??'',$_POST['body']]);
-        $this->flash('success','Message sent.'); $this->redirect('/school/messages');
+
+        $subject = $_POST['subject'] ?? '';
+        $body    = $_POST['body'];
+        $me      = $_SESSION['user_id'];
+
+        if ($audience === 'individual') {
+            $this->db->insert("INSERT INTO messages (tenant_id,sender_id,recipient_id,subject,body) VALUES (?,?,?,?,?)",
+                [$this->tid, $me, $_POST['recipient_id'], $subject, $body]);
+            $this->flash('success', 'Message sent.');
+            $this->redirect('/school/messages');
+        }
+
+        $filter = self::MESSAGE_AUDIENCES[$audience]['where'];
+        // Excludes the sender so a broadcast doesn't land in their own inbox.
+        $sent = $this->db->execute(
+            "INSERT INTO messages (tenant_id,sender_id,recipient_id,subject,body)
+             SELECT ?, ?, u.id, ?, ?
+               FROM users u JOIN roles r ON u.role_id = r.id
+              WHERE u.tenant_id = ? AND u.id <> ? AND u.status = 'active' {$filter}",
+            [$this->tid, $me, $subject, $body, $this->tid, $me]
+        );
+
+        $label = self::MESSAGE_AUDIENCES[$audience]['label'];
+        $this->flash($sent > 0 ? 'success' : 'warning', $sent > 0
+            ? "Message sent to {$sent} recipient(s) — {$label}."
+            : "No active recipients matched \"{$label}\", so nothing was sent.");
+        $this->redirect('/school/messages');
     }
 
     public function show(string $id): void {
@@ -252,6 +306,27 @@ class GradeController extends Controller {
         'p4' => '4th Pd.', 'p5' => '5th Pd.', 'p6' => '6th Pd.', 'e2' => '2nd Semester Exam',
     ];
 
+    /**
+     * Switches a class between numeric marks and letter grades on the report card.
+     *
+     * The early-years classes (Nursery, Day Care and any others the school chooses)
+     * print E/S/I/N/C in every cell instead of scores, including the Average row.
+     * Made a per-class toggle rather than inferred from the class name so a school
+     * that renames or adds a section — "Nursery 1", "Nursery 2" — can set it
+     * without a code change.
+     */
+    public function toggleReportStyle(string $id): void {
+        $this->requirePermission(['grades.manage']);
+        $class = $this->db->fetchOne("SELECT id, name, report_style FROM classes WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        if (!$class) { $this->redirect('/school/grades/marking-periods'); }
+        $new = ($class['report_style'] ?? 'numeric') === 'letter' ? 'numeric' : 'letter';
+        $this->db->execute("UPDATE classes SET report_style=? WHERE id=? AND tenant_id=?", [$new, $id, $this->tid]);
+        $this->flash('success', $new === 'letter'
+            ? "{$class['name']} report cards will now print letter grades (E/S/I/N/C)."
+            : "{$class['name']} report cards will now print numeric marks.");
+        $this->redirect('/school/grades/marking-periods?year_id=' . urlencode((string)($_POST['year_id'] ?? '')));
+    }
+
     /** Setup screen: which classes have their report-card slots wired up for a year. */
     public function markingPeriods(): void {
         $this->requirePermission(['grades.manage']);
@@ -266,14 +341,21 @@ class GradeController extends Controller {
                       WHERE e.tenant_id=c.tenant_id AND e.class_id=c.id
                         AND e.academic_year_id <=> ? AND e.report_column IS NOT NULL
                         AND e.status='published') AS published_slots,
+                    (SELECT MAX(e.approval_status) FROM exams e
+                      WHERE e.tenant_id=c.tenant_id AND e.class_id=c.id
+                        AND e.academic_year_id <=> ? AND e.report_column IS NOT NULL) AS approval_status,
+                    (SELECT MAX(e.review_note) FROM exams e
+                      WHERE e.tenant_id=c.tenant_id AND e.class_id=c.id
+                        AND e.academic_year_id <=> ? AND e.report_column IS NOT NULL) AS review_note,
                     (SELECT COUNT(*) FROM students s WHERE s.class_id=c.id AND s.status='active') AS student_count,
                     (SELECT COUNT(*) FROM course_classes cc WHERE cc.class_id=c.id) AS subject_count
-             FROM classes c WHERE c.tenant_id=? ORDER BY c.name", [$yearId, $yearId, $this->tid]
+             FROM classes c WHERE c.tenant_id=? ORDER BY c.name", [$yearId, $yearId, $yearId, $yearId, $this->tid]
         );
         $this->view('school/highschool/grades/marking_periods', [
             'pageTitle'=>'Marking Periods','panelType'=>'school','classes'=>$classes,
             'years'=>$years,'selectedYearId'=>$yearId,
-            'slotNames'=>self::MARKING_PERIOD_NAMES,'flash'=>$this->getFlash(),
+            'slotNames'=>self::MARKING_PERIOD_NAMES,'canApprove'=>$this->canApproveGrades(),
+            'flash'=>$this->getFlash(),
         ]);
     }
 
@@ -356,6 +438,136 @@ class GradeController extends Controller {
         ]);
     }
 
+    /** Who may sign off on submitted grades — the principal, in practice. */
+    private function canApproveGrades(): bool {
+        return $this->hasPermission('grades.approve') || ($_SESSION['role'] ?? '') === 'School Admin';
+    }
+
+    /** The eight report-card slots for one class+year, as the approval unit. */
+    private function reportSlotIds(string $classId, $yearId): array {
+        $rows = $this->db->fetchAll(
+            "SELECT id FROM exams WHERE tenant_id=? AND class_id=? AND academic_year_id <=> ? AND report_column IS NOT NULL",
+            [$this->tid, $classId, $yearId]
+        );
+        return array_map(fn($r) => (int)$r['id'], $rows);
+    }
+
+    /**
+     * Sends a class's marks to the principal for sign-off.
+     *
+     * Refuses an empty set: submitting a card with no marks on it wastes the
+     * approver's time and would let a class be "approved" before anything was
+     * entered.
+     */
+    public function submitForApproval(): void {
+        $this->requirePermission(['grades.manage']);
+        $classId = $_POST['class_id'] ?? null;
+        $yearId  = $_POST['academic_year_id'] ?: null;
+        if (!$classId || !$yearId) {
+            $this->flash('danger', 'Choose a class and academic year first.');
+            $this->redirect('/school/grades/marking-periods');
+        }
+        $slotIds = $this->reportSlotIds($classId, $yearId);
+        if (!$slotIds) {
+            $this->flash('danger', 'Set up this class\'s marking periods before submitting.');
+            $this->redirect('/school/grades/marking-periods?year_id=' . urlencode((string)$yearId));
+        }
+        $ids = implode(',', $slotIds);
+        $graded = $this->db->fetchOne("SELECT COUNT(*) c FROM grades WHERE tenant_id=? AND exam_id IN ({$ids})", [$this->tid])['c'] ?? 0;
+        if ($graded < 1) {
+            $this->flash('danger', 'No marks have been entered for this class yet, so there is nothing to approve.');
+            $this->redirect('/school/grades/marking-periods?year_id=' . urlencode((string)$yearId));
+        }
+
+        $this->db->execute(
+            "UPDATE exams SET approval_status='submitted', submitted_by=?, submitted_at=NOW(), review_note=NULL
+              WHERE id IN ({$ids})",
+            [$_SESSION['user_id'] ?? null]
+        );
+        $this->flash('success', 'Grades submitted for the principal\'s approval.');
+        $this->redirect('/school/grades/marking-periods?year_id=' . urlencode((string)$yearId));
+    }
+
+    /** Review queue: every class whose grades are waiting on, or have had, a decision. */
+    public function approvals(): void {
+        $this->requirePermission(['grades.approve','grades.manage']);
+        $years = $this->db->fetchAll("SELECT id,name FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]);
+        $yearId = $_GET['year_id'] ?? ($years[0]['id'] ?? null);
+
+        // One row per class: the slots move together, so MIN/MAX collapse the set
+        // back to a single state and MAX(...) picks up whoever acted on it.
+        $rows = $this->db->fetchAll(
+            "SELECT c.id AS class_id, c.name AS class_name,
+                    MIN(e.approval_status) = MAX(e.approval_status) AS uniform,
+                    MAX(e.approval_status) AS approval_status,
+                    MAX(e.status) AS publish_status,
+                    MAX(e.submitted_at) AS submitted_at,
+                    MAX(e.approved_at)  AS approved_at,
+                    MAX(e.review_note)  AS review_note,
+                    MAX(sub.name) AS submitted_by_name,
+                    MAX(app.name) AS approved_by_name,
+                    (SELECT COUNT(*) FROM students s WHERE s.class_id=c.id AND s.status='active') AS student_count,
+                    (SELECT COUNT(*) FROM grades g WHERE g.exam_id IN
+                        (SELECT e2.id FROM exams e2 WHERE e2.class_id=c.id AND e2.academic_year_id <=> ? AND e2.report_column IS NOT NULL)
+                    ) AS grade_count
+               FROM exams e
+               JOIN classes c ON e.class_id = c.id
+               LEFT JOIN users sub ON e.submitted_by = sub.id
+               LEFT JOIN users app ON e.approved_by = app.id
+              WHERE e.tenant_id=? AND e.academic_year_id <=> ? AND e.report_column IS NOT NULL
+              GROUP BY c.id, c.name
+              ORDER BY FIELD(MAX(e.approval_status),'submitted','returned','entered','approved'), c.name",
+            [$yearId, $this->tid, $yearId]
+        );
+
+        $this->view('school/highschool/grades/approvals', [
+            'pageTitle'=>'Grade Approvals','panelType'=>'school','classes'=>$rows,
+            'years'=>$years,'selectedYearId'=>$yearId,
+            'canApprove'=>$this->canApproveGrades(),'flash'=>$this->getFlash(),
+        ]);
+    }
+
+    /**
+     * Records the principal's decision on a submitted class.
+     *
+     * Approving does NOT release the card — that stays a separate, deliberate act
+     * so the office chooses when parents see it. Returning clears the submission
+     * and carries a reason back to whoever entered the marks.
+     */
+    public function reviewGrades(): void {
+        $this->requirePermission(['grades.approve']);
+        $classId  = $_POST['class_id'] ?? null;
+        $yearId   = $_POST['academic_year_id'] ?: null;
+        $decision = ($_POST['decision'] ?? '') === 'approve' ? 'approved' : 'returned';
+        $note     = trim($_POST['review_note'] ?? '') ?: null;
+        $back     = '/school/grades/approvals?year_id=' . urlencode((string)$yearId);
+
+        if (!$classId || !$yearId) {
+            $this->flash('danger', 'Choose a class and academic year first.');
+            $this->redirect('/school/grades/approvals');
+        }
+        if ($decision === 'returned' && !$note) {
+            $this->flash('danger', 'Give a reason when returning grades, so the teacher knows what to correct.');
+            $this->redirect($back);
+        }
+        $slotIds = $this->reportSlotIds($classId, $yearId);
+        if (!$slotIds) { $this->redirect($back); }
+        $ids = implode(',', $slotIds);
+
+        // A returned set also loses any release, so corrections can't sit live.
+        $publishReset = $decision === 'returned' ? ", status='draft'" : '';
+        $this->db->execute(
+            "UPDATE exams SET approval_status=?, approved_by=?, approved_at=NOW(), review_note=?{$publishReset}
+              WHERE id IN ({$ids})",
+            [$decision, $_SESSION['user_id'] ?? null, $note]
+        );
+
+        $this->flash('success', $decision === 'approved'
+            ? 'Grades approved. They can now be released to parents from Marking Periods.'
+            : 'Grades returned to the teacher for correction.');
+        $this->redirect($back);
+    }
+
     /**
      * Releases (or withdraws) a class's whole report card for a year.
      *
@@ -371,6 +583,19 @@ class GradeController extends Controller {
         if (!$classId || !$yearId) {
             $this->flash('danger', 'Choose a class and academic year first.');
             $this->redirect('/school/grades/marking-periods');
+        }
+        // The approval gate. Withdrawing is always allowed — pulling a card back
+        // must never be blocked — but releasing one requires the sign-off.
+        if ($status === 'published') {
+            $pending = $this->db->fetchOne(
+                "SELECT COUNT(*) c FROM exams WHERE tenant_id=? AND class_id=? AND academic_year_id <=> ?
+                   AND report_column IS NOT NULL AND approval_status <> 'approved'",
+                [$this->tid, $classId, $yearId]
+            )['c'] ?? 0;
+            if ($pending > 0) {
+                $this->flash('danger', 'These grades have not been approved yet — submit them for approval first, then release once the principal signs off.');
+                $this->redirect('/school/grades/marking-periods?year_id=' . urlencode((string)$yearId));
+            }
         }
         $this->db->execute(
             "UPDATE exams SET status=? WHERE tenant_id=? AND class_id=? AND academic_year_id <=> ? AND report_column IS NOT NULL",
