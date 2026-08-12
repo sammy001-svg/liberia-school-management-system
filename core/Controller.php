@@ -677,12 +677,21 @@ abstract class Controller {
      * so silently correcting the text would make our output the odd one out.
      * Change the strings here if the school ever revises its stationery.
      */
+    /**
+     * The school's own grading scale, in its own order — E, S, I, N, C.
+     * Bands are matched highest-first on `min`, so a mark only needs to reach a
+     * band's floor to earn it. Anything below the lowest band still resolves to C
+     * via the fallback in celdiLetter(), so no mark is ever left ungraded.
+     *
+     * These values are printed verbatim as the METHOD OF GRADING key on the
+     * report card, so the ranges and labels here are what parents read.
+     */
     public const CELDI_SCALE = [
         ['min'=>90, 'max'=>100, 'letter'=>'E', 'label'=>'Excellent'],
         ['min'=>85, 'max'=>89,  'letter'=>'S', 'label'=>'Satisfactory'],
-        ['min'=>80, 'max'=>84,  'letter'=>'I', 'label'=>'Imporving'],
+        ['min'=>80, 'max'=>84,  'letter'=>'I', 'label'=>'Improving'],
         ['min'=>72, 'max'=>79,  'letter'=>'N', 'label'=>'Need Improvement'],
-        ['min'=>0,  'max'=>71,  'letter'=>'C', 'label'=>'Concert Not Understood'],
+        ['min'=>60, 'max'=>71,  'letter'=>'C', 'label'=>'Concept Not Understood'],
     ];
 
     /** Scale letter (E/S/I/N/C) for a score, or '' when there is no score. */
