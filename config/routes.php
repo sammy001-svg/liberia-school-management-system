@@ -89,6 +89,9 @@ $router->get('/school/grades/marking-periods',       ['GradeController', 'markin
 $router->post('/school/grades/marking-periods/setup', ['GradeController', 'setupMarkingPeriods']);
 $router->get('/school/grades/report-cards/class/{classId}', ['GradeController', 'classReportCards']);
 $router->post('/school/grades/report-cards/publish',  ['GradeController', 'publishReportCards']);
+$router->post('/school/grades/submit-approval',  ['GradeController', 'submitForApproval']);
+$router->get('/school/grades/approvals',         ['GradeController', 'approvals']);
+$router->post('/school/grades/approvals/review', ['GradeController', 'reviewGrades']);
 $router->post('/school/classes/{id}/report-style', ['GradeController', 'toggleReportStyle']);
 $router->get('/school/grades/promotions',        ['GradeController', 'promotions']);
 $router->post('/school/grades/promotions/save',  ['GradeController', 'savePromotions']);
