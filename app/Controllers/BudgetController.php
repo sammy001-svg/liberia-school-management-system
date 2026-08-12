@@ -105,31 +105,48 @@ class BudgetController extends Controller {
              WHERE tenant_id=? AND income_date BETWEEN ? AND ? GROUP BY k", [$this->tid, $from, $to]
         ) as $r) { $incomeByCat[$r['k']] = (float)$r['t']; }
 
-        $income = []; $expense = [];
-        $totals = ['budget_income'=>0.0,'actual_income'=>0.0,'budget_expense'=>0.0,'actual_expense'=>0.0];
+        // One combined list rather than separate income/expense tables — income first,
+        // then expenditure, then other, so the whole budget reads top to bottom.
+        $rows = [];
+        $totals = [
+            'budget_income'=>0.0, 'actual_income'=>0.0,
+            'budget_expense'=>0.0,'actual_expense'=>0.0,
+            'budget_other'=>0.0,  'actual_other'=>0.0,
+        ];
+        $order = ['income'=>0, 'expense'=>1, 'other'=>2];
 
         foreach ($lines as $l) {
-            $key = strtolower(trim($l['category']));
-            if ($l['line_type'] === 'income') {
+            $key  = strtolower(trim($l['category']));
+            $type = $l['line_type'];
+
+            if ($type === 'income') {
                 $actual = $l['source'] === 'fees' ? $feeCollected : ($incomeByCat[$key] ?? 0.0);
-                $l['actual'] = $actual;
                 // For income, beating the budget is favourable.
                 $l['variance'] = $actual - (float)$l['budgeted_amount'];
-                $income[] = $l;
                 $totals['budget_income'] += (float)$l['budgeted_amount'];
                 $totals['actual_income'] += $actual;
             } else {
+                // Expense and other both draw actuals from recorded expenditure.
                 $actual = $expenseByCat[$key] ?? 0.0;
-                $l['actual'] = $actual;
-                // For expenses, spending less than budget is favourable.
+                // For outgoings, spending less than budget is favourable.
                 $l['variance'] = (float)$l['budgeted_amount'] - $actual;
-                $expense[] = $l;
-                $totals['budget_expense'] += (float)$l['budgeted_amount'];
-                $totals['actual_expense'] += $actual;
+                $bucket = $type === 'other' ? 'other' : 'expense';
+                $totals['budget_' . $bucket] += (float)$l['budgeted_amount'];
+                $totals['actual_' . $bucket] += $actual;
             }
+            $l['actual'] = $actual;
+            $l['sort_group'] = $order[$type] ?? 3;
+            $rows[] = $l;
         }
-        $totals['budget_net'] = $totals['budget_income'] - $totals['budget_expense'];
-        $totals['actual_net'] = $totals['actual_income'] - $totals['actual_expense'];
+
+        usort($rows, fn($a, $b) => [$a['sort_group'], $a['sort_order'], $a['category']]
+                               <=> [$b['sort_group'], $b['sort_order'], $b['category']]);
+
+        // "Other" counts as outgoing, so the net is income less everything spent.
+        $totals['budget_outgoing'] = $totals['budget_expense'] + $totals['budget_other'];
+        $totals['actual_outgoing'] = $totals['actual_expense'] + $totals['actual_other'];
+        $totals['budget_net'] = $totals['budget_income'] - $totals['budget_outgoing'];
+        $totals['actual_net'] = $totals['actual_income'] - $totals['actual_outgoing'];
 
         // Expense categories already in use, offered as suggestions when adding a line.
         $knownExpenseCats = array_column($this->db->fetchAll(
@@ -141,7 +158,7 @@ class BudgetController extends Controller {
 
         $this->view('school/highschool/finance/budgets/show', [
             'pageTitle' => $budget['name'], 'panelType' => 'school',
-            'budget' => $budget, 'income' => $income, 'expense' => $expense, 'totals' => $totals,
+            'budget' => $budget, 'rows' => $rows, 'totals' => $totals,
             'knownExpenseCats' => $knownExpenseCats, 'knownIncomeCats' => $knownIncomeCats,
             'flash' => $this->getFlash(),
         ]);
@@ -164,7 +181,7 @@ class BudgetController extends Controller {
              VALUES (?,?,?,?,?,?,?,?)",
             [
                 $this->tid, $id,
-                $_POST['line_type'] === 'income' ? 'income' : 'expense',
+                in_array($_POST['line_type'], ['income','expense','other'], true) ? $_POST['line_type'] : 'expense',
                 trim($_POST['category']), $_POST['description'] ?: null,
                 (float)$_POST['budgeted_amount'],
                 ($_POST['source'] ?? 'other') === 'fees' ? 'fees' : 'other',
