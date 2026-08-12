@@ -160,12 +160,19 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
           <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
           <input type="hidden" name="login_type" value="staff">
           <div class="form-group">
-            <label class="form-label">Email Address</label>
-            <input type="email" name="identifier" class="form-control" placeholder="you@school.com" required>
+            <label class="form-label">Email or Username</label>
+            <?php // Deliberately type="text", not type="email": staff may sign in with
+                  // either, and the browser's email validation would reject a username
+                  // before the form was ever submitted. ?>
+            <input type="text" name="identifier" class="form-control" autocomplete="username"
+                   placeholder="you@school.com or j.doe" required>
+            <div class="form-hint" style="font-size:11px;color:var(--text-muted);margin-top:5px;">
+              Teachers and staff can use either their school email or the username on their profile.
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label">Password</label>
-            <input type="password" name="secret" class="form-control" placeholder="••••••••" required>
+            <input type="password" name="secret" class="form-control" placeholder="••••••••" autocomplete="current-password" required>
           </div>
           <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:8px;">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
