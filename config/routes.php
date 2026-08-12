@@ -143,6 +143,7 @@ $router->get('/school/finance/incomes',                       ['BudgetController
 $router->post('/school/finance/incomes/store',                ['BudgetController', 'storeIncome']);
 $router->post('/school/finance/incomes/{id}/delete',          ['BudgetController', 'deleteIncome']);
 $router->post('/school/finance/budget-lines/{id}/delete',     ['BudgetController', 'deleteLine']);
+$router->get('/school/finance/budgets/manage',               ['BudgetController', 'manage']);
 $router->get('/school/finance/budgets/{id}',                  ['BudgetController', 'show']);
 $router->post('/school/finance/budgets/{id}/delete',          ['BudgetController', 'delete']);
 $router->post('/school/finance/budgets/{id}/status',          ['BudgetController', 'updateStatus']);

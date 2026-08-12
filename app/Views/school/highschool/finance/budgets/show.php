@@ -11,8 +11,20 @@
   ];
 ?>
 
+<?php $typeLabels = ['' => 'All Lines', 'income' => 'Income', 'expense' => 'Expenses', 'other' => 'Other Budgets']; ?>
 <div class="breadcrumb">
-  <a href="<?= $cfg['url'] ?>/school/finance/budgets">Budgets</a><span>/</span><span><?= htmlspecialchars($budget['name']) ?></span>
+  <a href="<?= $cfg['url'] ?>/school/finance/budgets">Budget</a><span>/</span>
+  <a href="<?= $cfg['url'] ?>/school/finance/budgets/<?= $budget['id'] ?>"><?= htmlspecialchars($budget['name']) ?></a><span>/</span>
+  <span><?= htmlspecialchars($typeLabels[$type] ?? 'All Lines') ?></span>
+</div>
+
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
+  <?php foreach($typeLabels as $t => $label): ?>
+    <?php $icon = ['income'=>'📈','expense'=>'📉','other'=>'📦'][$t] ?? '📋'; ?>
+    <a href="<?= $cfg['url'] ?>/school/finance/budgets/<?= $budget['id'] ?><?= $t ? '?type='.$t : '' ?>"
+       class="btn <?= $type === $t ? 'btn-primary' : 'btn-outline' ?>"><?= $icon ?> <?= $label ?></a>
+  <?php endforeach; ?>
+  <a href="<?= $cfg['url'] ?>/school/finance/budgets?budget_id=<?= $budget['id'] ?>" class="btn btn-secondary" style="margin-left:auto;">📊 Report</a>
 </div>
 
 <div class="page-header">
@@ -162,6 +174,109 @@
     </table>
   </div>
 </div>
+
+<?php if($type === 'income'): ?>
+<!-- Other Income lives inside the Budget module rather than as its own section -->
+<div class="card" style="margin-top:20px;">
+  <div class="card-header">
+    <div class="card-title">💰 Other Income Received</div>
+    <button type="button" class="btn btn-sm btn-primary" onclick="document.getElementById('addIncomeModal').classList.add('open')">+ Record Income</button>
+  </div>
+  <div class="card-body" style="padding-bottom:6px;">
+    <p style="font-size:12px;color:var(--text-muted);margin:0;">
+      Non-fee income received between <?= date('d M Y', strtotime($budget['period_start'])) ?>
+      and <?= date('d M Y', strtotime($budget['period_end'])) ?>. These feed the actuals on income lines above,
+      matched by category.
+    </p>
+  </div>
+  <div class="table-wrapper"><table>
+    <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th></th></tr></thead>
+    <tbody>
+      <?php foreach($incomeEntries as $e): ?>
+      <tr>
+        <td><?= date('d M Y', strtotime($e['income_date'])) ?></td>
+        <td><span class="badge badge-info"><?= htmlspecialchars($e['category']) ?></span></td>
+        <td>
+          <?= htmlspecialchars($e['description'] ?? '—') ?>
+          <?php if($e['source']): ?><div style="font-size:11px;color:var(--text-muted);">from <?= htmlspecialchars($e['source']) ?></div><?php endif; ?>
+        </td>
+        <td class="fw-600"><?= $money($e['amount']) ?></td>
+        <td>
+          <form method="POST" action="<?= $cfg['url'] ?>/school/finance/incomes/<?= $e['id'] ?>/delete"
+                data-confirm="Remove this income entry?" data-confirm-title="Remove Income" data-confirm-label="Remove">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+            <button type="submit" class="btn btn-sm btn-danger">Del</button>
+          </form>
+        </td>
+      </tr>
+      <?php endforeach; ?>
+      <?php if(empty($incomeEntries)): ?>
+      <tr><td colspan="5"><div class="empty-state"><div class="empty-state-icon">💰</div><div class="empty-state-text">No non-fee income recorded in this period.</div></div></td></tr>
+      <?php endif; ?>
+    </tbody>
+  </table></div>
+</div>
+
+<div class="modal-overlay" id="addIncomeModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Record Income</div>
+      <button class="modal-close" onclick="document.getElementById('addIncomeModal').classList.remove('open')">&times;</button>
+    </div>
+    <form method="POST" action="<?= $cfg['url'] ?>/school/finance/incomes/store">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Category *</label>
+            <input type="text" name="category" class="form-control" required list="incomeCatList" placeholder="e.g. Donations, Grants">
+            <datalist id="incomeCatList">
+              <?php foreach($knownIncomeCats as $c): ?><option value="<?= htmlspecialchars($c) ?>"></option><?php endforeach; ?>
+              <option value="Donations"></option><option value="Grants"></option>
+              <option value="Fundraising"></option><option value="Rental Income"></option>
+            </datalist>
+            <div class="form-hint">Match this to a budget income line's category.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Amount *</label>
+            <input type="number" step="0.01" min="0" name="amount" class="form-control" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Date Received *</label>
+            <input type="date" name="income_date" class="form-control" required value="<?= date('Y-m-d') ?>">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Method</label>
+            <select name="method" class="form-control">
+              <option value="cash">Cash</option><option value="bank">Bank Transfer</option>
+              <option value="cheque">Cheque</option><option value="mobile">Mobile Money</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Received From</label>
+          <input type="text" name="source" class="form-control" placeholder="e.g. Ministry of Education, PTA">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <input type="text" name="description" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Reference</label>
+          <input type="text" name="reference" class="form-control" placeholder="Receipt or cheque number">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('addIncomeModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Record Income</button>
+      </div>
+    </form>
+  </div>
+</div>
+<?php endif; ?>
 
 <div class="modal-overlay" id="addLineModal">
   <div class="modal">
