@@ -13,9 +13,13 @@ class TeacherController extends Controller {
         $where = "t.tenant_id=?";
         if ($search) { $where .= " AND (u.name LIKE ? OR t.employee_no LIKE ?)"; $params[] = "%$search%"; $params[] = "%$search%"; }
         if ($classId) {
-            // "Classes taught" = homeroom class OR any class whose subjects this teacher is assigned to
-            // (via the teacher_courses multi-assignment, since a subject already belongs to one class).
-            $where .= " AND (t.class_id=? OR EXISTS (SELECT 1 FROM teacher_courses tc JOIN courses co ON tc.course_id=co.id WHERE tc.teacher_id=t.id AND co.class_id=?))";
+            // "Classes taught" = homeroom class OR any class one of their assigned subjects is
+            // taught to. A subject reaches its classes through course_classes (many-to-many);
+            // the old courses.class_id column this used to read no longer exists.
+            $where .= " AND (t.class_id=? OR EXISTS ("
+                    . "SELECT 1 FROM teacher_courses tc"
+                    . " JOIN course_classes cc ON cc.course_id = tc.course_id"
+                    . " WHERE tc.teacher_id = t.id AND cc.class_id = ?))";
             $params[] = $classId; $params[] = $classId;
         }
 
