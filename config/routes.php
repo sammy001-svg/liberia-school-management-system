@@ -224,6 +224,13 @@ $router->post('/school/messages/{id}/delete', ['MessageController', 'delete']);
 
 $router->get('/school/settings',            ['SchoolSettingsController', 'index']);
 $router->post('/school/settings/update',    ['SchoolSettingsController', 'update']);
+// Literal paths before the {id} routes so "store" is never matched as an id.
+$router->get('/school/settings/login-slides',        ['LoginSlideController', 'index']);
+$router->post('/school/settings/login-slides/store', ['LoginSlideController', 'store']);
+$router->post('/school/settings/login-slides/{id}/update',  ['LoginSlideController', 'update']);
+$router->post('/school/settings/login-slides/{id}/delete',  ['LoginSlideController', 'delete']);
+$router->post('/school/settings/login-slides/{id}/toggle',  ['LoginSlideController', 'toggle']);
+$router->post('/school/settings/login-slides/{id}/reorder', ['LoginSlideController', 'reorder']);
 
 // ── DEPARTMENTS & COURSES (used by Teachers, Grades, Timetable) ──
 $router->get('/school/departments',         ['AcademicsController', 'departments']);
