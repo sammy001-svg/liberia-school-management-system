@@ -38,11 +38,17 @@ class AuthController extends Controller {
             $branding['logo'] = $tenant['logo'];
         }
 
+        // The school's own carousel announcements. Empty means the view falls back
+        // to the built-in slides, so a fresh install still looks finished.
+        require_once ROOT_DIR . '/app/Controllers/LoginSlideController.php';
+        $slides = LoginSlideController::activeSlides($this->db, $tenant['id'] ?? null);
+
         $this->view('auth/login', [
             'pageTitle' => 'Login',
             'branding' => $branding,
             'studentLoginMode' => $tenant['student_login_mode'] ?? 'admission_pin',
             'parentLoginMode' => $tenant['parent_login_mode'] ?? 'username_password',
+            'slides' => $slides,
             'flash' => $this->getFlash()
         ]);
     }

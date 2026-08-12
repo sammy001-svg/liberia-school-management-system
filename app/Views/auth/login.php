@@ -60,53 +60,70 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
       <span><?= htmlspecialchars($appName) ?></span>
     </div>
 
-    <div class="carousel-slide active" style="background: linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.8)), url('https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80&w=1600') center/cover no-repeat;">
-      <div class="carousel-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M12 6.5c-1.5-1-4-1.5-6-1.2v11c2-.3 4.5.2 6 1.2c1.5-1 4-1.5 6-1.2v-11c-2-.3-4.5.2-6 1.2z" stroke-linejoin="round" stroke-linecap="round"/>
-          <path d="M12 6.5v11" stroke-linecap="round"/>
-        </svg>
-      </div>
-      <div class="carousel-caption">
-        <h2>Empowering Every Learner</h2>
-        <p>Track attendance, grades, and growth — all in one place, built for the way your school actually works.</p>
-      </div>
-    </div>
+    <?php
+    // The school's own announcements, managed under Settings → Login Carousel.
+    // With none configured we fall back to these three built-ins so a fresh
+    // install never shows an empty panel. The built-ins keep their line-art icon;
+    // school announcements lead with their own photo instead.
+    $builtInSlides = [
+        [
+            'image_url' => 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80&w=1600',
+            'title'     => 'Empowering Every Learner',
+            'caption'   => 'Track attendance, grades, and growth — all in one place, built for the way your school actually works.',
+            'icon'      => '<path d="M12 6.5c-1.5-1-4-1.5-6-1.2v11c2-.3 4.5.2 6 1.2c1.5-1 4-1.5 6-1.2v-11c-2-.3-4.5.2-6 1.2z" stroke-linejoin="round" stroke-linecap="round"/><path d="M12 6.5v11" stroke-linecap="round"/>',
+        ],
+        [
+            'image_url' => 'https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&q=80&w=1600',
+            'title'     => 'Connecting School &amp; Family',
+            'caption'   => "Parents, teachers and admins — working together in real time for every child's success.",
+            'icon'      => '<circle cx="9" cy="8" r="3"/><circle cx="16.5" cy="9.5" r="2.5"/><path d="M3.5 19c.5-3 2.7-5 5.5-5s5 2 5.5 5" stroke-linecap="round" stroke-linejoin="round"/><path d="M14.5 19c.3-2 1.8-3.3 3.6-3.5c1.8-.2 3.4.8 4.1 2.5" stroke-linecap="round" stroke-linejoin="round"/>',
+        ],
+        [
+            'image_url' => 'https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?auto=format&fit=crop&q=80&w=1600',
+            'title'     => 'Building Tomorrow, Today',
+            'caption'   => 'Modern, reliable tools that help every learner grow — one milestone at a time.',
+            'icon'      => '<path d="M4 19V13M9 19V9M14 19v-4M19 19V6" stroke-linecap="round"/><path d="M4 8l5-4 4 3 6-5" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 2h4v4" stroke-linecap="round" stroke-linejoin="round"/>',
+        ],
+    ];
 
-    <div class="carousel-slide" style="background: linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.8)), url('https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&q=80&w=1600') center/cover no-repeat;">
-      <div class="carousel-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="9" cy="8" r="3"/>
-          <circle cx="16.5" cy="9.5" r="2.5"/>
-          <path d="M3.5 19c.5-3 2.7-5 5.5-5s5 2 5.5 5" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M14.5 19c.3-2 1.8-3.3 3.6-3.5c1.8-.2 3.4.8 4.1 2.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
-      <div class="carousel-caption">
-        <h2>Connecting School &amp; Family</h2>
-        <p>Parents, teachers and admins — working together in real time for every child's success.</p>
-      </div>
-    </div>
+    $usingSchoolSlides = !empty($slides);
+    $renderSlides = $usingSchoolSlides ? $slides : $builtInSlides;
+    // The dark overlay keeps the caption legible over any photo the school uploads.
+    $overlay = 'linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.8))';
+    ?>
 
-    <div class="carousel-slide" style="background: linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.8)), url('https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?auto=format&fit=crop&q=80&w=1600') center/cover no-repeat;">
-      <div class="carousel-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M4 19V13M9 19V9M14 19v-4M19 19V6" stroke-linecap="round"/>
-          <path d="M4 8l5-4 4 3 6-5" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M15 2h4v4" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+    <?php foreach ($renderSlides as $i => $slide): ?>
+      <?php
+        $bg = !empty($slide['image_url'])
+            ? $overlay . ", url('" . htmlspecialchars($slide['image_url'], ENT_QUOTES) . "') center/cover no-repeat"
+            : $overlay . ', linear-gradient(135deg, ' . htmlspecialchars($primaryColor ?: '#10B981')
+              . ', ' . htmlspecialchars($secondaryColor ?: '#059669') . ')';
+      ?>
+      <div class="carousel-slide<?= $i === 0 ? ' active' : '' ?>" style="background: <?= $bg ?>;">
+        <?php if (!$usingSchoolSlides && !empty($slide['icon'])): ?>
+        <div class="carousel-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <?= $slide['icon'] ?>
+          </svg>
+        </div>
+        <?php endif; ?>
+        <div class="carousel-caption">
+          <?php // Built-in copy carries intentional entities; school content is escaped. ?>
+          <h2><?= $usingSchoolSlides ? htmlspecialchars($slide['title']) : $slide['title'] ?></h2>
+          <?php if (!empty($slide['caption'])): ?>
+            <p><?= $usingSchoolSlides ? nl2br(htmlspecialchars($slide['caption'])) : $slide['caption'] ?></p>
+          <?php endif; ?>
+        </div>
       </div>
-      <div class="carousel-caption">
-        <h2>Building Tomorrow, Today</h2>
-        <p>Modern, reliable tools that help every learner grow — one milestone at a time.</p>
-      </div>
-    </div>
+    <?php endforeach; ?>
 
+    <?php if (count($renderSlides) > 1): ?>
     <div class="carousel-dots">
-      <button type="button" class="carousel-dot active" data-slide="0" aria-label="Slide 1"></button>
-      <button type="button" class="carousel-dot" data-slide="1" aria-label="Slide 2"></button>
-      <button type="button" class="carousel-dot" data-slide="2" aria-label="Slide 3"></button>
+      <?php foreach ($renderSlides as $i => $slide): ?>
+        <button type="button" class="carousel-dot<?= $i === 0 ? ' active' : '' ?>" data-slide="<?= $i ?>" aria-label="Slide <?= $i + 1 ?>"></button>
+      <?php endforeach; ?>
     </div>
+    <?php endif; ?>
   </div>
 
   <div class="login-form-panel">
