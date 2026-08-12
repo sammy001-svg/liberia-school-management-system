@@ -865,6 +865,72 @@ abstract class Controller {
     }
 
     /**
+     * Yearly-average ranking for a whole class, keyed by student id.
+     *
+     * Used by the students list so the rank shown there is the same number
+     * printed in the report card's "Class Rank / Yearly Ave." cell. It goes
+     * through celdiGrid() — the same helper the card uses — so the two can't
+     * drift apart: ranking on a plain mean of raw marks would ignore the
+     * semester exam weighting and quietly disagree with the printed card.
+     *
+     * Returns [student_id => ['position' => int, 'of' => int, 'average' => float]].
+     * Students with no marks are absent from the result.
+     */
+    protected function classYearlyRanking(?int $classId, $yearId): array {
+        $tid = $this->tenantId() ?? 0;
+        if (!$classId) { return []; }
+
+        $slotRows = $this->db->fetchAll(
+            "SELECT id, report_column FROM exams
+              WHERE tenant_id=? AND class_id=? AND academic_year_id <=> ? AND report_column IS NOT NULL",
+            [$tid, $classId, $yearId]
+        );
+        if (!$slotRows) { return []; }
+        $slotOfExam = [];
+        foreach ($slotRows as $r) { $slotOfExam[(int)$r['id']] = $r['report_column']; }
+
+        $subjects = $this->db->fetchAll(
+            "SELECT c.id, c.name FROM courses c JOIN course_classes cc ON cc.course_id=c.id
+              WHERE cc.class_id=? AND c.tenant_id=? ORDER BY cc.sort_order, c.name",
+            [$classId, $tid]
+        );
+        if (!$subjects) { return []; }
+
+        $ids = implode(',', array_map('intval', array_keys($slotOfExam)));
+        $rows = $this->db->fetchAll(
+            "SELECT g.student_id, g.course_id, g.exam_id, g.marks_obtained, g.total_marks
+               FROM grades g JOIN students s ON g.student_id=s.id
+              WHERE g.tenant_id=? AND s.class_id <=> ? AND g.exam_id IN ({$ids})",
+            [$tid, $classId]
+        );
+        $marks = [];
+        foreach ($rows as $r) {
+            $total = (float)$r['total_marks'];
+            $pct = $total > 0 ? ((float)$r['marks_obtained'] / $total) * 100 : null;
+            $marks[(int)$r['student_id']][(int)$r['course_id']][$slotOfExam[(int)$r['exam_id']]] = $pct;
+        }
+
+        $averages = [];
+        foreach ($marks as $sid => $studentMarks) {
+            $grid = $this->celdiGrid($subjects, $studentMarks);
+            if (($grid['columnAverage']['yr'] ?? null) !== null) {
+                $averages[$sid] = (float)$grid['columnAverage']['yr'];
+            }
+        }
+        if (!$averages) { return []; }
+
+        // Competition ranking: ties share a position, and the denominator counts
+        // only students who actually have a figure — matching the card's "9/11".
+        $out = [];
+        $of = count($averages);
+        foreach ($averages as $sid => $avg) {
+            $better = count(array_filter($averages, fn($v) => $v > $avg));
+            $out[$sid] = ['position' => $better + 1, 'of' => $of, 'average' => $avg];
+        }
+        return $out;
+    }
+
+    /**
      * One student's grid: per-subject cells for all eleven columns, plus the
      * bottom "Average" row (each column's mean across the subjects that have a
      * figure in it, to one decimal place, as printed).

@@ -55,7 +55,7 @@
   </div>
   <div class="table-wrapper">
     <table>
-      <thead><tr><th>Student</th><th>Admission No</th><th>Class</th><th>Phone</th><th>Gender</th><th>Status</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Student</th><th>Admission No</th><th>Class</th><th title="Position in class by yearly average — the same figure printed on the report card">Rank</th><th>Phone</th><th>Gender</th><th>Status</th><th>Actions</th></tr></thead>
       <tbody>
         <?php foreach($students as $s): ?>
         <tr>
@@ -74,6 +74,18 @@
           </td>
           <td style="font-family:monospace;font-size:12px"><?= htmlspecialchars($s['admission_no']) ?></td>
           <td><?= htmlspecialchars($s['class_name']??'—') ?></td>
+          <td>
+            <?php $r = $ranks[(int)$s['id']] ?? null; ?>
+            <?php if ($r): ?>
+              <?php // Top three get a stronger colour so a scan down the list reads at a glance. ?>
+              <span class="badge <?= $r['position'] <= 3 ? 'badge-success' : 'badge-info' ?>"
+                    title="Yearly average <?= number_format($r['average'], 1) ?>">
+                <?= (int)$r['position'] ?>/<?= (int)$r['of'] ?>
+              </span>
+            <?php else: ?>
+              <span style="color:var(--text-muted);font-size:12px;">—</span>
+            <?php endif; ?>
+          </td>
           <td><?= htmlspecialchars($s['phone']??'—') ?></td>
           <td><?= ucfirst($s['gender']??'—') ?></td>
           <td><span class="badge badge-<?= $s['status']==='active'?'success':($s['status']==='graduated'?'info':'danger') ?>"><?= ucfirst($s['status']) ?></span></td>

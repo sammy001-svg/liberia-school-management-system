@@ -30,6 +30,18 @@ class StudentController extends Controller {
              LEFT JOIN classes c ON s.class_id=c.id
              WHERE $where ORDER BY u.name ASC LIMIT {$p['perPage']} OFFSET {$p['offset']}", $params
         );
+
+        // Class rank for the students on this page. Computed once per distinct
+        // class rather than once per student, and only for the classes actually
+        // shown, so the cost doesn't grow with the size of the school.
+        $currentYearId = $this->db->fetchOne(
+            "SELECT id FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC LIMIT 1", [$this->tid]
+        )['id'] ?? null;
+        $ranks = [];
+        foreach (array_unique(array_filter(array_column($students, 'class_id'))) as $cid) {
+            foreach ($this->classYearlyRanking((int)$cid, $currentYearId) as $sid => $r) { $ranks[$sid] = $r; }
+        }
+
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
         $stats = $this->db->fetchOne(
             "SELECT COUNT(*) total,
@@ -40,6 +52,7 @@ class StudentController extends Controller {
         );
         $this->view('school/highschool/students/index', [
             'pageTitle'=>'Students','panelType'=>'school','students'=>$students,'classes'=>$classes,'search'=>$search,'classId'=>$classId,
+            'ranks'=>$ranks,
             'page'=>$p['page'],'totalPages'=>$p['totalPages'],'total'=>$p['total'],'perPage'=>$p['perPage'],'stats'=>$stats,
             'flash'=>$this->getFlash(), 'importErrors'=>$this->getImportErrors(),
             'bulkCredentialsUrl' => !empty($_SESSION['bulk_credentials']) ? '/school/students/bulk-credentials' : null,
