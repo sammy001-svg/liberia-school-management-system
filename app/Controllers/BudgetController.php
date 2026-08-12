@@ -12,8 +12,116 @@ class BudgetController extends Controller {
 
     private function guard(): void { $this->requirePermission(['budget.manage','finance.manage']); }
 
-    // ── BUDGETS ──────────────────────────────────────────────────────
+    /**
+     * Resolve every line of a budget into budgeted-vs-actual with variance.
+     * Actuals are computed live from payments, incomes and expenses inside the
+     * budget's own period, so the figures can never drift from the books.
+     * Shared by the report page and the line-management page.
+     */
+    private function computeBudget(array $budget): array {
+        $id = $budget['id'];
+        $from = $budget['period_start'];
+        $to   = $budget['period_end'];
+
+        $lines = $this->db->fetchAll(
+            "SELECT * FROM budget_lines WHERE budget_id=? AND tenant_id=? ORDER BY line_type DESC, sort_order, id",
+            [$id, $this->tid]
+        );
+
+        $feeCollected = (float)($this->db->fetchOne(
+            "SELECT COALESCE(SUM(amount),0) t FROM payments WHERE tenant_id=? AND DATE(paid_at) BETWEEN ? AND ?",
+            [$this->tid, $from, $to]
+        )['t'] ?? 0);
+
+        $expenseByCat = [];
+        foreach ($this->db->fetchAll(
+            "SELECT LOWER(TRIM(category)) k, COALESCE(SUM(amount),0) t FROM expenses
+             WHERE tenant_id=? AND expense_date BETWEEN ? AND ? GROUP BY k", [$this->tid, $from, $to]
+        ) as $r) { $expenseByCat[$r['k']] = (float)$r['t']; }
+
+        $incomeByCat = [];
+        foreach ($this->db->fetchAll(
+            "SELECT LOWER(TRIM(category)) k, COALESCE(SUM(amount),0) t FROM incomes
+             WHERE tenant_id=? AND income_date BETWEEN ? AND ? GROUP BY k", [$this->tid, $from, $to]
+        ) as $r) { $incomeByCat[$r['k']] = (float)$r['t']; }
+
+        $rows = [];
+        $totals = [
+            'budget_income'=>0.0, 'actual_income'=>0.0,
+            'budget_expense'=>0.0,'actual_expense'=>0.0,
+            'budget_other'=>0.0,  'actual_other'=>0.0,
+        ];
+        $order = ['income'=>0, 'expense'=>1, 'other'=>2];
+
+        foreach ($lines as $l) {
+            $key  = strtolower(trim($l['category']));
+            $type = $l['line_type'];
+            if ($type === 'income') {
+                $actual = $l['source'] === 'fees' ? $feeCollected : ($incomeByCat[$key] ?? 0.0);
+                $l['variance'] = $actual - (float)$l['budgeted_amount'];
+                $totals['budget_income'] += (float)$l['budgeted_amount'];
+                $totals['actual_income'] += $actual;
+            } else {
+                $actual = $expenseByCat[$key] ?? 0.0;
+                $l['variance'] = (float)$l['budgeted_amount'] - $actual;
+                $bucket = $type === 'other' ? 'other' : 'expense';
+                $totals['budget_' . $bucket] += (float)$l['budgeted_amount'];
+                $totals['actual_' . $bucket] += $actual;
+            }
+            $l['actual'] = $actual;
+            $l['sort_group'] = $order[$type] ?? 3;
+            $rows[] = $l;
+        }
+
+        usort($rows, fn($a, $b) => [$a['sort_group'], $a['sort_order'], $a['category']]
+                               <=> [$b['sort_group'], $b['sort_order'], $b['category']]);
+
+        $totals['budget_outgoing'] = $totals['budget_expense'] + $totals['budget_other'];
+        $totals['actual_outgoing'] = $totals['actual_expense'] + $totals['actual_other'];
+        $totals['budget_net'] = $totals['budget_income'] - $totals['budget_outgoing'];
+        $totals['actual_net'] = $totals['actual_income'] - $totals['actual_outgoing'];
+
+        return [$rows, $totals];
+    }
+
+    /** Landing page for the module: budget-vs-actual report with charts. */
     public function index(): void {
+        $this->guard();
+        $all = $this->db->fetchAll(
+            "SELECT id, name, status, period_start, period_end FROM budgets WHERE tenant_id=?
+             ORDER BY (status='active') DESC, period_start DESC", [$this->tid]
+        );
+        if (!$all) {
+            $this->view('school/highschool/finance/budgets/report', [
+                'pageTitle' => 'Budget', 'panelType' => 'school',
+                'budgets' => [], 'budget' => null, 'rows' => [], 'totals' => [],
+                'flash' => $this->getFlash(),
+            ]);
+            return;
+        }
+
+        $wantedId = $_GET['budget_id'] ?? $all[0]['id'];
+        $budget = $this->db->fetchOne(
+            "SELECT b.*, ay.name AS year_name FROM budgets b
+             LEFT JOIN academic_years ay ON b.academic_year_id=ay.id
+             WHERE b.id=? AND b.tenant_id=?", [$wantedId, $this->tid]
+        ) ?: $this->db->fetchOne(
+            "SELECT b.*, ay.name AS year_name FROM budgets b
+             LEFT JOIN academic_years ay ON b.academic_year_id=ay.id
+             WHERE b.id=? AND b.tenant_id=?", [$all[0]['id'], $this->tid]
+        );
+
+        [$rows, $totals] = $this->computeBudget($budget);
+
+        $this->view('school/highschool/finance/budgets/report', [
+            'pageTitle' => 'Budget', 'panelType' => 'school',
+            'budgets' => $all, 'budget' => $budget, 'rows' => $rows, 'totals' => $totals,
+            'flash' => $this->getFlash(),
+        ]);
+    }
+
+    // ── BUDGETS ──────────────────────────────────────────────────────
+    public function manage(): void {
         $this->guard();
         $budgets = $this->db->fetchAll(
             "SELECT b.*, ay.name AS year_name,
@@ -22,8 +130,8 @@ class BudgetController extends Controller {
              FROM budgets b LEFT JOIN academic_years ay ON b.academic_year_id=ay.id
              WHERE b.tenant_id=? ORDER BY b.period_start DESC", [$this->tid]
         );
-        $this->view('school/highschool/finance/budgets/index', [
-            'pageTitle' => 'Budgets', 'panelType' => 'school', 'budgets' => $budgets,
+        $this->view('school/highschool/finance/budgets/manage', [
+            'pageTitle' => 'Manage Budgets', 'panelType' => 'school', 'budgets' => $budgets,
             'years' => $this->db->fetchAll("SELECT id,name,start_date,end_date FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]),
             'flash' => $this->getFlash(),
         ]);
