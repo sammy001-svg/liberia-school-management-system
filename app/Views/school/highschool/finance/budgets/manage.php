@@ -3,11 +3,11 @@
 
 <div class="page-header">
   <div>
-    <div class="page-header-title">Budgets</div>
+    <div class="page-header-title">Manage Budgets</div>
     <div class="page-header-sub">Plan income and expenditure, and track actual performance against it</div>
   </div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;">
-    <a href="<?= $cfg['url'] ?>/school/finance/incomes" class="btn btn-outline">💰 Other Income</a>
+    <a href="<?= $cfg['url'] ?>/school/finance/budgets" class="btn btn-outline">← Budget Report</a>
     <button type="button" class="btn btn-primary" onclick="document.getElementById('addBudgetModal').classList.add('open')">+ New Budget</button>
   </div>
 </div>

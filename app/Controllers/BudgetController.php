@@ -178,6 +178,7 @@ class BudgetController extends Controller {
     }
 
     // ── BUDGET DETAIL: budgeted vs actual vs variance ────────────────
+    /** Budget lines, optionally filtered to one type via ?type=income|expense|other. */
     public function show(string $id): void {
         $this->guard();
         $budget = $this->db->fetchOne(
@@ -187,76 +188,24 @@ class BudgetController extends Controller {
         );
         if (!$budget) { $this->redirect('/school/finance/budgets'); }
 
-        $lines = $this->db->fetchAll(
-            "SELECT * FROM budget_lines WHERE budget_id=? AND tenant_id=? ORDER BY line_type DESC, sort_order, id",
-            [$id, $this->tid]
-        );
+        [$rows, $totals] = $this->computeBudget($budget);
 
-        $from = $budget['period_start'];
-        $to   = $budget['period_end'];
+        $type = in_array($_GET['type'] ?? '', ['income','expense','other'], true) ? $_GET['type'] : '';
+        $visible = $type ? array_values(array_filter($rows, fn($r) => $r['line_type'] === $type)) : $rows;
 
-        // Actuals, computed live for the budget's own period.
-        $feeCollected = (float)($this->db->fetchOne(
-            "SELECT COALESCE(SUM(amount),0) t FROM payments WHERE tenant_id=? AND DATE(paid_at) BETWEEN ? AND ?",
-            [$this->tid, $from, $to]
-        )['t'] ?? 0);
-
-        $expenseByCat = [];
-        foreach ($this->db->fetchAll(
-            "SELECT LOWER(TRIM(category)) k, COALESCE(SUM(amount),0) t FROM expenses
-             WHERE tenant_id=? AND expense_date BETWEEN ? AND ? GROUP BY k", [$this->tid, $from, $to]
-        ) as $r) { $expenseByCat[$r['k']] = (float)$r['t']; }
-
-        $incomeByCat = [];
-        foreach ($this->db->fetchAll(
-            "SELECT LOWER(TRIM(category)) k, COALESCE(SUM(amount),0) t FROM incomes
-             WHERE tenant_id=? AND income_date BETWEEN ? AND ? GROUP BY k", [$this->tid, $from, $to]
-        ) as $r) { $incomeByCat[$r['k']] = (float)$r['t']; }
-
-        // One combined list rather than separate income/expense tables — income first,
-        // then expenditure, then other, so the whole budget reads top to bottom.
-        $rows = [];
-        $totals = [
-            'budget_income'=>0.0, 'actual_income'=>0.0,
-            'budget_expense'=>0.0,'actual_expense'=>0.0,
-            'budget_other'=>0.0,  'actual_other'=>0.0,
-        ];
-        $order = ['income'=>0, 'expense'=>1, 'other'=>2];
-
-        foreach ($lines as $l) {
-            $key  = strtolower(trim($l['category']));
-            $type = $l['line_type'];
-
-            if ($type === 'income') {
-                $actual = $l['source'] === 'fees' ? $feeCollected : ($incomeByCat[$key] ?? 0.0);
-                // For income, beating the budget is favourable.
-                $l['variance'] = $actual - (float)$l['budgeted_amount'];
-                $totals['budget_income'] += (float)$l['budgeted_amount'];
-                $totals['actual_income'] += $actual;
-            } else {
-                // Expense and other both draw actuals from recorded expenditure.
-                $actual = $expenseByCat[$key] ?? 0.0;
-                // For outgoings, spending less than budget is favourable.
-                $l['variance'] = (float)$l['budgeted_amount'] - $actual;
-                $bucket = $type === 'other' ? 'other' : 'expense';
-                $totals['budget_' . $bucket] += (float)$l['budgeted_amount'];
-                $totals['actual_' . $bucket] += $actual;
-            }
-            $l['actual'] = $actual;
-            $l['sort_group'] = $order[$type] ?? 3;
-            $rows[] = $l;
+        // The Income view doubles as where non-fee income is recorded, so "Other Income"
+        // lives inside the Budget module rather than as a separate top-level section.
+        $incomeEntries = [];
+        if ($type === 'income') {
+            $incomeEntries = $this->db->fetchAll(
+                "SELECT i.*, u.name AS recorded_by_name FROM incomes i
+                 LEFT JOIN users u ON i.recorded_by=u.id
+                 WHERE i.tenant_id=? AND i.income_date BETWEEN ? AND ?
+                 ORDER BY i.income_date DESC, i.id DESC",
+                [$this->tid, $budget['period_start'], $budget['period_end']]
+            );
         }
 
-        usort($rows, fn($a, $b) => [$a['sort_group'], $a['sort_order'], $a['category']]
-                               <=> [$b['sort_group'], $b['sort_order'], $b['category']]);
-
-        // "Other" counts as outgoing, so the net is income less everything spent.
-        $totals['budget_outgoing'] = $totals['budget_expense'] + $totals['budget_other'];
-        $totals['actual_outgoing'] = $totals['actual_expense'] + $totals['actual_other'];
-        $totals['budget_net'] = $totals['budget_income'] - $totals['budget_outgoing'];
-        $totals['actual_net'] = $totals['actual_income'] - $totals['actual_outgoing'];
-
-        // Expense categories already in use, offered as suggestions when adding a line.
         $knownExpenseCats = array_column($this->db->fetchAll(
             "SELECT DISTINCT category FROM expenses WHERE tenant_id=? AND category IS NOT NULL ORDER BY category", [$this->tid]
         ), 'category');
@@ -266,7 +215,8 @@ class BudgetController extends Controller {
 
         $this->view('school/highschool/finance/budgets/show', [
             'pageTitle' => $budget['name'], 'panelType' => 'school',
-            'budget' => $budget, 'rows' => $rows, 'totals' => $totals,
+            'budget' => $budget, 'rows' => $visible, 'totals' => $totals, 'type' => $type,
+            'incomeEntries' => $incomeEntries,
             'knownExpenseCats' => $knownExpenseCats, 'knownIncomeCats' => $knownIncomeCats,
             'flash' => $this->getFlash(),
         ]);
