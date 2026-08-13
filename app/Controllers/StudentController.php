@@ -16,18 +16,35 @@ class StudentController extends Controller {
         $this->requirePermission(['students.view','students.edit','students.manage']);
         $search = $_GET['q'] ?? '';
         $classId = $_GET['class_id'] ?? '';
+        $yearId  = $_GET['academic_year_id'] ?? '';
         $params = [$this->tid];
         $where = "s.tenant_id=?";
         if ($search)  { $where .= " AND (u.name LIKE ? OR s.admission_no LIKE ?)"; $params[] = "%$search%"; $params[] = "%$search%"; }
         if ($classId) { $where .= " AND s.class_id=?"; $params[] = $classId; }
+        if ($yearId) {
+            // Students carry an academic year only from this release onward, and a class
+            // links to a year only when one was chosen. So match the student's own year
+            // first, fall back to their class's year, then to whether they were admitted
+            // inside the year's dates — otherwise the filter would return nothing at all
+            // for records created before any of that was captured. The dates come from
+            // subqueries rather than a join so every binding stays in WHERE order.
+            $where .= " AND (s.academic_year_id = ?
+                          OR (s.academic_year_id IS NULL AND c.academic_year_id = ?)
+                          OR (s.academic_year_id IS NULL AND c.academic_year_id IS NULL
+                              AND s.admission_date BETWEEN (SELECT start_date FROM academic_years WHERE id=?)
+                                                       AND (SELECT end_date   FROM academic_years WHERE id=?)))";
+            array_push($params, $yearId, $yearId, $yearId, $yearId);
+        }
 
-        $totalCount = $this->db->fetchOne("SELECT COUNT(*) c FROM students s JOIN users u ON s.user_id=u.id WHERE $where", $params)['c'];
+        // classes is joined in both queries so the count always matches the page.
+        $from = "FROM students s JOIN users u ON s.user_id=u.id LEFT JOIN classes c ON s.class_id=c.id";
+
+        $totalCount = $this->db->fetchOne("SELECT COUNT(*) c {$from} WHERE $where", $params)['c'];
         $p = $this->paginate($totalCount);
 
         $students = $this->db->fetchAll(
             "SELECT s.*, u.name, u.email, u.phone, u.gender, u.avatar, c.name AS class_name
-             FROM students s JOIN users u ON s.user_id=u.id
-             LEFT JOIN classes c ON s.class_id=c.id
+             {$from}
              WHERE $where ORDER BY u.name ASC LIMIT {$p['perPage']} OFFSET {$p['offset']}", $params
         );
 
@@ -50,8 +67,12 @@ class StudentController extends Controller {
                     SUM(CASE WHEN u.gender='female' THEN 1 ELSE 0 END) female
              FROM students s JOIN users u ON s.user_id=u.id WHERE s.tenant_id=?", [$this->tid]
         );
+        $academicYears = $this->db->fetchAll(
+            "SELECT id, name, is_current FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]
+        );
         $this->view('school/highschool/students/index', [
             'pageTitle'=>'Students','panelType'=>'school','students'=>$students,'classes'=>$classes,'search'=>$search,'classId'=>$classId,
+            'academicYears'=>$academicYears,'yearId'=>$yearId,
             'ranks'=>$ranks,
             'page'=>$p['page'],'totalPages'=>$p['totalPages'],'total'=>$p['total'],'perPage'=>$p['perPage'],'stats'=>$stats,
             'flash'=>$this->getFlash(), 'importErrors'=>$this->getImportErrors(),
@@ -319,15 +340,21 @@ class StudentController extends Controller {
         );
         $this->db->execute("UPDATE users SET password_hash=? WHERE id=?", [password_hash($pin, PASSWORD_BCRYPT), $userId]);
         $admNo = $_POST['admission_no'] ?: $this->generateAdmissionNo($this->tid);
+        // Stamp the intake year so the Academic Year filter has real data to work with;
+        // without this the column stayed NULL for every student ever admitted.
+        $intakeYearId = $this->db->fetchOne(
+            "SELECT id FROM academic_years WHERE tenant_id=? ORDER BY is_current DESC, start_date DESC LIMIT 1",
+            [$this->tid]
+        )['id'] ?? null;
         $this->db->insert(
             "INSERT INTO students (
-                tenant_id,user_id,admission_no,class_id,admission_date,status,blood_group,previous_school,
+                tenant_id,user_id,admission_no,class_id,academic_year_id,admission_date,status,blood_group,previous_school,
                 guardian_name,guardian_phone,guardian_relationship,emergency_contact_phone,
                 first_name,middle_name,last_name,county,country,religion,
                 previous_school_address,previous_class,reason_for_leaving,admission_type
-             ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+             ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             [
-                $this->tid, $userId, $admNo, $_POST['class_id']?:null, $_POST['admission_date']??date('Y-m-d'), 'active',
+                $this->tid, $userId, $admNo, $_POST['class_id']?:null, $intakeYearId, $_POST['admission_date']??date('Y-m-d'), 'active',
                 $_POST['blood_group']?:null, $_POST['previous_school']??null,
                 $_POST['guardian_name']??null, $_POST['guardian_phone']??null, $_POST['guardian_relationship']??null,
                 $_POST['emergency_contact_phone']??null,

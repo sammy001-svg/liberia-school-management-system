@@ -44,6 +44,14 @@
         <option value="<?= $c['id'] ?>" <?= $classId==$c['id']?'selected':'' ?>><?= htmlspecialchars($c['name']) ?></option>
       <?php endforeach; ?>
     </select>
+    <select name="academic_year_id" class="form-control" style="max-width:200px;">
+      <option value="">All Academic Years</option>
+      <?php foreach($academicYears as $y): ?>
+        <option value="<?= $y['id'] ?>" <?= $yearId==$y['id']?'selected':'' ?>>
+          <?= htmlspecialchars($y['name']) ?><?= !empty($y['is_current']) ? ' (current)' : '' ?>
+        </option>
+      <?php endforeach; ?>
+    </select>
     <button type="submit" class="btn btn-secondary">Filter</button>
     <a href="<?= $cfg['url'] ?>/school/students" class="btn btn-outline">Reset</a>
   </div>
