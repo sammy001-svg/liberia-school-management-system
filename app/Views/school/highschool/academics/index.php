@@ -15,7 +15,7 @@
   <div class="card-header"><div class="card-title">Academic Years (<?= count($years) ?>)</div></div>
   <div class="table-wrapper">
     <table>
-      <thead><tr><th>Name</th><th>Start</th><th>End</th><th>Status</th></tr></thead>
+      <thead><tr><th>Name</th><th>Start</th><th>End</th><th>Status</th><th></th></tr></thead>
       <tbody>
         <?php foreach($years as $y): ?>
         <tr>
@@ -23,9 +23,24 @@
           <td><?= date('M d, Y', strtotime($y['start_date'])) ?></td>
           <td><?= date('M d, Y', strtotime($y['end_date'])) ?></td>
           <td><?php if($y['is_current']): ?><span class="badge badge-success">CURRENT</span><?php else: ?><span class="badge badge-muted">—</span><?php endif; ?></td>
+          <td>
+            <div style="display:flex;gap:6px;justify-content:flex-end;">
+              <button type="button" class="btn btn-sm btn-secondary" onclick='openEditYear(<?= json_encode([
+                "id" => $y['id'], "name" => $y['name'],
+                "start_date" => $y['start_date'], "end_date" => $y['end_date'],
+                "is_current" => (int)$y['is_current'],
+              ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'>Edit</button>
+              <form method="POST" action="<?= $cfg['url'] ?>/school/academic-years/<?= $y['id'] ?>/delete"
+                    data-confirm="Delete the academic year &quot;<?= htmlspecialchars($y['name']) ?>&quot;? This is only possible if nothing is linked to it yet."
+                    data-confirm-title="Delete Academic Year" data-confirm-label="Delete">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+                <button type="submit" class="btn btn-sm btn-danger">Del</button>
+              </form>
+            </div>
+          </td>
         </tr>
         <?php endforeach; ?>
-        <?php if(empty($years)): ?><tr><td colspan="4" class="text-center text-muted" style="padding:32px">No academic years yet. <a href="javascript:void(0)" onclick="document.getElementById('addYearModal').classList.add('open')">Add one</a></td></tr><?php endif; ?>
+        <?php if(empty($years)): ?><tr><td colspan="5" class="text-center text-muted" style="padding:32px">No academic years yet. <a href="javascript:void(0)" onclick="document.getElementById('addYearModal').classList.add('open')">Add one</a></td></tr><?php endif; ?>
       </tbody>
     </table>
   </div>
@@ -137,5 +152,56 @@
     </form>
   </div>
 </div>
+
+<!-- Edit Academic Year Modal -->
+<div class="modal-overlay" id="editYearModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Edit Academic Year</div>
+      <button class="modal-close" onclick="document.getElementById('editYearModal').classList.remove('open')">&times;</button>
+    </div>
+    <form method="POST" id="editYearForm">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Year Name *</label>
+          <input type="text" name="name" id="editYearName" class="form-control" required placeholder="e.g. 2025-2026">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Start Date *</label>
+            <input type="date" name="start_date" id="editYearStart" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">End Date *</label>
+            <input type="date" name="end_date" id="editYearEnd" class="form-control" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" name="is_current" id="editYearCurrent" value="1">
+            <span class="form-label" style="margin:0">Set as current academic year</span>
+          </label>
+          <div class="form-hint">Marking this current removes the marker from any other year.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('editYearModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openEditYear(y) {
+  document.getElementById('editYearForm').action = '<?= $cfg['url'] ?>/school/academic-years/' + y.id + '/update';
+  document.getElementById('editYearName').value  = y.name || '';
+  document.getElementById('editYearStart').value = y.start_date || '';
+  document.getElementById('editYearEnd').value   = y.end_date || '';
+  document.getElementById('editYearCurrent').checked = !!Number(y.is_current);
+  document.getElementById('editYearModal').classList.add('open');
+}
+</script>
 
 <?php require ROOT_DIR . '/app/Views/layouts/footer.php'; ?>

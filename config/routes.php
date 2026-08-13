@@ -248,6 +248,8 @@ $router->post('/school/courses/{id}/delete', ['AcademicsController', 'deleteCour
 // ── ACADEMIC YEARS & TERMS ──────────────────────────────────────
 $router->get('/school/academic-years',        ['AcademicController', 'index']);
 $router->post('/school/academic-years/store', ['AcademicController', 'storeYear']);
+$router->post('/school/academic-years/{id}/update', ['AcademicController', 'updateYear']);
+$router->post('/school/academic-years/{id}/delete', ['AcademicController', 'deleteYear']);
 $router->post('/school/terms/store',          ['AcademicController', 'storeTerm']);
 
 // ── HOMEWORK ─────────────────────────────────────────────────────
