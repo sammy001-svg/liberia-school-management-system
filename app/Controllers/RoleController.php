@@ -113,11 +113,56 @@ class RoleController extends Controller {
         $checked = [];
         foreach ($existing as $p) { $checked[$p['module']][$p['action']] = true; }
 
+        // Offered as copy-from sources: this tenant's other roles plus the global built-ins.
+        $otherRoles = $this->db->fetchAll(
+            "SELECT r.id, r.name, r.tenant_id,
+                    (SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id=r.id) AS permission_count
+             FROM roles r
+             WHERE r.id != ? AND (r.tenant_id IS NULL OR r.tenant_id = ?)
+             ORDER BY r.tenant_id IS NULL, r.name", [$id, $this->tid]
+        );
+
         $this->view('school/roles/form', [
             'pageTitle' => 'Edit Role', 'panelType' => 'school',
             'roleRow' => $role, 'checked' => $checked, 'permissionsByModule' => $this->allPermissionsByModule(),
+            'otherRoles' => $otherRoles,
             'flash' => $this->getFlash(),
         ]);
+    }
+
+    /**
+     * Copy every permission from another role onto this one, additively — the target keeps
+     * what it already had. Saves rebuilding a near-identical role tick by tick (e.g. giving
+     * Principal the same access as the VP), which is easy to get subtly wrong by hand.
+     */
+    public function copyPermissions(string $id): void {
+        $this->requirePermission(['roles.manage']);
+        $target = $this->findOwnedRole($id);
+        if (!$target) { $this->flash('danger', 'That role cannot be edited.'); $this->redirect('/school/roles'); }
+
+        // The source may be a built-in role, so it is not restricted to owned roles —
+        // but it must belong to this tenant or be global, never another school's.
+        $source = $this->db->fetchOne(
+            "SELECT id, name FROM roles WHERE id=? AND (tenant_id IS NULL OR tenant_id=?)",
+            [$_POST['source_role_id'] ?? 0, $this->tid]
+        );
+        if (!$source || $source['id'] == $target['id']) {
+            $this->flash('danger', 'Choose a different role to copy permissions from.');
+            $this->redirect('/school/roles/' . $id . '/edit');
+        }
+
+        $copied = $this->db->execute(
+            "INSERT INTO role_permissions (role_id, permission_id)
+             SELECT ?, rp.permission_id FROM role_permissions rp
+             WHERE rp.role_id = ?
+               AND NOT EXISTS (SELECT 1 FROM role_permissions x WHERE x.role_id = ? AND x.permission_id = rp.permission_id)",
+            [$target['id'], $source['id'], $target['id']]
+        );
+
+        $this->flash('success', $copied > 0
+            ? "Copied {$copied} permission(s) from \"{$source['name']}\" into \"{$target['name']}\". Anyone holding this role must sign out and back in for it to take effect."
+            : "\"{$target['name']}\" already has everything \"{$source['name']}\" has.");
+        $this->redirect('/school/roles/' . $id . '/edit');
     }
 
     public function update(string $id): void {

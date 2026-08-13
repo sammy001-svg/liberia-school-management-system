@@ -10,6 +10,37 @@
   </div>
 </div>
 
+<?php if($roleRow && !empty($otherRoles)): ?>
+<!-- Copy an existing role's access rather than re-ticking it by hand -->
+<div class="card mb-16">
+  <div class="card-header"><div class="card-title">Copy Permissions From Another Role</div></div>
+  <form method="POST" action="<?= $cfg['url'] ?>/school/roles/<?= $roleRow['id'] ?>/copy-permissions">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+    <div class="card-body">
+      <p style="font-size:12.5px;color:var(--text-light);margin-bottom:14px;">
+        Adds everything the chosen role can do to <strong><?= htmlspecialchars($roleRow['name']) ?></strong>.
+        Nothing is removed — existing permissions are kept.
+      </p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+        <select name="source_role_id" class="form-control" style="max-width:320px;" required>
+          <option value="">— Select a role to copy from —</option>
+          <?php foreach($otherRoles as $r): ?>
+            <option value="<?= $r['id'] ?>">
+              <?= htmlspecialchars($r['name']) ?><?= $r['tenant_id'] ? '' : ' (built-in)' ?>
+              — <?= (int)$r['permission_count'] ?> permission<?= (int)$r['permission_count'] === 1 ? '' : 's' ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
+        <button type="submit" class="btn btn-secondary">Copy Permissions</button>
+      </div>
+      <div class="form-hint" style="margin-top:10px;">
+        Anyone already signed in with this role must sign out and back in before the change reaches them.
+      </div>
+    </div>
+  </form>
+</div>
+<?php endif; ?>
+
 <form method="POST" action="<?= $cfg['url'] ?>/school/roles/<?= $roleRow ? $roleRow['id'].'/update' : 'store' ?>">
   <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
 

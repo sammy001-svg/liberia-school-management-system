@@ -312,6 +312,7 @@ $router->post('/school/roles/store',        ['RoleController', 'store']);
 $router->get('/school/roles/users',         ['RoleController', 'usersIndex']);
 $router->post('/school/roles/assign-user',  ['RoleController', 'assignUser']);
 $router->get('/school/roles/{id}/edit',     ['RoleController', 'edit']);
+$router->post('/school/roles/{id}/copy-permissions', ['RoleController', 'copyPermissions']);
 $router->post('/school/roles/{id}/update',  ['RoleController', 'update']);
 $router->post('/school/roles/{id}/delete',  ['RoleController', 'delete']);
 $router->get('/school/hr/payroll',          ['HRController', 'payroll']);
