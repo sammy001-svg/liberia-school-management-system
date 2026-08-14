@@ -8,6 +8,9 @@ $router->get('/login',    ['AuthController', 'loginPage']);
 $router->post('/login',   ['AuthController', 'loginPost']);
 $router->get('/logout',   ['AuthController', 'logout']);
 $router->get('/unauthorized', ['AuthController', 'unauthorized']);
+$router->get('/account',                  ['AuthController', 'accountPage']);
+$router->post('/account/login-details',   ['AuthController', 'updateLoginDetailsPost']);
+// Kept so older links and bookmarks still work — both render the same account page.
 $router->get('/account/change-password',  ['AuthController', 'changePasswordPage']);
 $router->post('/account/change-password', ['AuthController', 'changePasswordPost']);
 

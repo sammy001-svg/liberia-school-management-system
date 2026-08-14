@@ -640,6 +640,75 @@ abstract class Controller {
         return $username;
     }
 
+    /** How this school signs students and parents in — the tenants login-mode columns, with safe defaults. */
+    protected function loginModes(?int $tenantId = null): array {
+        $tenant = $this->db->fetchOne(
+            "SELECT student_login_mode, parent_login_mode FROM tenants WHERE id=?",
+            [$tenantId ?? $this->tenantId() ?? 0]
+        );
+        return [
+            'student' => $tenant['student_login_mode'] ?? 'admission_pin',
+            'parent'  => $tenant['parent_login_mode']  ?? 'username_password',
+        ];
+    }
+
+    /** 'student' | 'parent' | 'teacher' | 'staff' — which linked record a user has decides how they sign in. */
+    protected function accountTypeOf(int $userId): string {
+        foreach (['student' => 'students', 'parent' => 'parents', 'teacher' => 'teachers'] as $type => $table) {
+            if ($this->db->fetchOne("SELECT id FROM {$table} WHERE user_id=?", [$userId])) {
+                return $type;
+            }
+        }
+        return 'staff';
+    }
+
+    /**
+     * Validates a change to what an account signs in *as*, shared by the admin's Login
+     * Accounts screen and each user's own account page so the two can't drift apart.
+     * Either field may be blank — blank means "clear it" — except where that would leave
+     * the account with no identifier its login mode can find it by, which locks the person
+     * out with no way back in. Returns field => message, empty when the change is safe.
+     */
+    protected function loginIdentifierErrors(int $userId, string $accountType, string $email, string $username): array {
+        $errors = [];
+        $tenantId = $this->tenantId() ?? 0;
+
+        if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $errors['email'] = 'Enter a valid email address.';
+        }
+        if ($username !== '' && !preg_match('/^[A-Za-z0-9._-]{3,60}$/', $username)) {
+            $errors['username'] = 'Username must be 3–60 characters, using letters, numbers, dot, dash or underscore only.';
+        }
+
+        $modes = $this->loginModes($tenantId);
+        // Parents are looked up by username alone where the school is set up that way,
+        // so for them the username is the one field that may never be emptied.
+        if ($accountType === 'parent' && $modes['parent'] === 'username_password' && $username === '') {
+            $errors['username'] = 'This school has parents signing in with a username, so this account needs one.';
+        } elseif ($email === '' && $username === '') {
+            if (in_array($accountType, ['staff', 'teacher'], true)) {
+                $errors['email'] = 'Staff and teacher accounts need an email or a username to sign in with.';
+            } elseif ($accountType === 'student' && $modes['student'] === 'email_password') {
+                $errors['email'] = 'This school has students signing in with an email address, so this account needs one.';
+            } elseif ($accountType === 'parent') {
+                $errors['email'] = 'This school has parents signing in with an email address, so this account needs one.';
+            }
+            // A student on admission-number + PIN login needs neither, so nothing is required there.
+        }
+
+        foreach (['email' => $email, 'username' => $username] as $column => $value) {
+            if ($value === '' || isset($errors[$column])) { continue; }
+            $taken = $this->db->fetchOne(
+                "SELECT id FROM users WHERE {$column}=? AND tenant_id=? AND id<>?",
+                [$value, $tenantId, $userId]
+            );
+            if ($taken) {
+                $errors[$column] = "Another account at this school already uses that {$column}.";
+            }
+        }
+        return $errors;
+    }
+
     /** Random 10-char password (mixed case + digits, ambiguous characters like 0/O/1/l excluded). */
     protected function generateStrongPassword(int $length = 10): string {
         $chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';

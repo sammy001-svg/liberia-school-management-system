@@ -42,15 +42,6 @@ class UserAccountController extends Controller {
               WHEN t.id IS NOT NULL THEN 'teacher'
               ELSE 'staff' END";
 
-    /** How this school signs students and parents in — decides whether a student's secret is a 4-digit PIN. */
-    private function loginModes(): array {
-        $tenant = $this->db->fetchOne("SELECT student_login_mode, parent_login_mode FROM tenants WHERE id=?", [$this->tid]);
-        return [
-            'student' => $tenant['student_login_mode'] ?? 'admission_pin',
-            'parent'  => $tenant['parent_login_mode']  ?? 'username_password',
-        ];
-    }
-
     public function index(): void {
         $this->requirePermission(['roles.manage']);
 
@@ -127,37 +118,8 @@ class UserAccountController extends Controller {
         $email    = trim($_POST['email'] ?? '');
         $username = trim($_POST['username'] ?? '');
 
-        $errors = [];
-        if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $errors['email'] = 'Enter a valid email address.';
-        }
-        if ($username !== '' && !preg_match('/^[A-Za-z0-9._-]{3,60}$/', $username)) {
-            $errors['username'] = 'Username must be 3–60 characters, using letters, numbers, dot, dash or underscore only.';
-        }
-        // Clearing the field an account actually signs in with would lock the person out
-        // with no way back in, so what may be blank depends on the account type and on
-        // how this school has its student/parent login configured.
-        $modes = $this->loginModes();
-        if ($email === '' && $username === '') {
-            if (in_array($account['account_type'], ['staff', 'teacher'], true)) {
-                $errors['email'] = 'Staff and teacher accounts need an email or a username to sign in with.';
-            } elseif ($account['account_type'] === 'student' && $modes['student'] === 'email_password') {
-                $errors['email'] = 'This school has students signing in with an email address, so this account needs one.';
-            } elseif ($account['account_type'] === 'parent') {
-                $errors[$modes['parent'] === 'username_password' ? 'username' : 'email'] =
-                    $modes['parent'] === 'username_password'
-                        ? 'This school has parents signing in with a username, so this account needs one.'
-                        : 'This school has parents signing in with an email address, so this account needs one.';
-            }
-        } elseif ($account['account_type'] === 'parent' && $modes['parent'] === 'username_password' && $username === '') {
-            $errors['username'] = 'This school has parents signing in with a username, so this account needs one.';
-        }
-        if ($email !== '' && $this->identifierTaken('email', $email, (int)$account['id'])) {
-            $errors['email'] = 'Another account at this school already uses that email.';
-        }
-        if ($username !== '' && $this->identifierTaken('username', $username, (int)$account['id'])) {
-            $errors['username'] = 'Another account at this school already uses that username.';
-        }
+        // Same rules the user's own account page applies to themselves (Controller).
+        $errors = $this->loginIdentifierErrors((int)$account['id'], $account['account_type'], $email, $username);
         if ($errors) { $this->failValidation($errors, $redirect); }
 
         $this->db->execute(
@@ -174,13 +136,6 @@ class UserAccountController extends Controller {
 
         $this->flash('success', 'Login details updated for ' . $account['name'] . '.');
         $this->redirect($redirect);
-    }
-
-    private function identifierTaken(string $column, string $value, int $exceptUserId): bool {
-        return (bool)$this->db->fetchOne(
-            "SELECT id FROM users WHERE {$column}=? AND tenant_id=? AND id<>?",
-            [$value, $this->tid, $exceptUserId]
-        );
     }
 
     /** Set a password (or PIN) the admin chooses, so it can be handed to the user directly. */

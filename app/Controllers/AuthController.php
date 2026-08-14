@@ -185,21 +185,69 @@ class AuthController extends Controller {
         return 'school';
     }
 
-    public function changePasswordPage(): void {
+    // "My Account": the one page any signed-in user — School Admin included — can change
+    // their own sign-in details from. Both the email/username they are identified by and
+    // the password behind it live here; the admin-facing equivalent for *other* people's
+    // accounts is UserAccountController (Login Accounts).
+    public function accountPage(): void {
         if (!$this->isLoggedIn()) { $this->redirect('/login'); }
-        $isPin = $this->isPinAccount();
-        $this->view('auth/change_password', [
-            'pageTitle' => $isPin ? 'Change PIN' : 'Change Password',
-            'panelType' => $this->accountPanelType(),
-            'isPin' => $isPin,
-            'flash' => $this->getFlash(),
+        $isPin  = $this->isPinAccount();
+        $userId = (int)$_SESSION['user_id'];
+        $me = $this->db->fetchOne("SELECT id, name, email, username FROM users WHERE id=?", [$userId]);
+        $this->view('auth/account', [
+            'pageTitle'   => 'My Account',
+            'panelType'   => $this->accountPanelType(),
+            'isPin'       => $isPin,
+            'me'          => $me ?: ['name' => '', 'email' => null, 'username' => null],
+            'accountType' => $this->accountTypeOf($userId),
+            'loginModes'  => $this->loginModes(),
+            'flash'       => $this->getFlash(),
         ]);
+    }
+
+    /** Kept so existing "Change Password" links and bookmarks land on the same page. */
+    public function changePasswordPage(): void {
+        $this->accountPage();
+    }
+
+    /**
+     * Change the email/username you sign in with. Confirmed with the current password:
+     * moving an account to a different address is a credential change, and an unattended
+     * session shouldn't be enough to take the account over.
+     */
+    public function updateLoginDetailsPost(): void {
+        if (!$this->isLoggedIn()) { $this->redirect('/login'); }
+        $redirectUrl = '/account';
+        $userId = (int)$_SESSION['user_id'];
+
+        $email    = trim($_POST['email'] ?? '');
+        $username = trim($_POST['username'] ?? '');
+        $current  = $_POST['current_secret'] ?? '';
+        $label    = $this->isPinAccount() ? 'PIN' : 'password';
+
+        $errors = $this->loginIdentifierErrors($userId, $this->accountTypeOf($userId), $email, $username);
+        $user = $this->db->fetchOne("SELECT password_hash FROM users WHERE id=?", [$userId]);
+        if ($current === '' || !$user || !password_verify($current, $user['password_hash'])) {
+            $errors['current_secret'] = "Enter your current {$label} to confirm this change.";
+        }
+        if ($errors) { $this->failValidation($errors, $redirectUrl); }
+
+        $this->db->execute(
+            "UPDATE users SET email=?, username=? WHERE id=?",
+            [$email ?: null, $username ?: null, $userId]
+        );
+        // The row is cached in the session at login, so the topbar would keep showing the old one.
+        $_SESSION['user']['email']    = $email ?: null;
+        $_SESSION['user']['username'] = $username ?: null;
+
+        $this->flash('success', 'Your login details were updated. Use them the next time you sign in.');
+        $this->redirect($redirectUrl);
     }
 
     public function changePasswordPost(): void {
         if (!$this->isLoggedIn()) { $this->redirect('/login'); }
         $isPin = $this->isPinAccount();
-        $redirectUrl = '/account/change-password';
+        $redirectUrl = '/account';
 
         $current = $_POST['current_secret'] ?? '';
         $new = $_POST['new_secret'] ?? '';
