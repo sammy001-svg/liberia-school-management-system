@@ -134,11 +134,23 @@ class UserAccountController extends Controller {
         if ($username !== '' && !preg_match('/^[A-Za-z0-9._-]{3,60}$/', $username)) {
             $errors['username'] = 'Username must be 3–60 characters, using letters, numbers, dot, dash or underscore only.';
         }
-        // A student signs in with their admission number and a parent may sign in with a
-        // username, but a staff or teacher account has nothing else to be found by — leaving
-        // both blank would lock the person out with no way back in.
-        if ($email === '' && $username === '' && in_array($account['account_type'], ['staff', 'teacher'], true)) {
-            $errors['email'] = 'Staff and teacher accounts need an email or a username to sign in with.';
+        // Clearing the field an account actually signs in with would lock the person out
+        // with no way back in, so what may be blank depends on the account type and on
+        // how this school has its student/parent login configured.
+        $modes = $this->loginModes();
+        if ($email === '' && $username === '') {
+            if (in_array($account['account_type'], ['staff', 'teacher'], true)) {
+                $errors['email'] = 'Staff and teacher accounts need an email or a username to sign in with.';
+            } elseif ($account['account_type'] === 'student' && $modes['student'] === 'email_password') {
+                $errors['email'] = 'This school has students signing in with an email address, so this account needs one.';
+            } elseif ($account['account_type'] === 'parent') {
+                $errors[$modes['parent'] === 'username_password' ? 'username' : 'email'] =
+                    $modes['parent'] === 'username_password'
+                        ? 'This school has parents signing in with a username, so this account needs one.'
+                        : 'This school has parents signing in with an email address, so this account needs one.';
+            }
+        } elseif ($account['account_type'] === 'parent' && $modes['parent'] === 'username_password' && $username === '') {
+            $errors['username'] = 'This school has parents signing in with a username, so this account needs one.';
         }
         if ($email !== '' && $this->identifierTaken('email', $email, (int)$account['id'])) {
             $errors['email'] = 'Another account at this school already uses that email.';
