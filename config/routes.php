@@ -312,6 +312,11 @@ $router->post('/school/roles/store',        ['RoleController', 'store']);
 $router->get('/school/roles/users',         ['RoleController', 'usersIndex']);
 $router->post('/school/roles/assign-user',  ['RoleController', 'assignUser']);
 $router->get('/school/roles/{id}/edit',     ['RoleController', 'edit']);
+// ── LOGIN ACCOUNTS (email / username / password for any account) ─
+$router->get('/school/users',                        ['UserAccountController', 'index']);
+$router->post('/school/users/{id}/credentials',      ['UserAccountController', 'updateCredentials']);
+$router->post('/school/users/{id}/password',         ['UserAccountController', 'setPassword']);
+$router->post('/school/users/{id}/generate-password', ['UserAccountController', 'generatePassword']);
 $router->post('/school/roles/{id}/copy-permissions', ['RoleController', 'copyPermissions']);
 $router->post('/school/roles/{id}/update',  ['RoleController', 'update']);
 $router->post('/school/roles/{id}/delete',  ['RoleController', 'delete']);
