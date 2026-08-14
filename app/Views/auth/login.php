@@ -272,5 +272,6 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
   });
 })();
 </script>
+<?php require ROOT_DIR . '/app/Views/layouts/password_toggle.php'; ?>
 </body>
 </html>

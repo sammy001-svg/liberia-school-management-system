@@ -163,5 +163,6 @@ document.querySelectorAll('.modal-overlay form').forEach(function(form){
   });
 });
 </script>
+<?php require ROOT_DIR . '/app/Views/layouts/password_toggle.php'; ?>
 </body>
 </html>
