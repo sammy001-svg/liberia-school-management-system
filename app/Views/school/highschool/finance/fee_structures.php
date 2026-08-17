@@ -40,10 +40,22 @@
           <td><span class="badge badge-info"><?= (int)$f['student_count'] ?></span></td>
           <td class="text-muted" style="font-size:12px"><?= htmlspecialchars($f['description'] ?? '—') ?></td>
           <td>
-            <button type="button" class="btn btn-sm btn-primary" <?= $f['student_count']==0 ? 'disabled title="No applicable students"' : '' ?> onclick='openGenerateFeeModal(<?= json_encode([
-              "id"=>$f["id"], "name"=>$f["name"], "amount"=>$f["amount"], "frequency"=>$f["frequency"],
-              "class_name"=>$f["class_name"] ?? "All Classes", "student_count"=>$f["student_count"],
-            ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'>Generate Invoices</button>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+              <button type="button" class="btn btn-sm btn-primary" <?= $f['student_count']==0 ? 'disabled title="No applicable students"' : '' ?> onclick='openGenerateFeeModal(<?= json_encode([
+                "id"=>$f["id"], "name"=>$f["name"], "amount"=>$f["amount"], "frequency"=>$f["frequency"],
+                "class_name"=>$f["class_name"] ?? "All Classes", "student_count"=>$f["student_count"],
+              ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'>Generate Invoices</button>
+              <button type="button" class="btn btn-sm btn-secondary" onclick='openEditFeeModal(<?= json_encode([
+                "id"=>$f["id"], "name"=>$f["name"], "amount"=>$f["amount"], "frequency"=>$f["frequency"],
+                "class_id"=>$f["class_id"], "academic_year_id"=>$f["academic_year_id"], "description"=>$f["description"],
+              ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'>Edit</button>
+              <form method="POST" action="<?= $cfg['url'] ?>/school/finance/fees/<?= $f['id'] ?>/delete"
+                    data-confirm="Delete the fee structure &quot;<?= htmlspecialchars($f['name']) ?>&quot;? This is only possible if no invoices were generated from it."
+                    data-confirm-title="Delete Fee Structure" data-confirm-label="Delete">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+                <button type="submit" class="btn btn-sm btn-danger">Del</button>
+              </form>
+            </div>
           </td>
         </tr>
         <?php endforeach; ?>
@@ -173,6 +185,85 @@ function openGenerateFeeModal(f) {
     periodInput.placeholder = 'e.g. Period 1 ' + now.getFullYear();
   }
   document.getElementById('generateFeeModal').classList.add('open');
+}
+</script>
+
+<!-- Edit Fee Structure Modal -->
+<div class="modal-overlay" id="editFeeModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Edit Fee Structure</div>
+      <button class="modal-close" onclick="document.getElementById('editFeeModal').classList.remove('open')">&times;</button>
+    </div>
+    <form method="POST" id="editFeeForm">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Fee Name *</label>
+            <input type="text" name="name" id="editFeeName" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Amount *</label>
+            <input type="number" step="0.01" min="0" name="amount" id="editFeeAmount" class="form-control" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Frequency</label>
+            <select name="frequency" id="editFeeFrequency" class="form-control">
+              <option value="once">One-off</option>
+              <option value="monthly">Monthly</option>
+              <option value="termly">Per Period</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Applies To</label>
+            <select name="class_id" id="editFeeClass" class="form-control">
+              <option value="">All Classes</option>
+              <?php foreach($classes as $c): ?>
+                <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['name']) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Academic Year</label>
+          <select name="academic_year_id" id="editFeeYear" class="form-control">
+            <option value="">— Not linked —</option>
+            <?php foreach($academicYears as $y): ?>
+              <option value="<?= $y['id'] ?>"><?= htmlspecialchars($y['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea name="description" id="editFeeDescription" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="form-hint">
+          Changing the amount only affects invoices generated from now on — invoices already
+          issued keep the amount families were originally billed.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('editFeeModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openEditFeeModal(f) {
+  document.getElementById('editFeeForm').action = '<?= $cfg['url'] ?>/school/finance/fees/' + f.id + '/update';
+  document.getElementById('editFeeName').value        = f.name || '';
+  document.getElementById('editFeeAmount').value      = f.amount || '';
+  document.getElementById('editFeeFrequency').value   = f.frequency || 'termly';
+  document.getElementById('editFeeClass').value       = f.class_id || '';
+  document.getElementById('editFeeYear').value        = f.academic_year_id || '';
+  document.getElementById('editFeeDescription').value = f.description || '';
+  document.getElementById('editFeeModal').classList.add('open');
 }
 </script>
 

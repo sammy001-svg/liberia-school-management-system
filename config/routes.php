@@ -134,6 +134,8 @@ $router->get('/school/finance/payments',    ['FinanceController', 'payments']);
 $router->post('/school/finance/payments/store', ['FinanceController', 'storePayment']);
 $router->get('/school/finance/fees',        ['FinanceController', 'feeStructures']);
 $router->post('/school/finance/fees/store', ['FinanceController', 'storeFeeStructure']);
+$router->post('/school/finance/fees/{id}/update',   ['FinanceController', 'updateFeeStructure']);
+$router->post('/school/finance/fees/{id}/delete',   ['FinanceController', 'deleteFeeStructure']);
 $router->post('/school/finance/fees/{id}/generate', ['FinanceController', 'generateFeeInvoices']);
 $router->get('/school/finance/expenses',    ['FinanceController', 'expenses']);
 $router->post('/school/finance/expenses/store', ['FinanceController', 'storeExpense']);

@@ -118,6 +118,55 @@ class FinanceController extends Controller {
         $this->flash('success','Fee structure created.'); $this->redirect('/school/finance/fees');
     }
 
+    public function updateFeeStructure(string $id): void {
+        $this->requirePermission(['finance.manage']);
+        $fee = $this->db->fetchOne("SELECT id FROM fee_structures WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        if (!$fee) { $this->redirect('/school/finance/fees'); }
+
+        $errors = $this->validate($_POST, [
+            'name'   => 'required|max:150',
+            'amount' => 'required|numeric',
+        ]);
+        if ($errors) { $this->failValidation($errors, '/school/finance/fees'); }
+
+        $this->db->execute(
+            "UPDATE fee_structures SET name=?,amount=?,frequency=?,class_id=?,academic_year_id=?,description=?
+             WHERE id=? AND tenant_id=?",
+            [
+                $_POST['name'], $_POST['amount'], $_POST['frequency'] ?? 'termly',
+                $_POST['class_id'] ?: null, $_POST['academic_year_id'] ?: null,
+                $_POST['description'] ?? '', $id, $this->tid,
+            ]
+        );
+        // Editing the amount deliberately does NOT touch invoices already raised from this
+        // structure — those are issued debts and re-pricing them silently would change what
+        // families already owe. New invoices pick up the new amount.
+        $this->flash('success', 'Fee structure updated. Invoices already issued keep their original amount.');
+        $this->redirect('/school/finance/fees');
+    }
+
+    public function deleteFeeStructure(string $id): void {
+        $this->requirePermission(['finance.manage']);
+        $fee = $this->db->fetchOne("SELECT * FROM fee_structures WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        if (!$fee) { $this->redirect('/school/finance/fees'); }
+
+        // Invoices keep a fee_structure_id, so deleting one still in use would leave those
+        // invoices pointing at nothing and break the fee breakdown on financial reports.
+        $inUse = (int)($this->db->fetchOne(
+            "SELECT COUNT(*) c FROM invoices WHERE fee_structure_id=? AND tenant_id=?", [$id, $this->tid]
+        )['c'] ?? 0);
+        if ($inUse > 0) {
+            $this->flash('danger',
+                "\"{$fee['name']}\" can't be deleted — {$inUse} invoice(s) were generated from it. " .
+                'Delete or reassign those invoices first, or simply edit this structure instead of removing it.');
+            $this->redirect('/school/finance/fees');
+        }
+
+        $this->db->execute("DELETE FROM fee_structures WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        $this->flash('success', "Fee structure \"{$fee['name']}\" deleted.");
+        $this->redirect('/school/finance/fees');
+    }
+
     // Generates one invoice per applicable student (the fee's class, or every active student
     // if the fee is school-wide) for a given billing period. Idempotent: a period tag is
     // embedded in the invoice notes and checked before inserting, so re-running for the same
