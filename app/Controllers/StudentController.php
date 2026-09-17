@@ -328,6 +328,10 @@ class StudentController extends Controller {
             $taken = $this->db->fetchOne("SELECT id FROM students WHERE admission_no=? AND tenant_id=?", [$_POST['admission_no'], $this->tid]);
             if ($taken) { $errors['admission_no'] = 'That admission/TSM ID is already in use.'; }
         }
+        if (!empty($_POST['email'])) {
+            $takenEmail = $this->db->fetchOne("SELECT id FROM users WHERE email=? AND tenant_id=?", [$_POST['email'], $this->tid]);
+            if ($takenEmail) { $errors['email'] = 'That email address is already registered to another account.'; }
+        }
         $avatarUrl = $this->handleImageUpload('photo', 'students', $errors);
         if ($errors) { $this->failValidation($errors, '/school/students'); }
 

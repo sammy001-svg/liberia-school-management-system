@@ -1008,6 +1008,10 @@ class ParentController extends Controller {
             'phone' => 'required|max:30',
             'dob'   => 'date',
         ]);
+        if (!empty($_POST['email'])) {
+            $takenEmail = $this->db->fetchOne("SELECT id FROM users WHERE email=? AND tenant_id=?", [$_POST['email'], $this->tid]);
+            if ($takenEmail) { $errors['email'] = 'That email address is already registered to another account.'; }
+        }
         if ($errors) { $this->failValidation($errors, '/school/parents'); }
         $roleId = $this->db->fetchOne("SELECT id FROM roles WHERE name='Parent' LIMIT 1")['id'] ?? 8;
         $pw = password_hash($_POST['password'] ?: 'Parent@123', PASSWORD_BCRYPT);

@@ -18,15 +18,99 @@
 -- They print harmless single-row results as the script runs.
 -- ============================================================
 
--- ── 1. users.username + unique key (add_login_credentials.sql) ──
+-- ── 1. users.username + unique key + email NULL + employee_no + position ──
+ALTER TABLE users MODIFY COLUMN email VARCHAR(150) DEFAULT NULL;
+
 SET @sql := IF((SELECT COUNT(*) FROM information_schema.COLUMNS
                 WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='users' AND COLUMN_NAME='username')=0,
     'ALTER TABLE users ADD COLUMN username VARCHAR(60) DEFAULT NULL', 'SELECT 1');
 PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
 
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='users' AND COLUMN_NAME='employee_no')=0,
+    'ALTER TABLE users ADD COLUMN employee_no VARCHAR(50) DEFAULT NULL', 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='users' AND COLUMN_NAME='position')=0,
+    'ALTER TABLE users ADD COLUMN position VARCHAR(100) DEFAULT NULL', 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
 SET @sql := IF((SELECT COUNT(*) FROM information_schema.STATISTICS
                 WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='users' AND INDEX_NAME='unique_username_tenant')=0,
     'ALTER TABLE users ADD UNIQUE KEY unique_username_tenant (username, tenant_id)', 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- ── 1b. students missing columns ──
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='students' AND COLUMN_NAME='first_name')=0,
+    'ALTER TABLE students ADD COLUMN first_name VARCHAR(100) DEFAULT NULL', 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='students' AND COLUMN_NAME='middle_name')=0,
+    'ALTER TABLE students ADD COLUMN middle_name VARCHAR(100) DEFAULT NULL', 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='students' AND COLUMN_NAME='last_name')=0,
+    'ALTER TABLE students ADD COLUMN last_name VARCHAR(100) DEFAULT NULL', 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='students' AND COLUMN_NAME='county')=0,
+    'ALTER TABLE students ADD COLUMN county VARCHAR(100) DEFAULT NULL', 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='students' AND COLUMN_NAME='country')=0,
+    'ALTER TABLE students ADD COLUMN country VARCHAR(100) DEFAULT NULL', 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='students' AND COLUMN_NAME='religion')=0,
+    'ALTER TABLE students ADD COLUMN religion VARCHAR(100) DEFAULT NULL', 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='students' AND COLUMN_NAME='previous_school_address')=0,
+    'ALTER TABLE students ADD COLUMN previous_school_address VARCHAR(255) DEFAULT NULL', 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='students' AND COLUMN_NAME='previous_class')=0,
+    'ALTER TABLE students ADD COLUMN previous_class VARCHAR(50) DEFAULT NULL', 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='students' AND COLUMN_NAME='reason_for_leaving')=0,
+    'ALTER TABLE students ADD COLUMN reason_for_leaving VARCHAR(255) DEFAULT NULL', 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='students' AND COLUMN_NAME='admission_type')=0,
+    'ALTER TABLE students ADD COLUMN admission_type ENUM(''new'',''old'') DEFAULT ''new''', 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- ── 1c. parents missing columns ──
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='parents' AND COLUMN_NAME='occupation')=0,
+    'ALTER TABLE parents ADD COLUMN occupation VARCHAR(100) DEFAULT NULL', 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='parents' AND COLUMN_NAME='workplace')=0,
+    'ALTER TABLE parents ADD COLUMN workplace VARCHAR(150) DEFAULT NULL', 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='parents' AND COLUMN_NAME='national_id')=0,
+    'ALTER TABLE parents ADD COLUMN national_id VARCHAR(50) DEFAULT NULL', 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='parents' AND COLUMN_NAME='emergency_contact_phone')=0,
+    'ALTER TABLE parents ADD COLUMN emergency_contact_phone VARCHAR(30) DEFAULT NULL', 'SELECT 1');
 PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
 
 -- ── 2. tenants login-mode columns (add_login_credentials.sql) ──

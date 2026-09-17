@@ -5,9 +5,85 @@ abstract class Controller {
     protected Database $db;
     protected array $data = [];
 
+    private static bool $schemaChecked = false;
+
     public function __construct() {
         $this->db = Database::getInstance();
+        $this->ensureSchemaColumns();
         $this->startSession();
+    }
+
+    protected function ensureSchemaColumns(): void {
+        if (self::$schemaChecked) {
+            return;
+        }
+        self::$schemaChecked = true;
+        try {
+            // users table email NULL & missing columns
+            $colsUsers = array_column($this->db->fetchAll("SHOW COLUMNS FROM users"), 'Field');
+            if (in_array('email', $colsUsers, true)) {
+                $this->db->execute("ALTER TABLE users MODIFY COLUMN email VARCHAR(150) DEFAULT NULL");
+            }
+            if (!in_array('username', $colsUsers, true)) {
+                $this->db->execute("ALTER TABLE users ADD COLUMN username VARCHAR(60) DEFAULT NULL");
+            }
+            if (!in_array('employee_no', $colsUsers, true)) {
+                $this->db->execute("ALTER TABLE users ADD COLUMN employee_no VARCHAR(50) DEFAULT NULL");
+            }
+            if (!in_array('position', $colsUsers, true)) {
+                $this->db->execute("ALTER TABLE users ADD COLUMN position VARCHAR(100) DEFAULT NULL");
+            }
+
+            // students table missing columns
+            $colsStudents = array_column($this->db->fetchAll("SHOW COLUMNS FROM students"), 'Field');
+            $stAdd = [
+                'first_name' => 'VARCHAR(100) DEFAULT NULL',
+                'middle_name' => 'VARCHAR(100) DEFAULT NULL',
+                'last_name' => 'VARCHAR(100) DEFAULT NULL',
+                'county' => 'VARCHAR(100) DEFAULT NULL',
+                'country' => 'VARCHAR(100) DEFAULT NULL',
+                'religion' => 'VARCHAR(100) DEFAULT NULL',
+                'previous_school_address' => 'VARCHAR(255) DEFAULT NULL',
+                'previous_class' => 'VARCHAR(50) DEFAULT NULL',
+                'reason_for_leaving' => 'VARCHAR(255) DEFAULT NULL',
+                'admission_type' => "ENUM('new','old') DEFAULT 'new'",
+                'previous_admission_no' => 'VARCHAR(50) DEFAULT NULL',
+                'academic_year_id' => 'INT UNSIGNED DEFAULT NULL',
+                'guardian_phone' => 'VARCHAR(30) DEFAULT NULL',
+                'emergency_contact_phone' => 'VARCHAR(30) DEFAULT NULL',
+                'blood_group' => 'VARCHAR(10) DEFAULT NULL',
+            ];
+            foreach ($stAdd as $col => $def) {
+                if (!in_array($col, $colsStudents, true)) {
+                    $this->db->execute("ALTER TABLE students ADD COLUMN {$col} {$def}");
+                }
+            }
+
+            // parents table missing columns
+            $colsParents = array_column($this->db->fetchAll("SHOW COLUMNS FROM parents"), 'Field');
+            $prAdd = [
+                'occupation' => 'VARCHAR(100) DEFAULT NULL',
+                'workplace' => 'VARCHAR(150) DEFAULT NULL',
+                'national_id' => 'VARCHAR(50) DEFAULT NULL',
+                'emergency_contact_phone' => 'VARCHAR(30) DEFAULT NULL',
+            ];
+            foreach ($prAdd as $col => $def) {
+                if (!in_array($col, $colsParents, true)) {
+                    $this->db->execute("ALTER TABLE parents ADD COLUMN {$col} {$def}");
+                }
+            }
+
+            // classes table missing columns
+            $colsClasses = array_column($this->db->fetchAll("SHOW COLUMNS FROM classes"), 'Field');
+            if (!in_array('room_number', $colsClasses, true)) {
+                $this->db->execute("ALTER TABLE classes ADD COLUMN room_number VARCHAR(50) DEFAULT NULL");
+            }
+            if (!in_array('description', $colsClasses, true)) {
+                $this->db->execute("ALTER TABLE classes ADD COLUMN description TEXT DEFAULT NULL");
+            }
+        } catch (\Throwable $e) {
+            // Ignore schema auto-healing exceptions if DB permissions don't allow ALTER
+        }
     }
 
     protected function startSession(): void {
