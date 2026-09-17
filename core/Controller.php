@@ -160,7 +160,15 @@ abstract class Controller {
     }
 
     protected function tenantId(): ?int {
-        return $_SESSION['tenant_id'] ?? null;
+        if (!empty($_SESSION['tenant_id'])) {
+            return (int)$_SESSION['tenant_id'];
+        }
+        $tenant = $this->db->fetchOne("SELECT id FROM tenants WHERE status='active' ORDER BY id ASC LIMIT 1");
+        if ($tenant) {
+            $_SESSION['tenant_id'] = (int)$tenant['id'];
+            return (int)$tenant['id'];
+        }
+        return null;
     }
 
     /**

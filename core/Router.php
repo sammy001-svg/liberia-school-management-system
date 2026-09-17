@@ -103,8 +103,8 @@ class Router {
             http_response_code(500);
             header('Content-Type: text/html; charset=UTF-8');
         }
-        $showDetail = ($_SESSION['role'] ?? '') === 'School Admin';
-        $friendly   = htmlspecialchars($this->friendlyError($e, false));
+        $showDetail = in_array($_SESSION['role'] ?? '', ['School Admin', 'Super Admin'], true);
+        $friendly   = htmlspecialchars($this->friendlyError($e, $showDetail));
         echo "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
            . "<title>Something went wrong</title><style>"
            . "body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#0f172a;color:#e2e8f0;display:flex;"
@@ -116,7 +116,7 @@ class Router {
            . "a{color:#38bdf8}</style></head><body><div class='box'>"
            . "<h1>Something went wrong</h1><p>{$friendly}</p>";
         if ($showDetail) {
-            echo "<p style='color:#64748b;font-size:12px'>Shown because you are signed in as School Admin:</p><pre>"
+            echo "<p style='color:#64748b;font-size:12px'>Shown because you are signed in as Admin:</p><pre>"
                . htmlspecialchars($e->getMessage()) . "\n\n"
                . htmlspecialchars($e->getFile()) . ':' . (int)$e->getLine() . "</pre>";
         }
@@ -134,7 +134,7 @@ class Router {
         if (str_contains($msg, 'Duplicate entry')) {
             return 'That record already exists.';
         }
-        if (str_contains($msg, 'foreign key constraint fails') || str_contains($msg, 'a foreign key constraint fails')) {
+        if (stripos($msg, 'foreign key constraint fails') !== false) {
             return 'One of the selected options is invalid. Please refresh the page and try again.';
         }
         return $debug ? $msg : 'Something went wrong. Please check your input and try again.';

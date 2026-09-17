@@ -8,33 +8,9 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- USE school_mgmt;
 
 -- ============================================================
--- RESELLERS
--- ============================================================
-CREATE TABLE resellers (
-    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(150) NOT NULL,
-    slug VARCHAR(100) UNIQUE NOT NULL,
-    domain VARCHAR(255) DEFAULT NULL,
-    currency VARCHAR(10) DEFAULT 'Ksh',
-    logo VARCHAR(255) DEFAULT NULL,
-    primary_color VARCHAR(20) DEFAULT '#10B981',
-    secondary_color VARCHAR(20) DEFAULT '#059669',
-    accent_color VARCHAR(20) DEFAULT '#34D399',
-    email VARCHAR(150) UNIQUE NOT NULL,
-    phone VARCHAR(30) DEFAULT NULL,
-    address TEXT DEFAULT NULL,
-    status ENUM('active','suspended','pending') DEFAULT 'pending',
-    commission_rate DECIMAL(5,2) DEFAULT 0.00,
-    max_schools INT DEFAULT 5,
-    notes TEXT DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-
--- ============================================================
 -- PLANS / SUBSCRIPTIONS
 -- ============================================================
-CREATE TABLE plans (
+CREATE TABLE IF NOT EXISTS plans (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     description TEXT DEFAULT NULL,
@@ -44,7 +20,7 @@ CREATE TABLE plans (
     price_monthly DECIMAL(10,2) DEFAULT 0.00,
     price_yearly DECIMAL(10,2) DEFAULT 0.00,
     features JSON DEFAULT NULL,
-    billing_owner ENUM('platform','reseller') DEFAULT 'platform',
+    billing_owner ENUM('platform') DEFAULT 'platform',
     is_active TINYINT(1) DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -52,9 +28,8 @@ CREATE TABLE plans (
 -- ============================================================
 -- TENANTS (SCHOOLS)
 -- ============================================================
-CREATE TABLE tenants (
+CREATE TABLE IF NOT EXISTS tenants (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    reseller_id INT UNSIGNED DEFAULT NULL,
     plan_id INT UNSIGNED DEFAULT NULL,
     name VARCHAR(200) NOT NULL,
     slug VARCHAR(100) UNIQUE NOT NULL,
@@ -75,14 +50,13 @@ CREATE TABLE tenants (
     accent_color VARCHAR(20) DEFAULT '#34D399',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (reseller_id) REFERENCES resellers(id) ON DELETE SET NULL,
     FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE SET NULL
 );
 
 -- ============================================================
 -- TENANT FEATURE FLAGS
 -- ============================================================
-CREATE TABLE tenant_features (
+CREATE TABLE IF NOT EXISTS tenant_features (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     feature_key VARCHAR(80) NOT NULL,
@@ -94,16 +68,16 @@ CREATE TABLE tenant_features (
 -- ============================================================
 -- ROLES & PERMISSIONS
 -- ============================================================
-CREATE TABLE roles (
+CREATE TABLE IF NOT EXISTS roles (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(80) NOT NULL,
-    scope ENUM('global','reseller','school') DEFAULT 'school',
+    scope ENUM('global','school') DEFAULT 'school',
     tenant_id INT UNSIGNED DEFAULT NULL,
     description VARCHAR(255) DEFAULT NULL,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 );
 
-CREATE TABLE permissions (
+CREATE TABLE IF NOT EXISTS permissions (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) UNIQUE NOT NULL,
     module VARCHAR(80) NOT NULL,
@@ -111,7 +85,7 @@ CREATE TABLE permissions (
     description VARCHAR(255) DEFAULT NULL
 );
 
-CREATE TABLE role_permissions (
+CREATE TABLE IF NOT EXISTS role_permissions (
     role_id INT UNSIGNED NOT NULL,
     permission_id INT UNSIGNED NOT NULL,
     PRIMARY KEY (role_id, permission_id),
@@ -122,10 +96,9 @@ CREATE TABLE role_permissions (
 -- ============================================================
 -- USERS (Unified)
 -- ============================================================
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED DEFAULT NULL,
-    reseller_id INT UNSIGNED DEFAULT NULL,
     role_id INT UNSIGNED NOT NULL,
     name VARCHAR(150) NOT NULL,
     email VARCHAR(150) DEFAULT NULL,
@@ -146,18 +119,16 @@ CREATE TABLE users (
     UNIQUE KEY unique_email_tenant (email, tenant_id),
     UNIQUE KEY unique_employee_no_tenant (employee_no, tenant_id),
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
-    FOREIGN KEY (reseller_id) REFERENCES resellers(id) ON DELETE SET NULL,
     FOREIGN KEY (role_id) REFERENCES roles(id)
 );
 
 -- ============================================================
 -- SUBSCRIPTIONS
 -- ============================================================
-CREATE TABLE subscriptions (
+CREATE TABLE IF NOT EXISTS subscriptions (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     plan_id INT UNSIGNED NOT NULL,
-    reseller_id INT UNSIGNED DEFAULT NULL,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     amount_paid DECIMAL(10,2) DEFAULT 0.00,
@@ -167,14 +138,13 @@ CREATE TABLE subscriptions (
     notes TEXT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
-    FOREIGN KEY (plan_id) REFERENCES plans(id),
-    FOREIGN KEY (reseller_id) REFERENCES resellers(id) ON DELETE SET NULL
+    FOREIGN KEY (plan_id) REFERENCES plans(id)
 );
 
 -- ============================================================
 -- ACADEMIC YEARS & TERMS
 -- ============================================================
-CREATE TABLE academic_years (
+CREATE TABLE IF NOT EXISTS academic_years (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     name VARCHAR(50) NOT NULL,
@@ -184,7 +154,7 @@ CREATE TABLE academic_years (
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 );
 
-CREATE TABLE terms (
+CREATE TABLE IF NOT EXISTS terms (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     academic_year_id INT UNSIGNED NOT NULL,
@@ -199,7 +169,7 @@ CREATE TABLE terms (
 -- ============================================================
 -- DEPARTMENTS
 -- ============================================================
-CREATE TABLE departments (
+CREATE TABLE IF NOT EXISTS departments (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     name VARCHAR(150) NOT NULL,
@@ -212,7 +182,7 @@ CREATE TABLE departments (
 -- ============================================================
 -- CLASSES (High School)
 -- ============================================================
-CREATE TABLE classes (
+CREATE TABLE IF NOT EXISTS classes (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     academic_year_id INT UNSIGNED DEFAULT NULL,
@@ -231,7 +201,7 @@ CREATE TABLE classes (
 -- ============================================================
 -- COURSES (High School subjects)
 -- ============================================================
-CREATE TABLE courses (
+CREATE TABLE IF NOT EXISTS courses (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     name VARCHAR(150) NOT NULL,
@@ -242,7 +212,7 @@ CREATE TABLE courses (
 );
 
 -- A subject can be taught to more than one class.
-CREATE TABLE course_classes (
+CREATE TABLE IF NOT EXISTS course_classes (
     course_id INT UNSIGNED NOT NULL,
     class_id INT UNSIGNED NOT NULL,
     PRIMARY KEY (course_id, class_id),
@@ -253,7 +223,7 @@ CREATE TABLE course_classes (
 -- ============================================================
 -- TEACHERS
 -- ============================================================
-CREATE TABLE teachers (
+CREATE TABLE IF NOT EXISTS teachers (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     user_id INT UNSIGNED NOT NULL,
@@ -270,7 +240,7 @@ CREATE TABLE teachers (
     FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE SET NULL
 );
 
-CREATE TABLE teacher_courses (
+CREATE TABLE IF NOT EXISTS teacher_courses (
     teacher_id INT UNSIGNED NOT NULL,
     course_id INT UNSIGNED NOT NULL,
     PRIMARY KEY (teacher_id, course_id),
@@ -281,7 +251,7 @@ CREATE TABLE teacher_courses (
 -- ============================================================
 -- STUDENTS
 -- ============================================================
-CREATE TABLE students (
+CREATE TABLE IF NOT EXISTS students (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     user_id INT UNSIGNED NOT NULL,
@@ -316,7 +286,7 @@ CREATE TABLE students (
 -- ============================================================
 -- PARENTS (High School)
 -- ============================================================
-CREATE TABLE parents (
+CREATE TABLE IF NOT EXISTS parents (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     user_id INT UNSIGNED NOT NULL,
@@ -328,7 +298,7 @@ CREATE TABLE parents (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE TABLE parent_students (
+CREATE TABLE IF NOT EXISTS parent_students (
     parent_id INT UNSIGNED NOT NULL,
     student_id INT UNSIGNED NOT NULL,
     relationship VARCHAR(50) DEFAULT 'parent',
@@ -340,7 +310,7 @@ CREATE TABLE parent_students (
 -- ============================================================
 -- ATTENDANCE
 -- ============================================================
-CREATE TABLE attendance (
+CREATE TABLE IF NOT EXISTS attendance (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     student_id INT UNSIGNED NOT NULL,
@@ -358,7 +328,7 @@ CREATE TABLE attendance (
 -- ============================================================
 -- TIMETABLE
 -- ============================================================
-CREATE TABLE timetable (
+CREATE TABLE IF NOT EXISTS timetable (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     class_id INT UNSIGNED DEFAULT NULL,
@@ -379,7 +349,7 @@ CREATE TABLE timetable (
 -- ============================================================
 -- GRADES / RESULTS
 -- ============================================================
-CREATE TABLE exams (
+CREATE TABLE IF NOT EXISTS exams (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     name VARCHAR(150) NOT NULL,
@@ -392,7 +362,7 @@ CREATE TABLE exams (
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 );
 
-CREATE TABLE grades (
+CREATE TABLE IF NOT EXISTS grades (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     student_id INT UNSIGNED NOT NULL,
@@ -411,7 +381,7 @@ CREATE TABLE grades (
     FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE SET NULL
 );
 
-CREATE TABLE student_rankings (
+CREATE TABLE IF NOT EXISTS student_rankings (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     student_id INT UNSIGNED NOT NULL,
@@ -428,7 +398,7 @@ CREATE TABLE student_rankings (
 -- ============================================================
 -- FINANCE
 -- ============================================================
-CREATE TABLE fee_structures (
+CREATE TABLE IF NOT EXISTS fee_structures (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     name VARCHAR(150) NOT NULL,
@@ -440,7 +410,7 @@ CREATE TABLE fee_structures (
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 );
 
-CREATE TABLE invoices (
+CREATE TABLE IF NOT EXISTS invoices (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     student_id INT UNSIGNED NOT NULL,
@@ -458,7 +428,7 @@ CREATE TABLE invoices (
     FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
 );
 
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     invoice_id INT UNSIGNED NOT NULL,
@@ -472,7 +442,7 @@ CREATE TABLE payments (
     FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
 );
 
-CREATE TABLE expenses (
+CREATE TABLE IF NOT EXISTS expenses (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     category VARCHAR(80) NOT NULL,
@@ -490,7 +460,7 @@ CREATE TABLE expenses (
 -- ============================================================
 -- MESSAGING
 -- ============================================================
-CREATE TABLE messages (
+CREATE TABLE IF NOT EXISTS messages (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     sender_id INT UNSIGNED NOT NULL,
@@ -505,7 +475,7 @@ CREATE TABLE messages (
     FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE TABLE announcements (
+CREATE TABLE IF NOT EXISTS announcements (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     author_id INT UNSIGNED NOT NULL,
@@ -523,7 +493,7 @@ CREATE TABLE announcements (
 -- ============================================================
 -- ACTIVITY LOG
 -- ============================================================
-CREATE TABLE activity_logs (
+CREATE TABLE IF NOT EXISTS activity_logs (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_id INT UNSIGNED DEFAULT NULL,
     tenant_id INT UNSIGNED DEFAULT NULL,
@@ -539,16 +509,14 @@ CREATE TABLE activity_logs (
 -- ============================================================
 
 -- Default plans
-INSERT INTO plans (name, description, max_students, max_teachers, price_monthly, price_yearly, features, billing_owner) VALUES
+INSERT IGNORE INTO plans (name, description, max_students, max_teachers, price_monthly, price_yearly, features, billing_owner) VALUES
 ('Starter', 'Perfect for small schools', 200, 20, 29.99, 299.99, '{"attendance":true,"grades":true,"finance":false,"messaging":false}', 'platform'),
 ('Professional', 'Mid-size institution', 1000, 100, 79.99, 799.99, '{"attendance":true,"grades":true,"finance":true,"messaging":true,"reports":true}', 'platform'),
 ('Enterprise', 'Large university or multi-campus', 9999, 999, 199.99, 1999.99, '{"attendance":true,"grades":true,"finance":true,"messaging":true,"reports":true,"api":true,"custom_domain":true}', 'platform');
 
 -- Default roles
-INSERT INTO roles (name, scope) VALUES
+INSERT IGNORE INTO roles (name, scope) VALUES
 ('Super Admin', 'global'),
-('Reseller Owner', 'reseller'),
-('Reseller Staff', 'reseller'),
 ('School Admin', 'school'),
 ('Teacher', 'school'),
 ('Student', 'school'),
@@ -557,17 +525,16 @@ INSERT INTO roles (name, scope) VALUES
 ('Staff', 'school');
 
 -- Default super admin user (password: Admin@1234)
-INSERT INTO resellers (name, slug, email, status) VALUES ('Platform', 'platform', 'platform@internal', 'active');
-INSERT INTO tenants (name, slug, status) VALUES ('Platform Admin', 'platform', 'active');
-INSERT INTO users (tenant_id, reseller_id, role_id, name, email, password_hash, status) VALUES
-(1, 1, 1, 'Super Admin', 'admin@schoolms.com', '$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'active');
+INSERT IGNORE INTO tenants (name, slug, status) VALUES ('Platform Admin', 'platform', 'active');
+INSERT IGNORE INTO users (tenant_id, role_id, name, email, password_hash, status) VALUES
+(1, 1, 'Super Admin', 'admin@schoolms.com', '$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'active');
 
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ============================================================
 -- LEARNING MATERIALS
 -- ============================================================
-CREATE TABLE learning_materials (
+CREATE TABLE IF NOT EXISTS learning_materials (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     teacher_id INT UNSIGNED NOT NULL,
@@ -585,7 +552,7 @@ CREATE TABLE learning_materials (
 -- ============================================================
 -- HR & PAYROLL
 -- ============================================================
-CREATE TABLE staff_salaries (
+CREATE TABLE IF NOT EXISTS staff_salaries (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     user_id INT UNSIGNED NOT NULL,
@@ -597,7 +564,7 @@ CREATE TABLE staff_salaries (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE TABLE payroll (
+CREATE TABLE IF NOT EXISTS payroll (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     user_id INT UNSIGNED NOT NULL,
@@ -614,7 +581,7 @@ CREATE TABLE payroll (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE TABLE leave_applications (
+CREATE TABLE IF NOT EXISTS leave_applications (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     user_id INT UNSIGNED NOT NULL,
@@ -632,7 +599,7 @@ CREATE TABLE leave_applications (
 -- ============================================================
 -- INVENTORY & LIBRARY
 -- ============================================================
-CREATE TABLE inventory (
+CREATE TABLE IF NOT EXISTS inventory (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     item_name VARCHAR(150) NOT NULL,
@@ -646,7 +613,7 @@ CREATE TABLE inventory (
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 );
 
-CREATE TABLE library_books (
+CREATE TABLE IF NOT EXISTS library_books (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     title VARCHAR(255) NOT NULL,
@@ -657,7 +624,7 @@ CREATE TABLE library_books (
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 );
 
-CREATE TABLE library_loans (
+CREATE TABLE IF NOT EXISTS library_loans (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     book_id INT UNSIGNED NOT NULL,
@@ -674,7 +641,7 @@ CREATE TABLE library_loans (
 -- ============================================================
 -- HOMEWORK
 -- ============================================================
-CREATE TABLE homework (
+CREATE TABLE IF NOT EXISTS homework (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     class_id INT UNSIGNED NOT NULL,
@@ -693,7 +660,7 @@ CREATE TABLE homework (
     FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL
 );
 
-CREATE TABLE homework_submissions (
+CREATE TABLE IF NOT EXISTS homework_submissions (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     homework_id INT UNSIGNED NOT NULL,
@@ -715,7 +682,7 @@ CREATE TABLE homework_submissions (
 -- ============================================================
 -- ONLINE CLASSES
 -- ============================================================
-CREATE TABLE online_classes (
+CREATE TABLE IF NOT EXISTS online_classes (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     class_id INT UNSIGNED NOT NULL,
@@ -739,7 +706,7 @@ CREATE TABLE online_classes (
 -- ============================================================
 -- ONLINE EXAMS (auto-graded MCQ / True-False)
 -- ============================================================
-CREATE TABLE online_exams (
+CREATE TABLE IF NOT EXISTS online_exams (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     class_id INT UNSIGNED NOT NULL,
@@ -758,7 +725,7 @@ CREATE TABLE online_exams (
     FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL
 );
 
-CREATE TABLE online_exam_questions (
+CREATE TABLE IF NOT EXISTS online_exam_questions (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     exam_id INT UNSIGNED NOT NULL,
@@ -774,7 +741,7 @@ CREATE TABLE online_exam_questions (
     FOREIGN KEY (exam_id) REFERENCES online_exams(id) ON DELETE CASCADE
 );
 
-CREATE TABLE online_exam_attempts (
+CREATE TABLE IF NOT EXISTS online_exam_attempts (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     exam_id INT UNSIGNED NOT NULL,
@@ -790,7 +757,7 @@ CREATE TABLE online_exam_attempts (
     FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
 );
 
-CREATE TABLE online_exam_answers (
+CREATE TABLE IF NOT EXISTS online_exam_answers (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     attempt_id INT UNSIGNED NOT NULL,
@@ -806,7 +773,7 @@ CREATE TABLE online_exam_answers (
 -- ============================================================
 -- SCHOOL BUS / TRANSPORT
 -- ============================================================
-CREATE TABLE buses (
+CREATE TABLE IF NOT EXISTS buses (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     bus_number VARCHAR(50) NOT NULL,
@@ -818,7 +785,7 @@ CREATE TABLE buses (
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 );
 
-CREATE TABLE bus_drivers (
+CREATE TABLE IF NOT EXISTS bus_drivers (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     name VARCHAR(150) NOT NULL,
@@ -830,7 +797,7 @@ CREATE TABLE bus_drivers (
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 );
 
-CREATE TABLE bus_routes (
+CREATE TABLE IF NOT EXISTS bus_routes (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     name VARCHAR(150) NOT NULL,
@@ -847,7 +814,7 @@ CREATE TABLE bus_routes (
     FOREIGN KEY (driver_id) REFERENCES bus_drivers(id) ON DELETE SET NULL
 );
 
-CREATE TABLE bus_students (
+CREATE TABLE IF NOT EXISTS bus_students (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     route_id INT UNSIGNED NOT NULL,
@@ -864,7 +831,7 @@ CREATE TABLE bus_students (
 -- ============================================================
 -- CERTIFICATES
 -- ============================================================
-CREATE TABLE certificates (
+CREATE TABLE IF NOT EXISTS certificates (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     student_id INT UNSIGNED NOT NULL,
@@ -882,4 +849,10 @@ CREATE TABLE certificates (
     FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
     FOREIGN KEY (academic_year_id) REFERENCES academic_years(id) ON DELETE SET NULL
 );
+
+-- ============================================================
+-- IMPORT VERIFICATION
+-- ============================================================
+SELECT 'Database schema imported successfully! All tables and initial seed data have been created.' AS status;
+
 

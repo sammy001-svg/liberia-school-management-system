@@ -4,7 +4,7 @@
 -- student's profile and via a tenant-wide Discipline log.
 -- ============================================================
 
-CREATE TABLE disciplinary_records (
+CREATE TABLE IF NOT EXISTS disciplinary_records (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     student_id INT UNSIGNED NOT NULL,
@@ -20,9 +20,9 @@ CREATE TABLE disciplinary_records (
     FOREIGN KEY (reported_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
-INSERT INTO permissions (name, module, action, description) VALUES
+INSERT IGNORE INTO permissions (name, module, action, description) VALUES
 ('discipline.manage', 'discipline', 'manage', 'Record and view student disciplinary/behavior incidents');
 
-INSERT INTO role_permissions (role_id, permission_id)
+INSERT IGNORE INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.name IN ('School Admin','Teacher') AND r.tenant_id IS NULL AND p.name = 'discipline.manage';

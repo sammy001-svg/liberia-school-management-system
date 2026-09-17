@@ -38,17 +38,28 @@ class ClassController extends Controller {
             'capacity'    => 'numeric',
         ]);
         if ($errors) { $this->failValidation($errors, '/school/classes'); }
+
+        $academicYearId = !empty($_POST['academic_year_id']) ? (int)$_POST['academic_year_id'] : null;
+        if ($academicYearId !== null) {
+            $yearExists = $this->db->fetchOne("SELECT id FROM academic_years WHERE id=? AND tenant_id=?", [$academicYearId, $this->tid]);
+            if (!$yearExists) { $academicYearId = null; }
+        }
+
         $classId = $this->db->insert(
             "INSERT INTO classes (tenant_id,academic_year_id,name,grade_level,section,capacity,room_number,description) VALUES (?,?,?,?,?,?,?,?)",
             [
-                $this->tid,$_POST['academic_year_id']?:null,$_POST['name'],$_POST['grade_level'],$_POST['section']??'',
-                (int)($_POST['capacity']??40),$_POST['room_number']??null,$_POST['description']??null,
+                $this->tid, $academicYearId, trim($_POST['name']), trim($_POST['grade_level']), trim($_POST['section'] ?? ''),
+                (int)($_POST['capacity'] ?? 40), trim($_POST['room_number'] ?? '') ?: null, trim($_POST['description'] ?? '') ?: null,
             ]
         );
         if (!empty($_POST['teacher_id'])) {
-            $this->assignHomeroom($this->tid, (int)$_POST['teacher_id'], (int)$classId);
+            $teacherId = (int)$_POST['teacher_id'];
+            $teacherExists = $this->db->fetchOne("SELECT id FROM teachers WHERE id=? AND tenant_id=?", [$teacherId, $this->tid]);
+            if ($teacherExists) {
+                $this->assignHomeroom($this->tid, $teacherId, (int)$classId);
+            }
         }
-        $this->flash('success','Class created.'); $this->redirect('/school/classes');
+        $this->flash('success','Class created successfully.'); $this->redirect('/school/classes');
     }
 
     public function edit(string $id): void {
@@ -64,10 +75,14 @@ class ClassController extends Controller {
         if ($errors) { $this->failValidation($errors, '/school/classes/'.$id.'/edit'); }
         $this->db->execute(
             "UPDATE classes SET name=?,grade_level=?,section=?,capacity=?,room_number=?,description=? WHERE id=? AND tenant_id=?",
-            [$_POST['name'],$_POST['grade_level'],$_POST['section']??'',(int)$_POST['capacity'],$_POST['room_number']??null,$_POST['description']??null,$id,$this->tid]
+            [trim($_POST['name']),trim($_POST['grade_level']),trim($_POST['section']??''),(int)$_POST['capacity'],trim($_POST['room_number']??'')?:null,trim($_POST['description']??'')?:null,$id,$this->tid]
         );
         if (!empty($_POST['teacher_id'])) {
-            $this->assignHomeroom($this->tid, (int)$_POST['teacher_id'], (int)$id);
+            $teacherId = (int)$_POST['teacher_id'];
+            $teacherExists = $this->db->fetchOne("SELECT id FROM teachers WHERE id=? AND tenant_id=?", [$teacherId, $this->tid]);
+            if ($teacherExists) {
+                $this->assignHomeroom($this->tid, $teacherId, (int)$id);
+            }
         } else {
             $this->db->execute("UPDATE classes SET class_teacher_id=NULL WHERE id=? AND tenant_id=?", [$id, $this->tid]);
             $this->db->execute("UPDATE teachers SET class_id=NULL WHERE class_id=? AND tenant_id=?", [$id, $this->tid]);

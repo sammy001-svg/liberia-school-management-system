@@ -5,7 +5,7 @@
 -- applicant as a student (same data path as manual admission).
 -- ============================================================
 
-CREATE TABLE admission_applications (
+CREATE TABLE IF NOT EXISTS admission_applications (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     reference_no VARCHAR(30) NOT NULL,
@@ -36,9 +36,9 @@ CREATE TABLE admission_applications (
     FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE SET NULL
 );
 
-INSERT INTO permissions (name, module, action, description) VALUES
+INSERT IGNORE INTO permissions (name, module, action, description) VALUES
 ('admissions.manage', 'admissions', 'manage', 'Review and approve/reject online admission applications');
 
-INSERT INTO role_permissions (role_id, permission_id)
+INSERT IGNORE INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p
 WHERE r.name = 'School Admin' AND r.tenant_id IS NULL AND p.name = 'admissions.manage';

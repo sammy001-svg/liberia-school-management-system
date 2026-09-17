@@ -6,7 +6,7 @@
 -- (run once against a database created before this migration)
 -- ============================================================
 
-CREATE TABLE certificate_types (
+CREATE TABLE IF NOT EXISTS certificate_types (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     tenant_id INT UNSIGNED NOT NULL,
     name VARCHAR(100) NOT NULL,
@@ -18,7 +18,7 @@ CREATE TABLE certificate_types (
 );
 
 -- Seed the 4 existing hardcoded types per tenant, all 'student' (preserves current behavior exactly).
-INSERT INTO certificate_types (tenant_id, name, recipient_category)
+INSERT IGNORE INTO certificate_types (tenant_id, name, recipient_category)
 SELECT id, t.name, 'student' FROM tenants
 CROSS JOIN (SELECT 'Completion' name UNION SELECT 'Promotion' UNION SELECT 'Graduation' UNION SELECT 'Achievement') t;
 
