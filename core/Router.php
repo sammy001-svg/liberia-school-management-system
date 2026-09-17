@@ -137,6 +137,6 @@ class Router {
         if (stripos($msg, 'foreign key constraint fails') !== false) {
             return 'One of the selected options is invalid. Please refresh the page and try again.';
         }
-        return $debug ? $msg : 'Something went wrong. Please check your input and try again.';
+        return $msg;
     }
 }
