@@ -30,8 +30,36 @@ class ClassController extends Controller {
         $this->redirect('/school/classes');
     }
 
+    private function ensureClassColumns(): void {
+        try {
+            $cols = $this->db->fetchAll("SHOW COLUMNS FROM classes");
+            $existing = array_column($cols, 'Field');
+            if (!in_array('room_number', $existing, true)) {
+                $this->db->execute("ALTER TABLE classes ADD COLUMN room_number VARCHAR(50) DEFAULT NULL");
+            }
+            if (!in_array('description', $existing, true)) {
+                $this->db->execute("ALTER TABLE classes ADD COLUMN description TEXT DEFAULT NULL");
+            }
+            if (!in_array('academic_year_id', $existing, true)) {
+                $this->db->execute("ALTER TABLE classes ADD COLUMN academic_year_id INT UNSIGNED DEFAULT NULL");
+            }
+            if (!in_array('class_teacher_id', $existing, true)) {
+                $this->db->execute("ALTER TABLE classes ADD COLUMN class_teacher_id INT UNSIGNED DEFAULT NULL");
+            }
+            if (!in_array('section', $existing, true)) {
+                $this->db->execute("ALTER TABLE classes ADD COLUMN section VARCHAR(20) DEFAULT NULL");
+            }
+            if (!in_array('capacity', $existing, true)) {
+                $this->db->execute("ALTER TABLE classes ADD COLUMN capacity INT DEFAULT 40");
+            }
+        } catch (\Throwable $e) {
+            // Ignore if schema check fails
+        }
+    }
+
     public function store(): void {
         $this->requirePermission(['classes.manage']);
+        $this->ensureClassColumns();
         $errors = $this->validate($_POST, [
             'name'        => 'required|max:80',
             'grade_level' => 'required|max:30',
@@ -71,6 +99,7 @@ class ClassController extends Controller {
 
     public function update(string $id): void {
         $this->requirePermission(['classes.manage']);
+        $this->ensureClassColumns();
         $errors = $this->validate($_POST, ['name' => 'required|max:80', 'grade_level' => 'required|max:30', 'capacity' => 'numeric']);
         if ($errors) { $this->failValidation($errors, '/school/classes/'.$id.'/edit'); }
         $this->db->execute(

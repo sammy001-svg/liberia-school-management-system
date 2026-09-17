@@ -59,6 +59,17 @@ PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
 SET @sql := IF(@had_exam_status=0, 'UPDATE exams SET status = ''published''', 'SELECT 1');
 PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
 
+-- ── 4b. classes.room_number + classes.description ──
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='classes' AND COLUMN_NAME='room_number')=0,
+    'ALTER TABLE classes ADD COLUMN room_number VARCHAR(50) DEFAULT NULL', 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @sql := IF((SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='classes' AND COLUMN_NAME='description')=0,
+    'ALTER TABLE classes ADD COLUMN description TEXT DEFAULT NULL', 'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
 -- ── 5. course_classes many-to-many (add_course_classes.sql) ──
 CREATE TABLE IF NOT EXISTS course_classes (
     course_id INT UNSIGNED NOT NULL,
