@@ -32,7 +32,7 @@ $bodyParas = array_filter(array_map('trim', preg_split('/\R\s*\R/', (string)$pos
       <?php endforeach; ?>
       <div class="article-foot">
         <a href="<?= $url('academy-news') ?>" class="btn btn-outline-dark">&larr; All news &amp; events</a>
-        <a href="<?= $url('apply') ?>" class="btn btn-gold">Apply Online <?= wicon('arrow-right') ?></a>
+        <a href="<?= $url('apply') ?>" class="btn btn-accent">Apply Online <?= wicon('arrow-right') ?></a>
       </div>
     </article>
   </div>

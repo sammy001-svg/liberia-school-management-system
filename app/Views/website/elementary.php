@@ -4,7 +4,7 @@
 $heroKey = 'elementary'; $crumbs = ['Divisions' => $url('divisions'), 'Elementary' => null];
 $heroChipIcons = ['book', 'layers', 'compass'];
 require __DIR__ . '/partials/page_hero.php';
-$cardIcons = [['book', ''], ['layers', 'icon-badge--green'], ['compass', 'icon-badge--gold']];
+$cardIcons = [['book', ''], ['layers', 'icon-badge--green'], ['compass', 'icon-badge--accent']];
 ?>
 
 <section class="section">
@@ -46,7 +46,7 @@ $cardIcons = [['book', ''], ['layers', 'icon-badge--green'], ['compass', 'icon-b
       <h2 class="display"><?= $h('elementary.beyond_title') ?></h2>
       <?= $paras('elementary.beyond_body') ?>
       <ul class="icon-list" style="margin-top:30px;">
-        <?php $beyondIcons = [['hand', ''], ['scale', 'icon-badge--green'], ['lightbulb', 'icon-badge--gold']]; ?>
+        <?php $beyondIcons = [['hand', ''], ['scale', 'icon-badge--green'], ['lightbulb', 'icon-badge--accent']]; ?>
         <?php foreach ($list('elementary.beyond_items') as $i => [$title, $text]): [$icon, $cls] = $beyondIcons[$i % 3]; ?>
           <li>
             <span class="icon-badge <?= $cls ?>"><?= wicon($icon) ?></span>

@@ -47,7 +47,7 @@
     <?php foreach ([
       ['board', 'building', '', 'Governance'],
       ['admin', 'compass', 'icon-badge--green', 'Administration'],
-      ['staff', 'users', 'icon-badge--gold', 'Faculty & Staff'],
+      ['staff', 'users', 'icon-badge--accent', 'Faculty & Staff'],
       ['pta', 'heart', '', 'Parents'],
     ] as [$key, $icon, $cls, $kicker]): ?>
       <?php if ($raw("leadership.{$key}_title") === '' && $raw("leadership.{$key}_body") === '') continue; ?>

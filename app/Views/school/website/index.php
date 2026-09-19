@@ -88,7 +88,7 @@
 <div class="card mt-16">
   <div class="card-body" style="font-size:13px;color:var(--text-muted);line-height:1.7;">
     <strong style="color:var(--text);">Formatting tips.</strong>
-    In headings, wrap words in <code>*asterisks*</code> to show them in the gold/purple highlight style.
+    In headings, wrap words in <code>*asterisks*</code> to show them in the green highlight style.
     In longer text, leave a blank line to start a new paragraph, and use <code>**double asterisks**</code> for bold.
     Lists take one item per line, with parts separated by <code>|</code> — for example <code>Excellence | We pursue the highest standards…</code>.
     Clearing a field restores its original text.

@@ -45,7 +45,7 @@ require __DIR__ . '/partials/page_hero.php';
       <?php endforeach; ?>
     </div>
     <div style="text-align:center;margin-top:44px;" data-reveal>
-      <a href="<?= $url('apply') ?>" class="btn btn-gold btn-lg">Begin the Online Application <?= wicon('arrow-right') ?></a>
+      <a href="<?= $url('apply') ?>" class="btn btn-accent btn-lg">Begin the Online Application <?= wicon('arrow-right') ?></a>
     </div>
   </div>
 </section>

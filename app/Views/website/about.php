@@ -39,7 +39,7 @@
       <h2 class="display"><?= $h('about.why_title') ?></h2>
       <?= $paras('about.why_body') ?>
       <ul class="icon-list" style="margin-top:32px;">
-        <?php $whyIcons = [['book', ''], ['users', 'icon-badge--green'], ['award', 'icon-badge--gold']]; ?>
+        <?php $whyIcons = [['book', ''], ['users', 'icon-badge--green'], ['award', 'icon-badge--accent']]; ?>
         <?php foreach ($list('about.why_items') as $i => [$title, $text]): [$icon, $cls] = $whyIcons[$i % 3]; ?>
           <li>
             <span class="icon-badge <?= $cls ?>"><?= wicon($icon) ?></span>

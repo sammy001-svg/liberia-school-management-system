@@ -26,7 +26,7 @@ require __DIR__ . '/partials/page_hero.php';
       <h2 class="display"><?= $h('junior.features_title') ?></h2>
     </div>
     <div class="feature-grid">
-      <?php $featIcons = [['target', ''], ['monitor', 'icon-badge--green'], ['graduation', 'icon-badge--gold']]; ?>
+      <?php $featIcons = [['target', ''], ['monitor', 'icon-badge--green'], ['graduation', 'icon-badge--accent']]; ?>
       <?php foreach ($list('junior.features') as $i => [$title, $text]): [$icon, $cls] = $featIcons[$i % 3]; ?>
         <article class="feature" data-reveal data-reveal-delay="<?= $i % 3 ?>">
           <span class="feature-num"><?= str_pad((string)($i + 1), 2, '0', STR_PAD_LEFT) ?></span>

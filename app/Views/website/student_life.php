@@ -27,7 +27,7 @@ require __DIR__ . '/partials/page_hero.php';
       <h2 class="display"><?= $h('student_life.programs_title') ?></h2>
     </div>
     <div class="card-grid-3">
-      <?php $progIcons = [['users', ''], ['utensils', 'icon-badge--green'], ['graduation', 'icon-badge--gold'], ['monitor', 'icon-badge--gold'], ['hand', ''], ['flag', 'icon-badge--green']]; ?>
+      <?php $progIcons = [['users', ''], ['utensils', 'icon-badge--green'], ['graduation', 'icon-badge--accent'], ['monitor', 'icon-badge--accent'], ['hand', ''], ['flag', 'icon-badge--green']]; ?>
       <?php foreach ($list('student_life.programs') as $i => [$title, $text]): [$icon, $cls] = $progIcons[$i % 6]; ?>
         <article class="info-card" data-reveal data-reveal-delay="<?= $i % 3 ?>">
           <span class="icon-badge <?= $cls ?>"><?= wicon($icon) ?></span>

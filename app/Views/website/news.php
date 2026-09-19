@@ -33,7 +33,7 @@
       <h2 class="display"><?= $h('news.highlights_title') ?></h2>
     </div>
     <div class="card-grid-3">
-      <?php $hlIcons = [['clipboard', ''], ['sun', 'icon-badge--green'], ['users', 'icon-badge--gold']]; ?>
+      <?php $hlIcons = [['clipboard', ''], ['sun', 'icon-badge--green'], ['users', 'icon-badge--accent']]; ?>
       <?php foreach ($highlights as $i => [$title, $when, $text]): [$icon, $cls] = $hlIcons[$i % 3]; ?>
         <article class="info-card" data-reveal data-reveal-delay="<?= $i % 3 ?>">
           <span class="icon-badge <?= $cls ?>"><?= wicon($icon) ?></span>

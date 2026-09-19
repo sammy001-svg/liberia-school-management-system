@@ -68,7 +68,7 @@ $nav = [
     ['key' => 'admissions', 'label' => 'Admissions', 'href' => $url('admissions')],
     ['key' => 'news', 'label' => 'News & Events', 'href' => $url('academy-news')],
 ];
-$assetVer = '4';
+$assetVer = '5';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -142,7 +142,7 @@ $assetVer = '4';
 
     <div class="header-actions">
       <a href="<?= $url('login') ?>" class="btn btn-ghost header-portal"><?= $portalLabel ?></a>
-      <a href="<?= $url('apply') ?>" class="btn btn-gold">Apply Now</a>
+      <a href="<?= $url('apply') ?>" class="btn btn-accent">Apply Now</a>
       <button class="menu-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="mobileNav" data-menu-open><?= wicon('menu') ?></button>
     </div>
   </div>
@@ -176,7 +176,7 @@ $assetVer = '4';
       <?php endforeach; ?>
     </ul>
     <div class="mobile-nav-actions">
-      <a href="<?= $url('apply') ?>" class="btn btn-gold btn-block">Apply Now</a>
+      <a href="<?= $url('apply') ?>" class="btn btn-accent btn-block">Apply Now</a>
       <a href="<?= $url('login') ?>" class="btn btn-outline-dark btn-block"><?= wicon('login') ?> <?= $portalLabel ?></a>
     </div>
     <div class="mobile-contact">

@@ -12,7 +12,7 @@ $ctaKey = $ctaKey ?? 'site';
         <?= $paras("$ctaKey.cta_text") ?>
       </div>
       <div class="cta-actions">
-        <a href="<?= $url('apply') ?>" class="btn btn-gold btn-lg">Enroll Now <?= wicon('arrow-right') ?></a>
+        <a href="<?= $url('apply') ?>" class="btn btn-accent btn-lg">Enroll Now <?= wicon('arrow-right') ?></a>
         <?php if (($activeNav ?? '') === 'admissions'): ?>
           <a href="<?= $telHref($site['phones'][0]) ?>" class="btn btn-outline-light btn-lg"><?= wicon('phone') ?> Call Us</a>
         <?php else: ?>

@@ -32,7 +32,7 @@ $heroSlides = [
       <h1><?= $h('home.hero_title') ?></h1>
       <?= $paras('home.hero_lead', 'lead') ?>
       <div class="hero-actions">
-        <a href="<?= $url('apply') ?>" class="btn btn-gold btn-lg">Apply Online <?= wicon('arrow-right') ?></a>
+        <a href="<?= $url('apply') ?>" class="btn btn-accent btn-lg">Apply Online <?= wicon('arrow-right') ?></a>
         <a href="<?= $url('divisions') ?>" class="btn btn-outline-light btn-lg">Explore Our Divisions</a>
       </div>
     </div>
@@ -97,7 +97,7 @@ $heroSlides = [
       <?= $paras('home.why_lead', 'lead') ?>
     </div>
     <div class="feature-grid">
-      <?php $whyIcons = [['book', ''], ['users', 'icon-badge--green'], ['award', 'icon-badge--gold']]; ?>
+      <?php $whyIcons = [['book', ''], ['users', 'icon-badge--green'], ['award', 'icon-badge--accent']]; ?>
       <?php foreach ($list('home.why_items') as $i => [$title, $text]): [$icon, $cls] = $whyIcons[$i % 3]; ?>
         <article class="feature" data-reveal data-reveal-delay="<?= $i % 3 ?>">
           <span class="feature-num"><?= str_pad((string)($i + 1), 2, '0', STR_PAD_LEFT) ?></span>

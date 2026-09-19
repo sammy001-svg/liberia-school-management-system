@@ -56,7 +56,7 @@
           <?php endif; ?>
         </ul>
         <div class="footer-cta">
-          <a href="<?= $url('apply') ?>" class="btn btn-gold btn-sm">Apply Online</a>
+          <a href="<?= $url('apply') ?>" class="btn btn-accent btn-sm">Apply Online</a>
           <a href="<?= $url('login') ?>" class="btn btn-outline-light btn-sm"><?= $portalLabel ?></a>
         </div>
       </div>

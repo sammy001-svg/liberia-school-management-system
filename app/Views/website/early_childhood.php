@@ -60,7 +60,7 @@ require __DIR__ . '/partials/page_hero.php';
       <h2 class="display"><?= $h('early.highlights_title') ?></h2>
     </div>
     <div class="card-grid-2">
-      <?php $hlIcons = [['book', ''], ['home', 'icon-badge--green'], ['compass', 'icon-badge--gold'], ['award', '']]; ?>
+      <?php $hlIcons = [['book', ''], ['home', 'icon-badge--green'], ['compass', 'icon-badge--accent'], ['award', '']]; ?>
       <?php foreach ($list('early.highlights') as $i => [$title, $text]): [$icon, $cls] = $hlIcons[$i % 4]; ?>
         <article class="info-card" data-reveal data-reveal-delay="<?= $i % 2 ?>">
           <span class="icon-badge <?= $cls ?>"><?= wicon($icon) ?></span>
