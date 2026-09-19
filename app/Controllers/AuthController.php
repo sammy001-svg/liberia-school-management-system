@@ -49,6 +49,7 @@ class AuthController extends Controller {
             'studentLoginMode' => $tenant['student_login_mode'] ?? 'admission_pin',
             'parentLoginMode' => $tenant['parent_login_mode'] ?? 'username_password',
             'slides' => $slides,
+            'websiteEnabled' => !empty($tenant['website_enabled']),
             'flash' => $this->getFlash()
         ]);
     }

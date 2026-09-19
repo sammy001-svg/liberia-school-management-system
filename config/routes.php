@@ -352,5 +352,17 @@ $router->get('/school/analytics',           ['AnalyticsController', 'index']);
 $router->get('/school/analytics/student/{id}', ['AnalyticsController', 'studentGrowth']);
 $router->get('/school/analytics/attendance', ['AnalyticsController', 'attendanceHeatmap']);
 
-// Catch-all redirect
-$router->get('/', ['AuthController', 'loginPage']);
+// ── PUBLIC WEBSITE ──────────────────────────────────────────────
+// Every page redirects to /login while the website is switched off in School
+// Settings, so "/" keeps its old behaviour (the login page) until it is turned on.
+$router->get('/',                ['WebsiteController', 'home']);
+$router->get('/about-us',        ['WebsiteController', 'about']);
+$router->get('/our-leadership',  ['WebsiteController', 'leadership']);
+$router->get('/student-life',    ['WebsiteController', 'studentLife']);
+$router->get('/divisions',       ['WebsiteController', 'divisions']);
+$router->get('/early-childhood', ['WebsiteController', 'earlyChildhood']);
+$router->get('/elementary',      ['WebsiteController', 'elementary']);
+$router->get('/junior-high',     ['WebsiteController', 'juniorHigh']);
+$router->get('/senior-high',     ['WebsiteController', 'seniorHigh']);
+$router->get('/admissions',      ['WebsiteController', 'admissions']);
+$router->get('/academy-news',    ['WebsiteController', 'news']);

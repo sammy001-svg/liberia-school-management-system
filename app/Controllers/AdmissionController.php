@@ -66,6 +66,7 @@ class AdmissionController extends Controller {
             'pageTitle' => 'Online Application', 'branding' => $branding, 'classes' => $classes,
             'documentSlots' => self::APPLICATION_DOCUMENT_SLOTS,
             'flash' => $this->getFlash(),
+            'websiteEnabled' => !empty($tenant['website_enabled']),
         ]);
     }
 

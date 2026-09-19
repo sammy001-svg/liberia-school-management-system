@@ -231,7 +231,12 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
         </form>
       </div>
 
-      <p style="text-align:center;margin-top:30px;font-size:12px;color:var(--text-muted);">
+      <?php if (!empty($websiteEnabled)): ?>
+      <p style="text-align:center;margin-top:24px;font-size:13px;">
+        <a href="<?= $cfg['url'] ?>/">&larr; Back to school website</a>
+      </p>
+      <?php endif; ?>
+      <p style="text-align:center;margin-top:<?= !empty($websiteEnabled) ? '12' : '30' ?>px;font-size:12px;color:var(--text-muted);">
         Powered by <?= htmlspecialchars($appName) ?> &copy; <?= date('Y') ?>
       </p>
     </div>

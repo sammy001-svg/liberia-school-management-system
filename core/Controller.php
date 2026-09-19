@@ -81,6 +81,12 @@ abstract class Controller {
             if (!in_array('description', $colsClasses, true)) {
                 $this->db->execute("ALTER TABLE classes ADD COLUMN description TEXT DEFAULT NULL");
             }
+
+            // tenants.website_enabled — the public website's on/off switch (School Settings)
+            $colsTenants = array_column($this->db->fetchAll("SHOW COLUMNS FROM tenants"), 'Field');
+            if (!in_array('website_enabled', $colsTenants, true)) {
+                $this->db->execute("ALTER TABLE tenants ADD COLUMN website_enabled TINYINT(1) NOT NULL DEFAULT 1");
+            }
         } catch (\Throwable $e) {
             // Ignore schema auto-healing exceptions if DB permissions don't allow ALTER
         }

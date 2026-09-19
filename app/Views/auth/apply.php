@@ -227,7 +227,11 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
       </form>
 
       <p style="text-align:center;margin-top:24px;font-size:13px;">
-        <a href="<?= $cfg['url'] ?>/login">&larr; Back to Sign In</a>
+        <?php if (!empty($websiteEnabled)): ?>
+        <a href="<?= $cfg['url'] ?>/admissions">&larr; Back to Admissions</a>
+        <span style="color:var(--text-muted);margin:0 8px;">·</span>
+        <?php endif; ?>
+        <a href="<?= $cfg['url'] ?>/login"><?= !empty($websiteEnabled) ? 'Sign In' : '&larr; Back to Sign In' ?></a>
       </p>
       <p style="text-align:center;margin-top:12px;font-size:12px;color:var(--text-muted);">
         Powered by <?= htmlspecialchars($appName) ?> &copy; <?= date('Y') ?>
