@@ -170,10 +170,10 @@ class SchoolDashboardController extends Controller {
             try { return $this->db->fetchAll($sql, $p); } catch (\Throwable $e) { error_log($e->getMessage()); return []; }
         };
 
-        $feeIncome   = (float)($safeOne("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE tenant_id=? AND paid_at BETWEEN ? AND ?", [$tid, $from, $to . ' 23:59:59'])['t'] ?? 0);
-        $otherIncome = (float)($safeOne("SELECT COALESCE(SUM(amount),0) t FROM incomes WHERE tenant_id=? AND income_date BETWEEN ? AND ?", [$tid, $from, $to])['t'] ?? 0);
-        $expenseRows = $safeAll("SELECT category, SUM(amount) total FROM expenses WHERE tenant_id=? AND expense_date BETWEEN ? AND ? GROUP BY category ORDER BY category", [$tid, $from, $to]);
-        $incomeRows  = $safeAll("SELECT category, SUM(amount) total FROM incomes WHERE tenant_id=? AND income_date BETWEEN ? AND ? GROUP BY category ORDER BY category", [$tid, $from, $to]);
+        $feeIncome   = (float)($safeOne("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE tenant_id=? AND status='active' AND COALESCE(payment_date, DATE(paid_at)) BETWEEN ? AND ?", [$tid, $from, $to])['t'] ?? 0);
+        $otherIncome = (float)($safeOne("SELECT COALESCE(SUM(amount),0) t FROM incomes WHERE tenant_id=? AND status='active' AND income_date BETWEEN ? AND ?", [$tid, $from, $to])['t'] ?? 0);
+        $expenseRows = $safeAll("SELECT category, SUM(amount) total FROM expenses WHERE tenant_id=? AND status='active' AND expense_date BETWEEN ? AND ? GROUP BY category ORDER BY category", [$tid, $from, $to]);
+        $incomeRows  = $safeAll("SELECT category, SUM(amount) total FROM incomes WHERE tenant_id=? AND status='active' AND income_date BETWEEN ? AND ? GROUP BY category ORDER BY category", [$tid, $from, $to]);
         $expenses = array_sum(array_map(fn($r) => (float)$r['total'], $expenseRows));
 
         // What families still owe: each active student's positive ledger balance.

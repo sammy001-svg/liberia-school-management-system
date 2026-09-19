@@ -125,6 +125,26 @@ $router->post('/school/certificates/types/{id}/delete', ['CertificateController'
 $router->get('/school/certificates/{id}/print',    ['CertificateController', 'printCertificate']);
 $router->post('/school/certificates/{id}/delete',  ['CertificateController', 'delete']);
 
+// ── FINANCIAL SYSTEM (enrollment → bills → payments) ─────────────
+$router->get('/school/finance/billing',                      ['BillingController', 'index']);
+$router->post('/school/finance/billing/save',                ['BillingController', 'save']);
+$router->post('/school/finance/billing/copy',                ['BillingController', 'copy']);
+$router->post('/school/finance/billing/carry-forward',       ['BillingController', 'carryForward']);
+$router->post('/school/finance/billing/descriptions/merge',  ['BillingController', 'mergeDescriptions']);
+$router->post('/school/finance/billing/types',               ['BillingController', 'saveTypes']);
+$router->get('/school/finance/enrollment',                   ['EnrollmentController', 'index']);
+$router->post('/school/finance/enrollment/store',            ['EnrollmentController', 'store']);
+$router->post('/school/finance/enrollment/bulk',             ['EnrollmentController', 'bulk']);
+$router->post('/school/finance/enrollment/{id}/update',      ['EnrollmentController', 'update']);
+$router->post('/school/finance/enrollment/{id}/withdraw',    ['EnrollmentController', 'withdraw']);
+$router->get('/school/finance/fees-payment',                 ['FeePaymentController', 'show']);
+$router->post('/school/finance/fees-payment/store',          ['FeePaymentController', 'store']);
+$router->get('/school/finance/fees-payment/receipts',        ['FeePaymentController', 'receipts']);
+$router->get('/school/finance/payment-approvals',            ['FeePaymentController', 'approvals']);
+$router->get('/school/finance/payments/{id}/receipt',        ['FeePaymentController', 'receipt']);
+$router->post('/school/finance/payments/{id}/cancel',        ['FeePaymentController', 'cancel']);
+$router->post('/school/finance/payments/{id}/approve',       ['FeePaymentController', 'approve']);
+$router->post('/school/finance/payments/{id}/reject',        ['FeePaymentController', 'reject']);
 $router->get('/school/finance',             ['FinanceController', 'index']);
 $router->get('/school/finance/invoices',    ['FinanceController', 'invoices']);
 $router->get('/school/finance/invoices/create', ['FinanceController', 'createInvoice']);

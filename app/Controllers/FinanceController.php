@@ -15,7 +15,7 @@ class FinanceController extends Controller {
             'total_paid' => $this->db->fetchOne("SELECT COALESCE(SUM(amount_paid),0) AS c FROM invoices WHERE tenant_id=?",[$this->tid])['c']??0,
             'unpaid'     => $this->db->fetchOne("SELECT COUNT(*) AS c FROM invoices WHERE tenant_id=? AND status IN('unpaid','partial','overdue')",[$this->tid])['c']??0,
             'paid'       => $this->db->fetchOne("SELECT COUNT(*) AS c FROM invoices WHERE tenant_id=? AND status='paid'",[$this->tid])['c']??0,
-            'total_expenses' => $this->db->fetchOne("SELECT COALESCE(SUM(amount),0) AS c FROM expenses WHERE tenant_id=?",[$this->tid])['c']??0,
+            'total_expenses' => $this->db->fetchOne("SELECT COALESCE(SUM(amount),0) AS c FROM expenses WHERE tenant_id=? AND status='active'",[$this->tid])['c']??0,
         ];
         $recentPayments = $this->db->fetchAll("SELECT p.*, i.invoice_no, u.name AS student_name FROM payments p JOIN invoices i ON p.invoice_id=i.id JOIN students s ON i.student_id=s.id JOIN users u ON s.user_id=u.id WHERE p.tenant_id=? ORDER BY p.paid_at DESC LIMIT 10",[$this->tid]);
         $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
@@ -201,10 +201,13 @@ class FinanceController extends Controller {
             foreach ($students as $s) {
                 if (isset($alreadyBilled[$s['id']])) { $skipped++; continue; }
                 $invoiceNo = 'INV-'.date('Ymd').'-'.bin2hex(random_bytes(4));
-                $this->db->insert(
+                $invoiceId = $this->db->insert(
                     "INSERT INTO invoices (tenant_id,student_id,fee_structure_id,invoice_no,amount_due,due_date,notes,status) VALUES (?,?,?,?,?,?,?,?)",
                     [$this->tid, $s['id'], $fee['id'], $invoiceNo, $fee['amount'], $dueDate, "{$fee['name']} - {$period} {$tag}", 'unpaid']
                 );
+                // Bulk invoices used to skip the ledger, so balances and statements missed them.
+                StudentAccountController::post($this->db, $this->tid, (int)$s['id'], 'charge', "{$fee['name']} - {$period}",
+                    (float)$fee['amount'], ['invoice_id' => $invoiceId, 'reference' => $invoiceNo, 'date' => $dueDate]);
                 $created++;
             }
             $pdo->commit();
@@ -225,7 +228,7 @@ class FinanceController extends Controller {
         $stats = $this->db->fetchOne(
             "SELECT COUNT(*) total, COALESCE(SUM(amount),0) totalAmount,
                     SUM(CASE WHEN DATE(paid_at)=CURDATE() THEN 1 ELSE 0 END) today
-             FROM payments WHERE tenant_id=?", [$this->tid]
+             FROM payments WHERE tenant_id=? AND status='active'", [$this->tid]
         );
         $this->view('school/highschool/finance/payments', ['pageTitle'=>'Payments','panelType'=>'school','tenant'=>$tenant,'payments'=>$payments,'stats'=>$stats,'flash'=>$this->getFlash()]);
     }
@@ -237,26 +240,15 @@ class FinanceController extends Controller {
             'amount'     => 'required|numeric',
         ]);
         if ($errors) { $this->failValidation($errors, '/school/finance/invoices'); }
-        $invoiceId = $_POST['invoice_id'];
-        $invoice = $this->db->fetchOne("SELECT amount_due FROM invoices WHERE id=? AND tenant_id=?", [$invoiceId, $this->tid]);
+        // One path for all fee money (see Finance::recordPayment): the invoice, the ledger and
+        // the approval rules stay consistent however the payment was entered.
+        require_once ROOT_DIR . '/app/Services/Finance.php';
+        $invoice = $this->db->fetchOne("SELECT id FROM invoices WHERE id=? AND tenant_id=?", [$_POST['invoice_id'], $this->tid]);
         if (!$invoice) { $this->redirect('/school/finance/invoices'); }
-        $amount    = (float)$_POST['amount'];
-        $paymentId = $this->db->insert("INSERT INTO payments (tenant_id,invoice_id,amount,method,reference,received_by,notes) VALUES (?,?,?,?,?,?,?)",
-            [$this->tid,$invoiceId,$amount,$_POST['method']??'cash',$_POST['reference']??'',$_SESSION['user_id'],$_POST['notes']??'']);
-
-        // Credit the student's ledger so their statement and balance reflect this receipt.
-        $owner = $this->db->fetchOne("SELECT student_id, invoice_no FROM invoices WHERE id=?", [$invoiceId]);
-        if ($owner) {
-            StudentAccountController::post(
-                $this->db, $this->tid, (int)$owner['student_id'], 'payment',
-                'Payment received — ' . ($_POST['method'] ?? 'cash') . ' (' . $owner['invoice_no'] . ')',
-                -$amount,
-                ['invoice_id' => $invoiceId, 'payment_id' => $paymentId, 'reference' => $_POST['reference'] ?: null]
-            );
-        }
-        $paid = $this->db->fetchOne("SELECT COALESCE(SUM(amount),0) AS t FROM payments WHERE invoice_id=?",[$invoiceId])['t']??0;
-        $newStatus = $paid >= $invoice['amount_due'] ? 'paid' : ($paid > 0 ? 'partial' : 'unpaid');
-        $this->db->execute("UPDATE invoices SET amount_paid=?, status=? WHERE id=? AND tenant_id=?",[$paid,$newStatus,$invoiceId,$this->tid]);
+        \Finance::recordPayment($this->db, $this->tid, (int)$invoice['id'], (float)$_POST['amount'], [
+            'method' => $_POST['method'] ?? 'cash', 'reference' => ($_POST['reference'] ?? '') ?: null,
+            'notes' => ($_POST['notes'] ?? '') ?: null, 'payment_date' => date('Y-m-d'),
+        ]);
         $this->flash('success','Payment recorded.'); $this->redirect('/school/finance/invoices');
     }
 
@@ -277,8 +269,8 @@ class FinanceController extends Controller {
         $categories = $this->db->fetchAll("SELECT DISTINCT category FROM expenses WHERE tenant_id=? ORDER BY category", [$this->tid]);
         $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]);
         $stats = [
-            'total' => $this->db->fetchOne("SELECT COALESCE(SUM(amount),0) c FROM expenses WHERE tenant_id=?", [$this->tid])['c'] ?? 0,
-            'thisMonth' => $this->db->fetchOne("SELECT COALESCE(SUM(amount),0) c FROM expenses WHERE tenant_id=? AND MONTH(expense_date)=MONTH(CURDATE()) AND YEAR(expense_date)=YEAR(CURDATE())", [$this->tid])['c'] ?? 0,
+            'total' => $this->db->fetchOne("SELECT COALESCE(SUM(amount),0) c FROM expenses WHERE tenant_id=? AND status='active'", [$this->tid])['c'] ?? 0,
+            'thisMonth' => $this->db->fetchOne("SELECT COALESCE(SUM(amount),0) c FROM expenses WHERE tenant_id=? AND status='active' AND MONTH(expense_date)=MONTH(CURDATE()) AND YEAR(expense_date)=YEAR(CURDATE())", [$this->tid])['c'] ?? 0,
             'count' => $totalCount,
         ];
         $this->view('school/highschool/finance/expenses', [
@@ -305,8 +297,9 @@ class FinanceController extends Controller {
 
     public function deleteExpense(string $id): void {
         $this->requirePermission(['finance.manage']);
-        $this->db->execute("DELETE FROM expenses WHERE id=? AND tenant_id=?", [$id, $this->tid]);
-        $this->flash('success','Expense removed.'); $this->redirect('/school/finance/expenses');
+        // Expenses are cancelled, never deleted, so the books keep an audit trail.
+        $this->db->execute("UPDATE expenses SET status='cancelled', cancelled_at=NOW(), cancelled_by=? WHERE id=? AND tenant_id=?", [$_SESSION['user_id'] ?? null, $id, $this->tid]);
+        $this->flash('success','Expense cancelled.'); $this->redirect('/school/finance/expenses');
     }
 
     // --- COLLECTION ---
@@ -393,10 +386,12 @@ class FinanceController extends Controller {
             foreach ($students as $s) {
                 if (isset($alreadyBilled[$s['student_id']])) { $skipped++; continue; }
                 $invoiceNo = 'BUS-'.date('Ymd').'-'.bin2hex(random_bytes(4));
-                $this->db->insert(
+                $invoiceId = $this->db->insert(
                     "INSERT INTO invoices (tenant_id,student_id,invoice_no,amount_due,due_date,notes,status) VALUES (?,?,?,?,?,?,?)",
                     [$this->tid, $s['student_id'], $invoiceNo, $route['monthly_fee'], $dueDate, "Bus Fee - {$route['name']} - {$monthLabel} {$tag}", 'unpaid']
                 );
+                StudentAccountController::post($this->db, $this->tid, (int)$s['student_id'], 'charge', "Bus Fee - {$route['name']} - {$monthLabel}",
+                    (float)$route['monthly_fee'], ['invoice_id' => $invoiceId, 'reference' => $invoiceNo, 'date' => $dueDate]);
                 $created++;
             }
             $pdo->commit();
@@ -456,8 +451,8 @@ class FinanceController extends Controller {
     private function computeReportData(string $from, string $to): array {
         $toEnd = $to.' 23:59:59';
         $totalBilled = $this->db->fetchOne("SELECT COALESCE(SUM(amount_due),0) c FROM invoices WHERE tenant_id=? AND created_at BETWEEN ? AND ?", [$this->tid, $from, $toEnd])['c'];
-        $totalCollected = $this->db->fetchOne("SELECT COALESCE(SUM(amount),0) c FROM payments WHERE tenant_id=? AND paid_at BETWEEN ? AND ?", [$this->tid, $from, $toEnd])['c'];
-        $totalExpenses = $this->db->fetchOne("SELECT COALESCE(SUM(amount),0) c FROM expenses WHERE tenant_id=? AND expense_date BETWEEN ? AND ?", [$this->tid, $from, $to])['c'];
+        $totalCollected = $this->db->fetchOne("SELECT COALESCE(SUM(amount),0) c FROM payments WHERE tenant_id=? AND status='active' AND paid_at BETWEEN ? AND ?", [$this->tid, $from, $toEnd])['c'];
+        $totalExpenses = $this->db->fetchOne("SELECT COALESCE(SUM(amount),0) c FROM expenses WHERE tenant_id=? AND status='active' AND expense_date BETWEEN ? AND ?", [$this->tid, $from, $to])['c'];
         $netIncome = $totalCollected - $totalExpenses;
         $collectionRate = $totalBilled > 0 ? round($totalCollected / $totalBilled * 100, 1) : 0;
 
@@ -468,22 +463,22 @@ class FinanceController extends Controller {
              GROUP BY category ORDER BY total DESC", [$this->tid, $from, $toEnd]
         );
         $expensesByCategory = $this->db->fetchAll(
-            "SELECT category, SUM(amount) total FROM expenses WHERE tenant_id=? AND expense_date BETWEEN ? AND ? GROUP BY category ORDER BY total DESC",
+            "SELECT category, SUM(amount) total FROM expenses WHERE tenant_id=? AND status='active' AND expense_date BETWEEN ? AND ? GROUP BY category ORDER BY total DESC",
             [$this->tid, $from, $to]
         );
         $paymentsByMethod = $this->db->fetchAll(
-            "SELECT method, SUM(amount) total, COUNT(*) cnt FROM payments WHERE tenant_id=? AND paid_at BETWEEN ? AND ? GROUP BY method ORDER BY total DESC",
+            "SELECT method, SUM(amount) total, COUNT(*) cnt FROM payments WHERE tenant_id=? AND status='active' AND paid_at BETWEEN ? AND ? GROUP BY method ORDER BY total DESC",
             [$this->tid, $from, $toEnd]
         );
 
         // Trend is always the trailing 6 calendar months regardless of the filter above,
         // to give a stable at-a-glance chart no matter which report period is selected.
         $collectedByMonth = array_column($this->db->fetchAll(
-            "SELECT DATE_FORMAT(paid_at,'%Y-%m') ym, SUM(amount) total FROM payments WHERE tenant_id=? AND paid_at >= DATE_SUB(CURDATE(), INTERVAL 5 MONTH) GROUP BY ym",
+            "SELECT DATE_FORMAT(paid_at,'%Y-%m') ym, SUM(amount) total FROM payments WHERE tenant_id=? AND status='active' AND paid_at >= DATE_SUB(CURDATE(), INTERVAL 5 MONTH) GROUP BY ym",
             [$this->tid]
         ), 'total', 'ym');
         $expensesByMonth = array_column($this->db->fetchAll(
-            "SELECT DATE_FORMAT(expense_date,'%Y-%m') ym, SUM(amount) total FROM expenses WHERE tenant_id=? AND expense_date >= DATE_SUB(CURDATE(), INTERVAL 5 MONTH) GROUP BY ym",
+            "SELECT DATE_FORMAT(expense_date,'%Y-%m') ym, SUM(amount) total FROM expenses WHERE tenant_id=? AND status='active' AND expense_date >= DATE_SUB(CURDATE(), INTERVAL 5 MONTH) GROUP BY ym",
             [$this->tid]
         ), 'total', 'ym');
         $monthlyTrend = [];

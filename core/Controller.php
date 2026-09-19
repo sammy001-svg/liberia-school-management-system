@@ -82,6 +82,10 @@ abstract class Controller {
                 $this->db->execute("ALTER TABLE classes ADD COLUMN description TEXT DEFAULT NULL");
             }
 
+            // Financial system tables/columns (versioned: one lookup per request once current).
+            require_once dirname(__DIR__) . '/app/Services/Finance.php';
+            \Finance::ensureSchema($this->db);
+
             // tenants.website_enabled — the public website's on/off switch (School Settings)
             $colsTenants = array_column($this->db->fetchAll("SHOW COLUMNS FROM tenants"), 'Field');
             if (!in_array('website_enabled', $colsTenants, true)) {

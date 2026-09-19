@@ -29,20 +29,20 @@ class BudgetController extends Controller {
         );
 
         $feeCollected = (float)($this->db->fetchOne(
-            "SELECT COALESCE(SUM(amount),0) t FROM payments WHERE tenant_id=? AND DATE(paid_at) BETWEEN ? AND ?",
+            "SELECT COALESCE(SUM(amount),0) t FROM payments WHERE tenant_id=? AND status='active' AND COALESCE(payment_date, DATE(paid_at)) BETWEEN ? AND ?",
             [$this->tid, $from, $to]
         )['t'] ?? 0);
 
         $expenseByCat = [];
         foreach ($this->db->fetchAll(
             "SELECT LOWER(TRIM(category)) k, COALESCE(SUM(amount),0) t FROM expenses
-             WHERE tenant_id=? AND expense_date BETWEEN ? AND ? GROUP BY k", [$this->tid, $from, $to]
+             WHERE tenant_id=? AND status='active' AND expense_date BETWEEN ? AND ? GROUP BY k", [$this->tid, $from, $to]
         ) as $r) { $expenseByCat[$r['k']] = (float)$r['t']; }
 
         $incomeByCat = [];
         foreach ($this->db->fetchAll(
             "SELECT LOWER(TRIM(category)) k, COALESCE(SUM(amount),0) t FROM incomes
-             WHERE tenant_id=? AND income_date BETWEEN ? AND ? GROUP BY k", [$this->tid, $from, $to]
+             WHERE tenant_id=? AND status='active' AND income_date BETWEEN ? AND ? GROUP BY k", [$this->tid, $from, $to]
         ) as $r) { $incomeByCat[$r['k']] = (float)$r['t']; }
 
         $rows = [];
