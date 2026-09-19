@@ -1,7 +1,31 @@
 <?php require __DIR__ . '/partials/header.php'; ?>
 
-<section class="hero">
-  <div class="hero-media"><img src="<?= $im('home.hero_image') ?>" alt="" fetchpriority="high"></div>
+<?php
+$heroSlides = [
+    [$im('home.hero_image'),  'CELDI students gathered in the school courtyard'],
+    [$im('home.hero_image2'), 'The whole school waving at morning assembly'],
+    [$im('home.hero_image3'), 'CELDI students in their purple and teal uniforms'],
+];
+?>
+<section class="hero" data-hero-carousel aria-roledescription="carousel" aria-label="Life at <?= htmlspecialchars($site['name']) ?>">
+  <div class="hero-media">
+    <?php foreach ($heroSlides as $i => [$src, $alt]): ?>
+      <img class="hero-slide<?= $i === 0 ? ' is-active' : '' ?>" src="<?= $src ?>" alt="<?= htmlspecialchars($alt) ?>"
+           aria-hidden="<?= $i === 0 ? 'false' : 'true' ?>" data-hero-slide <?= $i === 0 ? 'fetchpriority="high"' : 'loading="eager" fetchpriority="low"' ?>>
+    <?php endforeach; ?>
+  </div>
+  <div class="hero-controls">
+    <button type="button" class="hero-arrow" data-hero-prev aria-label="Previous photo"><?= wicon('arrow-right', 'wi-flip') ?></button>
+    <div class="hero-dots" role="group" aria-label="Choose a photo">
+      <?php foreach ($heroSlides as $i => $slide): ?>
+        <button type="button" class="hero-dot<?= $i === 0 ? ' is-active' : '' ?>" data-hero-dot="<?= $i ?>" aria-label="Photo <?= $i + 1 ?> of <?= count($heroSlides) ?>"<?= $i === 0 ? ' aria-current="true"' : '' ?>>
+          <span class="hero-dot-num"><?= str_pad((string)($i + 1), 2, '0', STR_PAD_LEFT) ?></span>
+          <span class="hero-dot-bar"><span></span></span>
+        </button>
+      <?php endforeach; ?>
+    </div>
+    <button type="button" class="hero-arrow" data-hero-next aria-label="Next photo"><?= wicon('arrow-right') ?></button>
+  </div>
   <div class="container hero-content">
     <div class="hero-copy">
       <?php if ($raw('home.hero_eyebrow') !== ''): ?><span class="eyebrow eyebrow--light"><?= $t('home.hero_eyebrow') ?></span><?php endif; ?>

@@ -63,6 +63,73 @@
     else if (drawer && !drawer.hidden) closeMenu();
   });
 
+  // Home hero carousel: crossfades every few seconds, pauses on the controls/keyboard focus and while
+  // the tab is hidden, and never auto-advances for visitors who prefer reduced motion.
+  var hero = document.querySelector('[data-hero-carousel]');
+  if (hero) {
+    var slides = hero.querySelectorAll('[data-hero-slide]');
+    var dots = hero.querySelectorAll('[data-hero-dot]');
+    var interval = 6000;
+    var current = 0, timer = null, paused = false;
+    var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    hero.style.setProperty('--hero-interval', interval + 'ms');
+
+    var show = function (i) {
+      current = (i + slides.length) % slides.length;
+      slides.forEach(function (s, n) {
+        s.classList.toggle('is-active', n === current);
+        s.setAttribute('aria-hidden', n === current ? 'false' : 'true');
+      });
+      dots.forEach(function (d, n) {
+        // Re-trigger the progress bar animation by toggling the class off first.
+        d.classList.remove('is-active');
+        d.removeAttribute('aria-current');
+        if (n === current) {
+          void d.offsetWidth;
+          d.classList.add('is-active');
+          d.setAttribute('aria-current', 'true');
+        }
+      });
+    };
+    var stop = function () { clearInterval(timer); timer = null; };
+    var start = function () {
+      stop();
+      if (reduceMotion || paused || slides.length < 2) return;
+      timer = setInterval(function () { show(current + 1); }, interval);
+    };
+    var go = function (i) { show(i); start(); };
+
+    if (slides.length < 2) {
+      hero.querySelector('.hero-controls').hidden = true;
+    } else {
+      hero.querySelector('[data-hero-prev]').addEventListener('click', function () { go(current - 1); });
+      hero.querySelector('[data-hero-next]').addEventListener('click', function () { go(current + 1); });
+      dots.forEach(function (d) {
+        d.addEventListener('click', function () { go(parseInt(d.getAttribute('data-hero-dot'), 10)); });
+      });
+      var pause = function (on) {
+        paused = on;
+        hero.classList.toggle('is-paused', on);
+        if (on) { stop(); } else { show(current); start(); }
+      };
+      // Only the controls pause on hover: the hero fills the screen, so pausing on the whole
+      // of it would stop the carousel for anyone whose mouse happened to rest there.
+      var controls = hero.querySelector('.hero-controls');
+      controls.addEventListener('mouseenter', function () { pause(true); });
+      controls.addEventListener('mouseleave', function () { pause(false); });
+      hero.addEventListener('focusin', function () { pause(true); });
+      hero.addEventListener('focusout', function (e) { if (!hero.contains(e.relatedTarget)) pause(false); });
+      hero.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowLeft') go(current - 1);
+        if (e.key === 'ArrowRight') go(current + 1);
+      });
+      document.addEventListener('visibilitychange', function () { document.hidden ? stop() : start(); });
+      if (reduceMotion) hero.classList.add('is-paused');
+      show(0);
+      start();
+    }
+  }
+
   // Reveal-on-scroll; everything is simply shown if IntersectionObserver is missing
   var revealEls = document.querySelectorAll('[data-reveal]');
   if (!('IntersectionObserver' in window)) {

@@ -68,7 +68,7 @@ $nav = [
     ['key' => 'admissions', 'label' => 'Admissions', 'href' => $url('admissions')],
     ['key' => 'news', 'label' => 'News & Events', 'href' => $url('academy-news')],
 ];
-$assetVer = '3';
+$assetVer = '4';
 ?>
 <!DOCTYPE html>
 <html lang="en">

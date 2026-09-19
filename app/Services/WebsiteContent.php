@@ -90,8 +90,11 @@ class WebsiteContent {
                 'label' => 'Home', 'url' => '/', 'icon' => '🏠',
                 'desc'  => 'The first page visitors see.',
                 'sections' => [
-                    'Hero' => [
-                        'home.hero_image'   => ['image', 'Background photo', 'hero-assembly.jpg'],
+                    'Hero Carousel' => [
+                        // The hero is a carousel: one slide per photo, crossfading every few seconds.
+                        'home.hero_image'   => ['image', 'Slide 1 photo', 'assembly-courtyard.jpg'],
+                        'home.hero_image2'  => ['image', 'Slide 2 photo', 'assembly-panorama.jpg'],
+                        'home.hero_image3'  => ['image', 'Slide 3 photo', 'students-lineup.jpg'],
                         'home.hero_eyebrow' => ['text', 'Small label above the heading', 'K–12 · Ben Town, Margibi County'],
                         'home.hero_title'   => ['title', 'Heading', 'Changing Liberia, *one child* at a time.'],
                         'home.hero_lead'    => ['textarea', 'Introduction', 'A Christ-centered, technological and vocational education, from nurturing daycare to rigorous senior high. Pursuing Truth, Transforming Lives, and Serving God.'],
