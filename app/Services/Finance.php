@@ -298,7 +298,8 @@ class Finance {
         $currency = $currency ?: 'LRD';
         $sym = self::CURRENCIES[$currency] ?? $currency;
         $a = (float)$amount;
-        return ($a < 0 ? '−' : '') . $sym . ' ' . number_format(abs($a), 2);
+        // Non-breaking space: an amount must never wrap between the symbol and the number.
+        return ($a < 0 ? '−' : '') . $sym . "\u{00A0}" . number_format(abs($a), 2);
     }
 
     /** The academic year marked current, or null. */

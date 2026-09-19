@@ -72,7 +72,7 @@ class FinancialRecordsController extends FinanceBaseController {
                         [$f, $t, $lbl] = Finance::yearRange($this->db, $this->tid, $yid);
                     } else {
                         $f = $_GET["from{$n}"] ?? ''; $t = $_GET["to{$n}"] ?? '';
-                        if (!$f || !$t) { continue 2; }
+                        if (!$f || !$t) { continue; }
                         $lbl = date('M j, Y', strtotime($f)) . ' – ' . date('M j, Y', strtotime($t));
                     }
                     $columns[$lbl . (isset($columns[$lbl]) ? " ({$n})" : '')] = Finance::profitAndLoss($this->db, $this->tid, $f, $t);

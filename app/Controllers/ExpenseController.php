@@ -79,6 +79,7 @@ class ExpenseController extends FinanceBaseController {
 
     public function store(): void {
         $this->guard(['finance.manage']);
+        $errors = [];
         $d = $this->data($errors);
         if ($errors) { $this->failValidation($errors, '/school/finance/expenses'); }
         $pending = $this->settings['expense_approval'] === '1' && !Finance::canApprove();
@@ -95,6 +96,7 @@ class ExpenseController extends FinanceBaseController {
         $this->guard(['finance.manage']);
         $e = $this->db->fetchOne("SELECT * FROM expenses WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         if (!$e || $e['status'] === 'cancelled') { $this->flash('danger', 'That expense can no longer be edited.'); $this->redirect('/school/finance/expenses'); }
+        $errors = [];
         $d = $this->data($errors);
         if ($errors) { $this->failValidation($errors, '/school/finance/expenses'); }
         $this->db->execute(

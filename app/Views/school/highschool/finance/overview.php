@@ -64,11 +64,12 @@ $tools = [
     <div class="fig" style="--fig:var(--warning);"><div class="l">Still Owed on <?= htmlspecialchars($label) ?> Bills</div><div class="v"><?= Finance::money($owedThisYear[$cur] ?? 0, $cur) ?></div></div>
     <p style="font-size:11.5px;color:var(--text-muted);margin:0;">Each arrears payment settles the year it was owed for, but the collected amount is reported here, in the year it was received.</p>
   </div></div>
+  <?php if ($cur === $def): ?>
   <div class="card"><div class="card-body">
-    <div class="card-title" style="margin-bottom:10px;">Income vs Expenses by Month<?= $cur !== $def ? '' : '' ?></div>
-    <?php if ($cur === $def): ?><div style="position:relative;height:250px;"><canvas id="monthChart"></canvas></div>
-    <?php else: ?><p style="font-size:12.5px;color:var(--text-muted);">Monthly chart shows <?= $def ?> only.</p><?php endif; ?>
+    <div class="card-title" style="margin-bottom:10px;">Income vs Expenses by Month</div>
+    <div style="position:relative;height:250px;"><canvas id="monthChart"></canvas></div>
   </div></div>
+  <?php endif; ?>
 </div>
 
 <div class="fin-grid fin-3">
