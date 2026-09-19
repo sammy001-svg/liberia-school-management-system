@@ -167,15 +167,55 @@ $sections = [
   <?php $navItems = array_filter($navSection['items'], fn($i) => empty($i['perms']) || !empty(array_intersect($i['perms'], $perms)) || !empty($i['bypass'])); ?>
   <?php if (empty($navItems)) continue; ?>
   <?php $accentStyle = "--sec-accent:{$navSection['accent']};--nav-accent:{$navSection['accent']};--nav-soft:{$navSection['soft']};"; ?>
-  <div class="sidebar-section" style="<?= $accentStyle ?>">
-    <div class="sidebar-section-label"><?= htmlspecialchars($navSection['label']) ?></div>
-    <nav class="sidebar-nav">
-      <?php foreach ($navItems as $navItem): ?>
-      <a href="<?= $base . $navItem['url'] ?>">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><?= $navItem['icon'] ?></svg>
-        <?= htmlspecialchars($navItem['label']) ?>
-      </a>
-      <?php endforeach; ?>
-    </nav>
+  <?php $navSectionId = 'sb-' . trim(preg_replace('/[^a-z0-9]+/', '-', strtolower($navSection['label'])), '-'); ?>
+  <div class="sidebar-section" data-section="<?= $navSectionId ?>" style="<?= $accentStyle ?>">
+    <button type="button" class="sidebar-section-label sidebar-section-toggle" aria-expanded="true" aria-controls="<?= $navSectionId ?>">
+      <span><?= htmlspecialchars($navSection['label']) ?></span>
+      <span class="sb-count" aria-hidden="true"><?= count($navItems) ?></span>
+      <svg class="sb-chevron" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+    </button>
+    <div class="sidebar-collapse" id="<?= $navSectionId ?>">
+      <nav class="sidebar-nav" aria-label="<?= htmlspecialchars($navSection['label']) ?>">
+        <?php foreach ($navItems as $navItem): ?>
+        <a href="<?= $base . $navItem['url'] ?>">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><?= $navItem['icon'] ?></svg>
+          <?= htmlspecialchars($navItem['label']) ?>
+        </a>
+        <?php endforeach; ?>
+      </nav>
+    </div>
   </div>
 <?php endforeach; ?>
+<script>
+// Collapsible sidebar groups. Runs right after the groups are drawn (before the page
+// paints) so remembered choices never flash open. The group holding the current page
+// always opens. Choices are remembered per browser.
+(function () {
+  var KEY = 'sidebarCollapsed', collapsed = [];
+  try { collapsed = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) {}
+  if (!Array.isArray(collapsed)) collapsed = [];
+  var path = location.pathname.replace(/\/+$/, '');
+  var save = function () { try { localStorage.setItem(KEY, JSON.stringify(collapsed)); } catch (e) {} };
+  var setOpen = function (sec, open) {
+    sec.classList.toggle('collapsed', !open);
+    sec.querySelector('.sidebar-section-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
+  };
+  document.querySelectorAll('.sidebar-section[data-section]').forEach(function (sec) {
+    var id = sec.getAttribute('data-section');
+    var here = Array.prototype.some.call(sec.querySelectorAll('.sidebar-nav a'), function (a) {
+      var p = a.pathname.replace(/\/+$/, '');
+      return path === p || path.indexOf(p + '/') === 0;
+    });
+    setOpen(sec, here || collapsed.indexOf(id) === -1);
+    sec.querySelector('.sidebar-section-toggle').addEventListener('click', function () {
+      var open = sec.classList.contains('collapsed');
+      setOpen(sec, open);
+      collapsed = collapsed.filter(function (c) { return c !== id; });
+      if (!open) collapsed.push(id);
+      save();
+    });
+  });
+  // Animate only user clicks, not the initial state.
+  requestAnimationFrame(function () { var sb = document.getElementById('sidebar'); if (sb) sb.classList.add('sb-ready'); });
+})();
+</script>
