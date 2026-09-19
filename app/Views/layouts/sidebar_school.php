@@ -187,15 +187,15 @@ $sections = [
   </div>
 <?php endforeach; ?>
 <script>
-// Collapsible sidebar groups. Runs right after the groups are drawn (before the page
-// paints) so remembered choices never flash open. The group holding the current page
-// always opens. Choices are remembered per browser.
+// Collapsible sidebar groups, all collapsed by default. Runs right after the groups are
+// drawn (before the page paints) so nothing flashes open. The group holding the current
+// page opens so you can see where you are; groups you open yourself are remembered.
 (function () {
-  var KEY = 'sidebarCollapsed', collapsed = [];
-  try { collapsed = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) {}
-  if (!Array.isArray(collapsed)) collapsed = [];
+  var KEY = 'sidebarExpanded', expanded = [];
+  try { expanded = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) {}
+  if (!Array.isArray(expanded)) expanded = [];
   var path = location.pathname.replace(/\/+$/, '');
-  var save = function () { try { localStorage.setItem(KEY, JSON.stringify(collapsed)); } catch (e) {} };
+  var save = function () { try { localStorage.setItem(KEY, JSON.stringify(expanded)); } catch (e) {} };
   var setOpen = function (sec, open) {
     sec.classList.toggle('collapsed', !open);
     sec.querySelector('.sidebar-section-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -206,12 +206,12 @@ $sections = [
       var p = a.pathname.replace(/\/+$/, '');
       return path === p || path.indexOf(p + '/') === 0;
     });
-    setOpen(sec, here || collapsed.indexOf(id) === -1);
+    setOpen(sec, here || expanded.indexOf(id) !== -1);
     sec.querySelector('.sidebar-section-toggle').addEventListener('click', function () {
       var open = sec.classList.contains('collapsed');
       setOpen(sec, open);
-      collapsed = collapsed.filter(function (c) { return c !== id; });
-      if (!open) collapsed.push(id);
+      expanded = expanded.filter(function (c) { return c !== id; });
+      if (open) expanded.push(id);
       save();
     });
   });
