@@ -6,8 +6,8 @@
 
 <?php if (!empty($hasArrears)): ?>
 <div class="alert alert-warning" style="margin-bottom:20px;">
-    You have an overdue balance of <?= htmlspecialchars($tenant['currency'] ?? 'Ksh') ?><?= number_format($overdueTotal, 2) ?> — child details are restricted until it's paid.
-    <a href="<?= $cfg['url'] ?>/parent/finance">View &amp; Pay Invoices &rarr;</a>
+    You have an overdue balance of <?= implode(' + ', array_map(fn($c, $a) => Finance::money($a, $c), array_keys($overdueTotal), $overdueTotal)) ?> — child details are restricted until it's paid.
+    <a href="<?= $cfg['url'] ?>/parent/finance">View school fees &rarr;</a>
 </div>
 <?php endif; ?>
 

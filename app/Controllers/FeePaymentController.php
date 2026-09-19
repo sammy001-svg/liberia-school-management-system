@@ -144,17 +144,7 @@ class FeePaymentController extends FinanceBaseController {
     // ── Receipts ───────────────────────────────────────────────────
 
     private function receiptRows(string $where, array $params): array {
-        return $this->db->fetchAll(
-            "SELECT p.*, COALESCE(i.description, i.notes, i.invoice_no) AS label, i.amount_due, i.discount, i.student_id, i.academic_year_id,
-                    s.admission_no, su.name AS student_name, COALESCE(ec.name, c.name) AS class_name, ru.name AS received_by_name,
-                    (SELECT COALESCE(SUM(p2.amount),0) FROM payments p2 WHERE p2.invoice_id=p.invoice_id AND p2.status='active'
-                       AND (COALESCE(p2.payment_date, DATE(p2.paid_at)) < COALESCE(p.payment_date, DATE(p.paid_at))
-                            OR (COALESCE(p2.payment_date, DATE(p2.paid_at)) = COALESCE(p.payment_date, DATE(p.paid_at)) AND p2.id <= p.id))) AS paid_to_date
-             FROM payments p JOIN invoices i ON i.id=p.invoice_id JOIN students s ON s.id=i.student_id JOIN users su ON su.id=s.user_id
-             LEFT JOIN enrollments e ON e.id=i.enrollment_id LEFT JOIN classes ec ON ec.id=e.class_id LEFT JOIN classes c ON c.id=s.class_id
-             LEFT JOIN users ru ON ru.id=p.received_by
-             WHERE p.tenant_id=? AND p.status='active' AND {$where}
-             ORDER BY COALESCE(p.payment_date, DATE(p.paid_at)), p.id", array_merge([$this->tid], $params));
+        return Finance::receiptRows($this->db, $this->tid, $where, $params);
     }
 
     public function receipt(string $id): void {

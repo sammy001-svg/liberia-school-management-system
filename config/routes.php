@@ -367,12 +367,17 @@ $router->get('/student/exams',              ['StudentPortalController', 'exams']
 $router->get('/student/exams/{id}/take',    ['StudentPortalController', 'takeExam']);
 $router->post('/student/exams/{id}/submit', ['StudentPortalController', 'submitExam']);
 $router->get('/student/exams/{id}/result',  ['StudentPortalController', 'examResult']);
+$router->get('/student/fees',               ['StudentPortalController', 'fees']);
+$router->get('/student/receipts',           ['StudentPortalController', 'receipts']);
+$router->get('/student/receipts/{id}',      ['StudentPortalController', 'receipt']);
 
 // ── PARENT PORTAL ───────────────────────────────────────────────
 $router->get('/parent/dashboard',           ['ParentPortalController', 'dashboard']);
 $router->get('/parent/student/{id}',        ['ParentPortalController', 'viewChild']);
 $router->get('/parent/student/{id}/report-card', ['ParentPortalController', 'reportCard']);
 $router->get('/parent/finance',             ['ParentPortalController', 'finance']);
+$router->get('/parent/receipts',            ['ParentPortalController', 'receipts']);
+$router->get('/parent/receipts/{id}',       ['ParentPortalController', 'receipt']);
 
 // ── HR & PAYROLL ────────────────────────────────────────────────
 $router->get('/school/staff/export',        ['StaffController', 'exportCsv']);

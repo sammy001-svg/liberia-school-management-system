@@ -16,15 +16,16 @@
         <div class="stat-sub"><?= $attendance['present'] ?> / <?= $attendance['total'] ?> days recorded</div>
     </div>
     <div class="stat-card" style="--card-color: var(--danger);">
-        <div class="stat-label">Fee Balance</div>
+        <div class="stat-label">Fee Balance<?= $acct['year'] ? ' · ' . htmlspecialchars($acct['year']['name']) : '' ?></div>
         <div class="stat-value">
-            <?php 
-                $balance = 0;
-                foreach($invoices as $inv) if($inv['status'] !== 'paid') $balance += $inv['amount'];
-                echo '$' . number_format($balance, 2);
-            ?>
+            <?php if (!$acct['totals']): ?>—<?php endif; ?>
+            <?php foreach ($acct['totals'] as $cur => $t): ?><div><?= Finance::money($t['balance'], $cur) ?></div><?php endforeach; ?>
         </div>
-        <div class="stat-sub">Across all terms</div>
+        <div class="stat-sub">
+            <?php $overdue = array_filter($acct['totals'], fn($t) => $t['overdue'] > 0.005); ?>
+            <?php if ($overdue): foreach ($overdue as $cur => $t): ?><span style="color:var(--danger);"><?= Finance::money($t['overdue'], $cur) ?> overdue</span> <?php endforeach; else: ?>Nothing overdue<?php endif; ?>
+            <?php foreach ($acct['arrears'] as $cur => $amt): ?> · <?= Finance::money($amt, $cur) ?> from earlier years<?php endforeach; ?>
+        </div>
     </div>
 </div>
 
@@ -108,33 +109,25 @@
     </div>
 
     <div class="card">
-        <div class="card-header"><div class="card-title">Recent Invoices</div></div>
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+            <div class="card-title">School Fees<?= $acct['year'] ? ' · ' . htmlspecialchars($acct['year']['name']) : '' ?></div>
+            <a href="<?= $cfg['url'] ?>/parent/finance?child=<?= (int)$student['id'] ?>" class="btn btn-sm btn-secondary">Payments &amp; receipts</a>
+        </div>
         <div class="table-wrapper">
             <table>
-                <thead>
-                    <tr>
-                        <th>Invoice #</th>
-                        <th>Description</th>
-                        <th>Amount</th>
-                        <th>Status</th>
-                        <th>Date</th>
-                    </tr>
-                </thead>
+                <thead><tr><th>Bill</th><th>Due by</th><th style="text-align:right;">Amount</th><th style="text-align:right;">Balance</th><th>Status</th></tr></thead>
                 <tbody>
-                    <?php foreach($invoices as $i): ?>
+                    <?php $badges = ['paid' => 'badge-success', 'partial' => 'badge-warning', 'unpaid' => 'badge-muted', 'overdue' => 'badge-danger', 'waived' => 'badge-info']; ?>
+                    <?php foreach ($acct['bills'] as $b): ?>
                     <tr>
-                        <td>#INV-<?= $i['id'] ?></td>
-                        <td><?= htmlspecialchars($i['description']) ?></td>
-                        <td class="fw-700"><?= htmlspecialchars($tenant['currency'] ?? 'Ksh') ?><?= number_format($i['amount'], 2) ?></td>
-                        <td>
-                            <?php 
-                            $badge = $i['status'] === 'paid' ? 'badge-success' : ($i['status'] === 'partial' ? 'badge-warning' : 'badge-danger');
-                            ?>
-                            <span class="badge <?= $badge ?>"><?= strtoupper($i['status']) ?></span>
-                        </td>
-                        <td><?= date('M d, Y', strtotime($i['created_at'])) ?></td>
+                        <td class="fw-600"><?= htmlspecialchars($b['label']) ?></td>
+                        <td><?= $b['due_date'] ? date('M j, Y', strtotime($b['due_date'])) : '—' ?></td>
+                        <td style="text-align:right;white-space:nowrap;"><?= Finance::money((float)$b['amount_due'] - (float)$b['discount'], $b['cur']) ?></td>
+                        <td style="text-align:right;white-space:nowrap;" class="fw-700"><?= Finance::money($b['balance'], $b['cur']) ?></td>
+                        <td><span class="badge <?= $badges[$b['display_status']] ?>"><?= ucfirst($b['display_status']) ?></span></td>
                     </tr>
                     <?php endforeach; ?>
+                    <?php if (!$acct['bills']): ?><tr><td colspan="5" class="text-center text-muted" style="padding:30px;">No fees billed this year yet.</td></tr><?php endif; ?>
                 </tbody>
             </table>
         </div>

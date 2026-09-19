@@ -2,6 +2,7 @@
 // Official payment receipt(s): each payment prints a student copy and a school copy.
 $def = $finSettings['default_currency'] ?? 'LRD';
 $methods = Finance::PAYMENT_METHODS;
+$copies = $copies ?? ['Student copy', 'School copy'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -48,7 +49,7 @@ $methods = Finance::PAYMENT_METHODS;
     $due = (float)$r['amount_due'] - (float)$r['discount'];
     $balance = max(0, $due - (float)$r['paid_to_date']);
     $date = $r['payment_date'] ?: substr((string)$r['paid_at'], 0, 10);
-    foreach (['Student copy', 'School copy'] as $copy): ?>
+    foreach ($copies as $copy): ?>
   <div class="slip">
     <span class="copy"><?= $copy ?></span>
     <div class="head">

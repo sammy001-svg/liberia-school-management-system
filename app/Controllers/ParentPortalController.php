@@ -1,5 +1,6 @@
 <?php
 require_once ROOT_DIR . '/core/Controller.php';
+require_once ROOT_DIR . '/app/Services/Finance.php';
 
 class ParentPortalController extends Controller {
     private int $pid;
@@ -17,14 +18,16 @@ class ParentPortalController extends Controller {
     // "Arrears" = an unpaid/partial invoice past its due date, on ANY linked child — matches the
     // overdue calculation already used in FinanceController::collection(). Account-wide, not
     // per-child: one overdue child restricts detail pages for all of this parent's children.
-    private function overdueTotal(): float {
-        $total = $this->db->fetchOne(
-            "SELECT COALESCE(SUM(i.amount_due - i.amount_paid - i.discount), 0) AS total
+    // Overdue per currency (LRD and USD are never added together); empty when nothing is overdue.
+    private function overdueTotal(): array {
+        $rows = $this->db->fetchAll(
+            "SELECT COALESCE(i.currency, ?) AS cur, SUM(i.amount_due - i.amount_paid - i.discount) AS total
              FROM invoices i JOIN parent_students ps ON ps.student_id = i.student_id
-             WHERE ps.parent_id = ? AND i.status NOT IN ('paid','waived') AND i.due_date IS NOT NULL AND i.due_date < CURDATE()",
-            [$this->pid]
+             WHERE ps.parent_id = ? AND i.tenant_id = ? AND i.status NOT IN ('paid','waived') AND i.due_date IS NOT NULL AND i.due_date < CURDATE()
+             GROUP BY cur HAVING total > 0.005",
+            [Finance::settings($this->db, $this->tid)['default_currency'], $this->pid, $this->tid]
         );
-        return (float)($total['total'] ?? 0);
+        return array_map('floatval', array_column($rows, 'total', 'cur'));
     }
 
     public function dashboard(): void {
@@ -37,13 +40,13 @@ class ParentPortalController extends Controller {
              WHERE ps.parent_id = ?",
             [$this->pid]
         );
-        $overdueTotal = $this->restrictionEnabled ? $this->overdueTotal() : 0;
+        $overdueTotal = $this->restrictionEnabled ? $this->overdueTotal() : [];
 
         $this->view('school/portals/parent/dashboard', [
             'pageTitle' => 'Parent Dashboard',
             'panelType' => 'parent',
             'children' => $children,
-            'hasArrears' => $overdueTotal > 0,
+            'hasArrears' => (bool)$overdueTotal,
             'overdueTotal' => $overdueTotal,
         ]);
     }
@@ -67,7 +70,7 @@ class ParentPortalController extends Controller {
 
         if ($this->restrictionEnabled) {
             $overdueTotal = $this->overdueTotal();
-            if ($overdueTotal > 0) {
+            if ($overdueTotal) {
                 $this->view('school/portals/parent/restricted', [
                     'pageTitle' => 'Access Restricted',
                     'panelType' => 'parent',
@@ -96,10 +99,7 @@ class ParentPortalController extends Controller {
             [$sid]
         );
 
-        $invoices = $this->db->fetchAll(
-            "SELECT * FROM invoices WHERE student_id = ? ORDER BY created_at DESC",
-            [$sid]
-        );
+        $acct = Finance::studentAccount($this->db, $this->tid, $sid);
 
         $busInfo = $this->db->fetchOne(
             "SELECT br.name AS route_name, br.stops, br.departure_time, br.return_time,
@@ -120,7 +120,7 @@ class ParentPortalController extends Controller {
             'student' => $student,
             'attendance' => $attendance,
             'grades' => $grades,
-            'invoices' => $invoices,
+            'acct' => $acct,
             'busInfo' => $busInfo ?: null,
         ]);
     }
@@ -140,7 +140,7 @@ class ParentPortalController extends Controller {
 
         if ($this->restrictionEnabled) {
             $overdueTotal = $this->overdueTotal();
-            if ($overdueTotal > 0) {
+            if ($overdueTotal) {
                 $this->view('school/portals/parent/restricted', [
                     'pageTitle' => 'Access Restricted',
                     'panelType' => 'parent',
@@ -160,21 +160,65 @@ class ParentPortalController extends Controller {
         ));
     }
 
-    public function finance(): void {
-        $invoices = $this->db->fetchAll(
-            "SELECT i.*, u.name as student_name 
-             FROM invoices i 
-             JOIN students s ON i.student_id = s.id 
-             JOIN users u ON s.user_id = u.id 
-             JOIN parent_students ps ON s.id = ps.student_id 
-             WHERE ps.parent_id = ? ORDER BY i.created_at DESC", 
-            [$this->pid]
+    private function children(): array {
+        return $this->db->fetchAll(
+            "SELECT s.id, s.admission_no, u.name, c.name AS class_name
+             FROM parent_students ps JOIN students s ON ps.student_id = s.id JOIN users u ON s.user_id = u.id
+             LEFT JOIN classes c ON s.class_id = c.id
+             WHERE ps.parent_id = ? AND s.tenant_id = ? ORDER BY u.name",
+            [$this->pid, $this->tid]
         );
+    }
+
+    private function ownsStudent(int $sid): bool {
+        return (bool)$this->db->fetchOne("SELECT 1 FROM parent_students WHERE parent_id=? AND student_id=?", [$this->pid, $sid]);
+    }
+
+    /** Fees for each child: bills and installments, payments and receipts, per school year. */
+    public function finance(): void {
+        $children = $this->children();
+        $childId = (int)($_GET['child'] ?? 0);
+        $ids = array_map('intval', array_column($children, 'id'));
+        if (!in_array($childId, $ids, true)) { $childId = $ids[0] ?? 0; }
+
+        // A one-line balance for every child, so the tabs show who owes what this year.
+        foreach ($children as &$c) {
+            $c['totals'] = Finance::studentAccount($this->db, $this->tid, (int)$c['id'])['totals'];
+        }
+        unset($c);
 
         $this->view('school/portals/parent/finance', [
-            'pageTitle' => 'Financial Overview',
+            'pageTitle' => 'School Fees',
             'panelType' => 'parent',
-            'invoices' => $invoices
+            'children' => $children,
+            'childId' => $childId,
+            'acct' => $childId ? Finance::studentAccount($this->db, $this->tid, $childId, (int)($_GET['year'] ?? 0) ?: null) : null,
+        ]);
+    }
+
+    /** One receipt, only for a payment on one of this parent's children. */
+    public function receipt(string $id): void {
+        $rows = Finance::receiptRows($this->db, $this->tid, 'p.id=? AND EXISTS (SELECT 1 FROM parent_students ps WHERE ps.parent_id=? AND ps.student_id=i.student_id)', [(int)$id, $this->pid]);
+        if (!$rows) { $this->flash('error', 'That receipt is not available.'); $this->redirect('/parent/finance'); }
+        $this->printReceipts($rows, 'Receipt #' . (int)$id);
+    }
+
+    /** Every receipt for one child in one year. */
+    public function receipts(): void {
+        $sid = (int)($_GET['child'] ?? 0);
+        $year = $this->db->fetchOne("SELECT * FROM academic_years WHERE id=? AND tenant_id=?", [(int)($_GET['year'] ?? 0), $this->tid]);
+        $rows = $year && $this->ownsStudent($sid) ? Finance::receiptRows($this->db, $this->tid,
+            'i.student_id=? AND (i.academic_year_id=? OR (i.academic_year_id IS NULL AND DATE(i.created_at) BETWEEN ? AND ?))',
+            [$sid, $year['id'], $year['start_date'], $year['end_date']]) : [];
+        if (!$rows) { $this->flash('error', 'No receipts to print for that year.'); $this->redirect('/parent/finance?child=' . $sid); }
+        $this->printReceipts($rows, 'Receipts — ' . $rows[0]['student_name']);
+    }
+
+    private function printReceipts(array $rows, string $title): void {
+        $this->view('school/highschool/finance/receipt_print', [
+            'pageTitle' => $title, 'rows' => $rows, 'copies' => ['Receipt'],
+            'tenant' => $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]),
+            'finSettings' => Finance::settings($this->db, $this->tid),
         ]);
     }
 }

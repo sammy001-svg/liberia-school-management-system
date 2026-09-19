@@ -13,10 +13,10 @@
         </p>
         <div class="stat-card" style="display:inline-block;--card-color: var(--danger);margin-bottom:24px;">
             <div class="stat-label">Amount Overdue</div>
-            <div class="stat-value"><?= htmlspecialchars($tenant['currency'] ?? 'Ksh') ?><?= number_format($overdueTotal, 2) ?></div>
+            <div class="stat-value"><?= implode(' + ', array_map(fn($c, $a) => Finance::money($a, $c), array_keys($overdueTotal), $overdueTotal)) ?></div>
         </div>
         <div>
-            <a href="<?= $cfg['url'] ?>/parent/finance" class="btn btn-primary btn-lg">View &amp; Pay Invoices</a>
+            <a href="<?= $cfg['url'] ?>/parent/finance" class="btn btn-primary btn-lg">View school fees</a>
         </div>
     </div>
 </div>

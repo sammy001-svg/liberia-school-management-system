@@ -1,5 +1,6 @@
 <?php
 require_once ROOT_DIR . '/core/Controller.php';
+require_once ROOT_DIR . '/app/Services/Finance.php';
 
 class StudentPortalController extends Controller {
     private int $sid;
@@ -285,6 +286,38 @@ class StudentPortalController extends Controller {
         $this->view('school/portals/student/exam_result', [
             'pageTitle' => 'Result — '.$exam['title'], 'panelType' => 'student',
             'exam' => $exam, 'attempt' => $attempt, 'breakdown' => $breakdown,
+        ]);
+    }
+
+    /** My fees: bills and installments, payments and receipts for the chosen school year. */
+    public function fees(): void {
+        $this->view('school/portals/student/fees', [
+            'pageTitle' => 'My Fees',
+            'panelType' => 'student',
+            'acct' => Finance::studentAccount($this->db, $this->tid, $this->sid, (int)($_GET['year'] ?? 0) ?: null),
+        ]);
+    }
+
+    public function receipt(string $id): void {
+        $rows = Finance::receiptRows($this->db, $this->tid, 'p.id=? AND i.student_id=?', [(int)$id, $this->sid]);
+        if (!$rows) { $this->flash('error', 'That receipt is not available.'); $this->redirect('/student/fees'); }
+        $this->printReceipts($rows, 'Receipt #' . (int)$id);
+    }
+
+    public function receipts(): void {
+        $year = $this->db->fetchOne("SELECT * FROM academic_years WHERE id=? AND tenant_id=?", [(int)($_GET['year'] ?? 0), $this->tid]);
+        $rows = $year ? Finance::receiptRows($this->db, $this->tid,
+            'i.student_id=? AND (i.academic_year_id=? OR (i.academic_year_id IS NULL AND DATE(i.created_at) BETWEEN ? AND ?))',
+            [$this->sid, $year['id'], $year['start_date'], $year['end_date']]) : [];
+        if (!$rows) { $this->flash('error', 'No receipts to print for that year.'); $this->redirect('/student/fees'); }
+        $this->printReceipts($rows, 'My Receipts');
+    }
+
+    private function printReceipts(array $rows, string $title): void {
+        $this->view('school/highschool/finance/receipt_print', [
+            'pageTitle' => $title, 'rows' => $rows, 'copies' => ['Receipt'],
+            'tenant' => $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]),
+            'finSettings' => Finance::settings($this->db, $this->tid),
         ]);
     }
 }

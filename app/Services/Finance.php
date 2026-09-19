@@ -585,4 +585,87 @@ class Finance {
         uksort($out, fn($a, $b) => ($a === $def ? -1 : 0) - ($b === $def ? -1 : 0));
         return $out;
     }
+
+    // ── Family view (parent / student portals) ────────────────────────
+
+    /**
+     * One student's fee account for a year, as families see it: the enrollment, every
+     * bill with what was paid and what is left, the payments made (confirmed and awaiting
+     * confirmation), totals per currency and anything still owed from earlier years.
+     */
+    public static function studentAccount(Database $db, int $tid, int $studentId, ?int $yearId = null): array {
+        $def = self::settings($db, $tid)['default_currency'] ?: 'LRD';
+        $years = $db->fetchAll(
+            "SELECT ay.id, ay.name, ay.start_date, ay.end_date, ay.is_current FROM academic_years ay
+             WHERE ay.tenant_id=? AND (ay.is_current=1
+                OR EXISTS (SELECT 1 FROM enrollments e WHERE e.academic_year_id=ay.id AND e.student_id=?)
+                OR EXISTS (SELECT 1 FROM invoices i WHERE i.student_id=? AND (i.academic_year_id=ay.id
+                           OR (i.academic_year_id IS NULL AND DATE(i.created_at) BETWEEN ay.start_date AND ay.end_date))))
+             ORDER BY ay.start_date DESC", [$tid, $studentId, $studentId]);
+        $year = null;
+        foreach ($years as $y) { if ((int)$y['id'] === (int)$yearId) { $year = $y; } }
+        if (!$year) { foreach ($years as $y) { if ((int)$y['is_current']) { $year = $y; break; } } }
+        $year = $year ?: ($years[0] ?? null);
+
+        $out = ['years' => $years, 'year' => $year, 'enrollment' => null, 'bills' => [], 'payments' => [], 'totals' => [], 'arrears' => []];
+        if (!$year) { return $out; }
+        $yid = (int)$year['id'];
+
+        $out['enrollment'] = $db->fetchOne(
+            "SELECT e.*, c.name AS class_name, st.name AS type_name FROM enrollments e
+             LEFT JOIN classes c ON c.id=e.class_id LEFT JOIN student_types st ON st.id=e.student_type_id
+             WHERE e.tenant_id=? AND e.student_id=? AND e.academic_year_id=?", [$tid, $studentId, $yid]) ?: null;
+
+        $inYear = "(i.academic_year_id=? OR (i.academic_year_id IS NULL AND DATE(i.created_at) BETWEEN ? AND ?))";
+        $inYearParams = [$yid, $year['start_date'], $year['end_date']];
+        $today = date('Y-m-d');
+        foreach ($db->fetchAll(
+            "SELECT i.*, COALESCE(i.description, i.notes, i.invoice_no) AS label, COALESCE(i.currency, ?) AS cur,
+                    (SELECT COALESCE(SUM(p.amount),0) FROM payments p WHERE p.invoice_id=i.id AND p.status='pending') AS pending_amt
+             FROM invoices i LEFT JOIN fee_bills b ON b.id=i.fee_bill_id
+             WHERE i.tenant_id=? AND i.student_id=? AND {$inYear}
+             ORDER BY COALESCE(b.sort_order, 9999), COALESCE(i.due_date, '9999-12-31'), i.id",
+            array_merge([$def, $tid, $studentId], $inYearParams)) as $i) {
+            $net = (float)$i['amount_due'] - (float)$i['discount'];
+            $i['balance'] = $i['status'] === 'waived' ? 0.0 : max(0, round($net - (float)$i['amount_paid'], 2));
+            $i['overdue'] = $i['balance'] > 0.005 && $i['due_date'] && $i['due_date'] < $today;
+            $i['display_status'] = $i['status'] === 'waived' ? 'waived' : ($i['balance'] <= 0.005 ? 'paid' : ($i['overdue'] ? 'overdue' : ((float)$i['amount_paid'] > 0 ? 'partial' : 'unpaid')));
+            $out['bills'][] = $i;
+            $t = &$out['totals'][$i['cur']];
+            $t ??= ['billed' => 0.0, 'discount' => 0.0, 'paid' => 0.0, 'balance' => 0.0, 'overdue' => 0.0, 'pending' => 0.0];
+            $t['billed'] += (float)$i['amount_due'];
+            $t['discount'] += $i['status'] === 'waived' ? $net : (float)$i['discount'];
+            $t['paid'] += (float)$i['amount_paid'];
+            $t['balance'] += $i['balance'];
+            $t['pending'] += (float)$i['pending_amt'];
+            if ($i['overdue']) { $t['overdue'] += $i['balance']; }
+            unset($t);
+        }
+        uksort($out['totals'], fn($a, $b) => ($a === $def ? -1 : 0) - ($b === $def ? -1 : 0));
+
+        $out['payments'] = $db->fetchAll(
+            "SELECT p.id, p.amount, p.method, p.reference, p.status, p.is_arrears, COALESCE(p.currency, i.currency, ?) AS cur,
+                    COALESCE(p.payment_date, DATE(p.paid_at)) AS pay_date, COALESCE(i.description, i.notes, i.invoice_no) AS label
+             FROM payments p JOIN invoices i ON i.id=p.invoice_id
+             WHERE p.tenant_id=? AND i.student_id=? AND p.status IN ('active','pending') AND {$inYear}
+             ORDER BY pay_date DESC, p.id DESC", array_merge([$def, $tid, $studentId], $inYearParams));
+
+        $out['arrears'] = self::priorArrears($db, $tid, $studentId, $yid);
+        return $out;
+    }
+
+    /** Confirmed payments printed as receipts (one row per payment, with paid-to-date for the balance line). */
+    public static function receiptRows(Database $db, int $tid, string $where, array $params): array {
+        return $db->fetchAll(
+            "SELECT p.*, COALESCE(i.description, i.notes, i.invoice_no) AS label, i.amount_due, i.discount, i.student_id, i.academic_year_id,
+                    s.admission_no, su.name AS student_name, COALESCE(ec.name, c.name) AS class_name, ru.name AS received_by_name,
+                    (SELECT COALESCE(SUM(p2.amount),0) FROM payments p2 WHERE p2.invoice_id=p.invoice_id AND p2.status='active'
+                       AND (COALESCE(p2.payment_date, DATE(p2.paid_at)) < COALESCE(p.payment_date, DATE(p.paid_at))
+                            OR (COALESCE(p2.payment_date, DATE(p2.paid_at)) = COALESCE(p.payment_date, DATE(p.paid_at)) AND p2.id <= p.id))) AS paid_to_date
+             FROM payments p JOIN invoices i ON i.id=p.invoice_id JOIN students s ON s.id=i.student_id JOIN users su ON su.id=s.user_id
+             LEFT JOIN enrollments e ON e.id=i.enrollment_id LEFT JOIN classes ec ON ec.id=e.class_id LEFT JOIN classes c ON c.id=s.class_id
+             LEFT JOIN users ru ON ru.id=p.received_by
+             WHERE p.tenant_id=? AND p.status='active' AND {$where}
+             ORDER BY COALESCE(p.payment_date, DATE(p.paid_at)), p.id", array_merge([$tid], $params));
+    }
 }
