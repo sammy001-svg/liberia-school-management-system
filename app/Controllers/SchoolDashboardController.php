@@ -112,32 +112,29 @@ class SchoolDashboardController extends Controller {
             }
         }
 
-        // Chart Data - Fees
-        $feesData = $this->db->fetchOne("SELECT 
-            COALESCE(SUM(amount_paid), 0) as collected,
-            COALESCE(SUM(CASE WHEN status IN ('unpaid','partial') THEN amount_due - amount_paid - discount ELSE 0 END), 0) as pending,
-            COALESCE(SUM(CASE WHEN status = 'overdue' THEN amount_due - amount_paid - discount ELSE 0 END), 0) as overdue
-            FROM invoices WHERE tenant_id=?", [$tid]);
-
-        $fees = [
-            'collected' => $feesData['collected'],
-            'pending' => $feesData['pending'],
-            'overdue' => $feesData['overdue']
+        // People — staff is every school account that isn't a student or parent login.
+        $gender = $this->db->fetchOne(
+            "SELECT SUM(u.gender='female') AS female, SUM(u.gender='male') AS male,
+                    SUM(u.gender IS NULL OR u.gender NOT IN ('male','female')) AS other
+             FROM students s JOIN users u ON u.id=s.user_id WHERE s.tenant_id=? AND s.status='active'", [$tid]);
+        $people = [
+            'female'  => (int)($gender['female'] ?? 0),
+            'male'    => (int)($gender['male'] ?? 0),
+            'other'   => (int)($gender['other'] ?? 0),
+            'staff'   => (int)($this->db->fetchOne(
+                "SELECT COUNT(*) c FROM users u JOIN roles r ON r.id=u.role_id
+                 WHERE u.tenant_id=? AND r.name NOT IN ('Student','Parent')
+                   AND u.id NOT IN (SELECT user_id FROM students WHERE tenant_id=? AND user_id IS NOT NULL)
+                   AND u.id NOT IN (SELECT user_id FROM parents WHERE tenant_id=? AND user_id IS NOT NULL)",
+                [$tid, $tid, $tid])['c'] ?? 0),
+            'parents' => (int)($this->db->fetchOne(
+                "SELECT COUNT(DISTINCT p.id) c FROM parents p JOIN parent_students ps ON ps.parent_id=p.id
+                 JOIN students s ON s.id=ps.student_id AND s.status='active' WHERE p.tenant_id=?", [$tid])['c'] ?? 0),
         ];
 
-        // Chart Data - Exams
-        $examsData = $this->db->fetchOne("SELECT 
-            COUNT(CASE WHEN exam_date > CURDATE() THEN 1 END) as upcoming,
-            COUNT(CASE WHEN exam_date = CURDATE() THEN 1 END) as in_progress,
-            COUNT(CASE WHEN exam_date < CURDATE() THEN 1 END) as completed
-            FROM exams WHERE tenant_id=?", [$tid]);
-
-        $exams = [
-            'upcoming' => $examsData['upcoming'],
-            'in_progress' => $examsData['in_progress'],
-            'completed' => $examsData['completed'],
-            'cancelled' => 0
-        ];
+        // School-wide money is only shown to people who could open the finance pages anyway.
+        $canFinance = $this->hasPermission('finance.manage') || $this->hasPermission('finance.accounts');
+        $finance = $canFinance ? $this->financeSummary($tid) : null;
 
         $this->view('school/highschool/dashboard', [
             'pageTitle'      => 'Dashboard',
@@ -145,13 +142,63 @@ class SchoolDashboardController extends Controller {
             'tenant'         => $tenant,
             'stats'          => $stats,
             'trends'         => $trends,
+            'people'         => $people,
+            'finance'        => $finance,
             'calendar'       => $calendar,
             'announcements'  => $announcements,
             'attendance_hist'=> $attendance_history,
-            'fees'           => $fees,
-            'exams'          => $exams,
             'flash'          => $this->getFlash(),
         ]);
+    }
+
+    /**
+     * The year's money at a glance, for the current academic year (or the calendar year
+     * when none is marked current). Income is fee payments plus other recorded income —
+     * fee payments live only in `payments` (the ledger mirrors them), so nothing is counted twice.
+     */
+    private function financeSummary(?int $tid): array {
+        $year = $this->db->fetchOne("SELECT name, start_date, end_date FROM academic_years WHERE tenant_id=? AND is_current=1 LIMIT 1", [$tid]);
+        [$from, $to, $label] = $year
+            ? [$year['start_date'], $year['end_date'], $year['name']]
+            : [date('Y-01-01'), date('Y-12-31'), date('Y')];
+
+        // Optional tables (added by later migrations) must not take the dashboard down.
+        $safeOne = function (string $sql, array $p) {
+            try { return $this->db->fetchOne($sql, $p) ?: []; } catch (\Throwable $e) { error_log($e->getMessage()); return []; }
+        };
+        $safeAll = function (string $sql, array $p) {
+            try { return $this->db->fetchAll($sql, $p); } catch (\Throwable $e) { error_log($e->getMessage()); return []; }
+        };
+
+        $feeIncome   = (float)($safeOne("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE tenant_id=? AND paid_at BETWEEN ? AND ?", [$tid, $from, $to . ' 23:59:59'])['t'] ?? 0);
+        $otherIncome = (float)($safeOne("SELECT COALESCE(SUM(amount),0) t FROM incomes WHERE tenant_id=? AND income_date BETWEEN ? AND ?", [$tid, $from, $to])['t'] ?? 0);
+        $expenseRows = $safeAll("SELECT category, SUM(amount) total FROM expenses WHERE tenant_id=? AND expense_date BETWEEN ? AND ? GROUP BY category ORDER BY category", [$tid, $from, $to]);
+        $incomeRows  = $safeAll("SELECT category, SUM(amount) total FROM incomes WHERE tenant_id=? AND income_date BETWEEN ? AND ? GROUP BY category ORDER BY category", [$tid, $from, $to]);
+        $expenses = array_sum(array_map(fn($r) => (float)$r['total'], $expenseRows));
+
+        // What families still owe: each active student's positive ledger balance.
+        $owing = $safeOne(
+            "SELECT COALESCE(SUM(b.balance),0) total, COUNT(*) students FROM (
+                SELECT l.student_id, SUM(l.amount) balance FROM student_ledger l
+                JOIN students s ON s.id=l.student_id AND s.status='active'
+                WHERE l.tenant_id=? GROUP BY l.student_id HAVING balance > 0.009) b", [$tid]);
+        $overdue = $safeOne(
+            "SELECT COALESCE(SUM(amount_due - amount_paid - COALESCE(discount,0)),0) t FROM invoices
+             WHERE tenant_id=? AND status IN ('unpaid','partial','overdue') AND due_date < CURDATE()", [$tid]);
+
+        return [
+            'label'        => $label,
+            'fee_income'   => $feeIncome,
+            'other_income' => $otherIncome,
+            'income'       => $feeIncome + $otherIncome,
+            'expenses'     => $expenses,
+            'balance'      => $feeIncome + $otherIncome - $expenses,
+            'expense_rows' => $expenseRows,
+            'income_rows'  => $incomeRows,
+            'owing'        => (float)($owing['total'] ?? 0),
+            'owing_count'  => (int)($owing['students'] ?? 0),
+            'overdue'      => (float)($overdue['t'] ?? 0),
+        ];
     }
 
     /**
