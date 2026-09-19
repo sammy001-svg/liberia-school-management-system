@@ -163,7 +163,7 @@ $kpis = [
   <div class="dash-card">
     <div class="dash-card-header">
       <div><div class="dash-card-title">Finances</div><div class="dash-card-sub"><?= htmlspecialchars($finance['label']) ?></div></div>
-      <a href="<?= $cfg['url'] ?>/school/finance/payments" class="btn btn-sm btn-success">Go to Fees Payment</a>
+      <a href="<?= $cfg['url'] ?>/school/finance/fees-payment" class="btn btn-sm btn-success">Go to Fees Payment</a>
     </div>
     <div class="fig-grid">
       <div class="fig" style="--fig:var(--success);" title="Fees <?= $money($finance['fee_income']) ?> + other income <?= $money($finance['other_income']) ?>">
@@ -178,7 +178,7 @@ $kpis = [
   <div class="dash-card">
     <div class="dash-card-header">
       <div><div class="dash-card-title">Arrears</div><div class="dash-card-sub">Fees still owed</div></div>
-      <a href="<?= $cfg['url'] ?>/school/finance/arrears" class="btn btn-sm btn-success">Process Arrears</a>
+      <a href="<?= $cfg['url'] ?>/school/finance/arrears-collection" class="btn btn-sm btn-success">Process Arrears</a>
     </div>
     <div style="display:grid;gap:16px;">
       <div class="fig" style="--fig:var(--danger);"><div class="fig-label">Outstanding balances (all years)</div><div class="fig-value"><?= $money($finance['owing']) ?></div></div>
@@ -205,7 +205,7 @@ $kpis = [
   <?php if ($hasFinance): ?>
     <?php foreach ([
       ['Expenses', 'Expense breakdown', $finance['expense_rows'], $finance['expenses'], '/school/finance/expenses', 'Manage Expenses', 'No expenses recorded for this year yet.'],
-      ['Extra Collections', 'Other income (uniforms, cafeteria, books…)', $finance['income_rows'], $finance['other_income'], '/school/finance/incomes', 'Manage Collections', 'No other income recorded for this year yet.'],
+      ['Extra Collections', 'Other income (uniforms, cafeteria, books…)', $finance['income_rows'], $finance['other_income'], '/school/finance/collections', 'Manage Collections', 'No other income recorded for this year yet.'],
     ] as $bi => [$title, $sub, $rows, $total, $link, $btn, $empty]): ?>
       <div class="dash-card">
         <div class="dash-card-header">
@@ -280,7 +280,7 @@ $kpis = [
      'icon'=>'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'],
     ['url'=>'/school/analytics', 'label'=>'View Reports', 'roles'=>['School Admin','Teacher'],
      'icon'=>'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'],
-    ['url'=>'/school/finance/invoices/create', 'label'=>'Create Invoice', 'roles'=>['School Admin','Accountant'],
+    ['url'=>'/school/finance/fees-payment', 'label'=>'Fees Payment', 'roles'=>['School Admin','Accountant'],
      'icon'=>'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2z'],
     ['url'=>'/school/finance/bus-billing', 'label'=>'Bus Billing', 'roles'=>['School Admin','Accountant'],
      'icon'=>'M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25'],

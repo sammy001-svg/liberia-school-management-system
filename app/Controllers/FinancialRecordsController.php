@@ -237,4 +237,27 @@ class FinancialRecordsController extends FinanceBaseController {
         $this->financeView('audit', ['pageTitle' => 'Payment Records Audit', 'rows' => $rows, 'byMethod' => $byMethod, 'byUser' => $byUser,
             'users' => $users, 'filters' => ['from' => $from, 'to' => $to, 'method' => $method, 'user' => $user]]);
     }
+
+    /** Old finance-module URLs → the page that does that job now (the target checks access). */
+    public function legacy(string $id = ''): void {
+        $path = (string)parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
+        $map = [
+            '/school/hr/payroll' => '/school/payroll',
+            '/school/finance/invoices' => '/school/finance/fees-payment',
+            '/school/finance/payments' => '/school/finance/fees-payment',
+            '/school/finance/fees' => '/school/finance/billing',
+            '/school/finance/collection' => '/school/finance/arrears-collection',
+            '/school/finance/arrears' => '/school/finance/arrears-collection',
+            '/school/finance/reports' => '/school/finance/profit-loss',
+            '/school/finance/accounts' => '/school/finance/statements',
+            '/school/finance/scholarships' => '/school/finance/billing',
+        ];
+        foreach ($map as $old => $new) {
+            if (str_contains($path, $old)) {
+                if ($id !== '' && $old === '/school/finance/accounts') { $new .= '?student=' . (int)$id; }
+                $this->redirect($new);
+            }
+        }
+        $this->redirect('/school/finance');
+    }
 }

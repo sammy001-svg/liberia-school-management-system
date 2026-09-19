@@ -51,7 +51,7 @@
             <div class="mini-stat-label">Avg Grade</div>
           </div>
           <div class="mini-stat">
-            <div class="mini-stat-value"><?= htmlspecialchars($tenant['currency'] ?? 'Ksh') ?><?= number_format($outstandingFees,0) ?></div>
+            <div class="mini-stat-value"><?= $outstandingFees ? implode(' + ', array_map(fn($c, $a) => Finance::money($a, $c), array_keys($outstandingFees), $outstandingFees)) : Finance::money(0, $finDefault) ?></div>
             <div class="mini-stat-label">Fees Due</div>
           </div>
         </div>
@@ -360,20 +360,27 @@
     </div>
 
     <div class="card">
-      <div class="card-header"><div class="card-title">Invoices</div><a href="<?= $cfg['url'] ?>/school/finance/invoices/create" class="btn btn-sm btn-primary">+ Invoice</a></div>
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+        <div class="card-title">School Fees<?= $feeAccount['year'] ? ' · ' . htmlspecialchars($feeAccount['year']['name']) : '' ?></div>
+        <div style="display:flex;gap:6px;">
+          <a href="<?= $cfg['url'] ?>/school/finance/statements?student=<?= (int)$student['id'] ?>" class="btn btn-sm btn-outline">Statement</a>
+          <a href="<?= $cfg['url'] ?>/school/finance/fees-payment?student=<?= (int)$student['id'] ?>" class="btn btn-sm btn-primary">Take Payment</a>
+        </div>
+      </div>
       <div class="table-wrapper"><table>
-        <thead><tr><th>Invoice</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Bill</th><th>Amount</th><th>Balance</th><th>Status</th></tr></thead>
         <tbody>
-          <?php foreach($invoices as $inv): ?>
+          <?php $feeBadge = ['paid' => 'success', 'partial' => 'warning', 'unpaid' => 'muted', 'overdue' => 'danger', 'waived' => 'info']; ?>
+          <?php foreach($feeAccount['bills'] as $b): ?>
           <tr>
-            <td style="font-family:monospace;font-size:12px"><?= htmlspecialchars($inv['invoice_no']) ?></td>
-            <td><?= htmlspecialchars($tenant['currency'] ?? 'Ksh') ?><?= number_format($inv['amount_due'],2) ?></td>
-            <td><span class="badge badge-<?= $inv['status']==='paid'?'success':($inv['status']==='overdue'?'danger':($inv['status']==='waived'?'muted':'warning')) ?>"><?= ucfirst($inv['status']) ?></span></td>
-            <td><a href="<?= $cfg['url'] ?>/school/finance/invoices/<?= $inv['id'] ?>/print" target="_blank" class="btn btn-sm btn-outline">Print</a></td>
+            <td class="fw-600"><?= htmlspecialchars($b['label']) ?></td>
+            <td style="white-space:nowrap;"><?= Finance::money((float)$b['amount_due'] - (float)$b['discount'], $b['cur']) ?></td>
+            <td style="white-space:nowrap;" class="fw-600"><?= Finance::money($b['balance'], $b['cur']) ?></td>
+            <td><span class="badge badge-<?= $feeBadge[$b['display_status']] ?>"><?= ucfirst($b['display_status']) ?></span></td>
           </tr>
           <?php endforeach; ?>
-          <?php if(empty($invoices)): ?>
-          <tr><td colspan="4"><div class="empty-state"><div class="empty-state-icon">🧾</div><div class="empty-state-text">No invoices raised yet.</div></div></td></tr>
+          <?php if(empty($feeAccount['bills'])): ?>
+          <tr><td colspan="4"><div class="empty-state"><div class="empty-state-icon">🧾</div><div class="empty-state-text">No fees billed this year. Enroll the student in Finance → Enrollment to bill them.</div></div></td></tr>
           <?php endif; ?>
         </tbody>
       </table></div>

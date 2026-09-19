@@ -15,9 +15,8 @@ class ParentPortalController extends Controller {
         $this->restrictionEnabled = (bool)($this->db->fetchOne("SELECT restrict_parent_arrears FROM tenants WHERE id=?", [$this->tid])['restrict_parent_arrears'] ?? false);
     }
 
-    // "Arrears" = an unpaid/partial invoice past its due date, on ANY linked child — matches the
-    // overdue calculation already used in FinanceController::collection(). Account-wide, not
-    // per-child: one overdue child restricts detail pages for all of this parent's children.
+    // "Arrears" = an unpaid/partial bill past its due date, on ANY linked child. Account-wide,
+    // not per-child: one overdue child restricts detail pages for all of this parent's children.
     // Overdue per currency (LRD and USD are never added together); empty when nothing is overdue.
     private function overdueTotal(): array {
         $rows = $this->db->fetchAll(

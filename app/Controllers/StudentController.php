@@ -1,5 +1,6 @@
 <?php
 require_once ROOT_DIR . '/core/Controller.php';
+require_once ROOT_DIR . '/app/Services/Finance.php';
 // Needed for DOCUMENT_TYPES on the profile's upload modal — the router only
 // autoloads the controller matching the current route.
 require_once ROOT_DIR . '/app/Controllers/DocumentController.php';
@@ -383,7 +384,7 @@ class StudentController extends Controller {
         if (!$student) { $this->redirect('/school/students'); }
         $grades   = $this->db->fetchAll("SELECT g.*, c.name AS course_name FROM grades g LEFT JOIN courses c ON g.course_id=c.id WHERE g.student_id=? AND g.tenant_id=? ORDER BY g.created_at DESC LIMIT 10",[$id,$this->tid]);
         $attendance = $this->db->fetchAll("SELECT * FROM attendance WHERE student_id=? AND tenant_id=? ORDER BY date DESC LIMIT 10",[$id,$this->tid]);
-        $invoices = $this->db->fetchAll("SELECT * FROM invoices WHERE student_id=? AND tenant_id=? ORDER BY created_at DESC",[$id,$this->tid]);
+        $feeAccount = Finance::studentAccount($this->db, $this->tid, (int)$id);
         $rankings = $this->db->fetchAll("SELECT * FROM student_rankings WHERE student_id=? AND tenant_id=? ORDER BY created_at",[$id,$this->tid]);
         $discipline = $this->db->fetchAll(
             "SELECT d.*, ru.name AS reported_by_name FROM disciplinary_records d LEFT JOIN users ru ON d.reported_by=ru.id
@@ -428,16 +429,18 @@ class StudentController extends Controller {
         );
         $avgGrade = $gradeStats['avg_pct'] !== null ? round($gradeStats['avg_pct']) : null;
 
-        $feesStats = $this->db->fetchOne(
-            "SELECT COALESCE(SUM(amount_due-amount_paid),0) outstanding FROM invoices WHERE student_id=? AND tenant_id=? AND status NOT IN ('paid','waived')",
-            [$id,$this->tid]
-        );
+        // Owed across all years, per currency (LRD and USD are never added together).
+        $outstanding = array_column($this->db->fetchAll(
+            "SELECT COALESCE(currency, ?) cur, SUM(amount_due-discount-amount_paid) owed FROM invoices
+             WHERE student_id=? AND tenant_id=? AND status NOT IN ('paid','waived') GROUP BY cur HAVING owed > 0.005",
+            [Finance::settings($this->db, $this->tid)['default_currency'], $id, $this->tid]
+        ), 'owed', 'cur');
 
         $this->view('school/highschool/students/show',[
-            'pageTitle'=>$student['name'],'panelType'=>'school','student'=>$student,'grades'=>$grades,'attendance'=>$attendance,'invoices'=>$invoices,
+            'pageTitle'=>$student['name'],'panelType'=>'school','student'=>$student,'grades'=>$grades,'attendance'=>$attendance,'feeAccount'=>$feeAccount,
             'rankings'=>$rankings,'homework'=>$homework,'onlineExams'=>$onlineExams,'discipline'=>$discipline,
             'documents'=>$documents,'documentTypes'=>DocumentController::DOCUMENT_TYPES,
-            'attendanceRate'=>$attendanceRate,'avgGrade'=>$avgGrade,'outstandingFees'=>$feesStats['outstanding'],
+            'attendanceRate'=>$attendanceRate,'avgGrade'=>$avgGrade,'outstandingFees'=>$outstanding,'finDefault'=>Finance::settings($this->db, $this->tid)['default_currency'],
             'canManageDiscipline'=>$this->hasPermission('discipline.manage'),
             'canManageStudents'=>$this->hasPermission('students.manage'),
             'flash'=>$this->getFlash(),

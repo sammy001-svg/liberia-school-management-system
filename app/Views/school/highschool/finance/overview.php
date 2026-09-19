@@ -7,7 +7,7 @@ $colors = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#0
 $tools = [
     ['Enrollment', '/enrollment', 'Enroll students & see who has paid'], ['Fees Payment', '/fees-payment', 'Take a payment against a bill'],
     ['Billing Setup', '/billing', 'What each class pays, by installment'], ['Expenses', '/expenses', 'Money paid out'],
-    ['Extra Collections', '/collections', 'Uniforms, cafeteria, books…'], ['Arrears', '/arrears-collection', 'Collect prior-year balances'],
+    ['Extra Collections', '/collections', 'Uniforms, cafeteria, books…'], ['Bus Billing', '/bus-billing', 'Monthly bus bills by route'], ['Arrears', '/arrears-collection', 'Collect prior-year balances'],
     ['Profit & Loss', '/profit-loss', 'Income vs expenses, any period'], ['Statements', '/statements', 'Class & student statements'],
     ['Daily Receipts', '/daily-receipts', 'Everything received on a day'], ['Payment Audit', '/audit', 'Reconcile payments by method & cashier'],
     ['Budget', '/budgets', 'Budget vs actual'], ['Finance Settings', '/settings', 'Currencies, approvals, categories'],

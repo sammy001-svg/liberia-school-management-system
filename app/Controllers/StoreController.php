@@ -1,6 +1,6 @@
 <?php
 require_once ROOT_DIR . '/core/Controller.php';
-require_once ROOT_DIR . '/app/Controllers/StudentAccountController.php';
+require_once ROOT_DIR . '/app/Services/Finance.php';
 
 /**
  * School Store — sells uniforms, stationery and similar items to students.
@@ -303,35 +303,33 @@ class StoreController extends Controller {
     /**
      * Raises the invoice for a student sale and records any money taken.
      *
-     * Mirrors FinanceController's own invoice/payment handling — including the
-     * student_ledger entries — so a store charge is indistinguishable from a fee
-     * charge everywhere downstream.
+     * The invoice, payment and ledger entries match what Fees Payment records, so a
+     * store charge shows on statements, arrears and the family portals like any bill.
      */
     private function postSaleToFinance(int $studentId, int $saleId, string $saleNo, float $total, float $paid, string $method): void {
         $invoiceNo = 'STR-' . date('Ymd') . '-' . str_pad((string)$saleId, 4, '0', STR_PAD_LEFT);
         $status = $paid >= $total ? 'paid' : ($paid > 0 ? 'partial' : 'unpaid');
+        $currency = Finance::settings($this->db, $this->tid)['default_currency'];
+        $yearId = Finance::currentYear($this->db, $this->tid)['id'] ?? null;
+        $label = 'School store sale ' . $saleNo;
 
         $invoiceId = (int)$this->db->insert(
-            "INSERT INTO invoices (tenant_id,student_id,invoice_no,amount_due,amount_paid,due_date,notes,status)
-             VALUES (?,?,?,?,?,?,?,?)",
-            [$this->tid, $studentId, $invoiceNo, $total, $paid, date('Y-m-d'), 'School store sale ' . $saleNo, $status]
+            "INSERT INTO invoices (tenant_id,student_id,academic_year_id,invoice_no,description,amount_due,amount_paid,currency,due_date,notes,status)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            [$this->tid, $studentId, $yearId, $invoiceNo, $label, $total, $paid, $currency, date('Y-m-d'), $label, $status]
         );
         $this->db->execute("UPDATE store_sales SET invoice_id=? WHERE id=?", [$invoiceId, $saleId]);
+        $links = ['invoice_id' => $invoiceId, 'reference' => $saleNo, 'academic_year_id' => $yearId, 'currency' => $currency];
 
-        StudentAccountController::post(
-            $this->db, $this->tid, $studentId, 'charge', 'School store — ' . $saleNo, $total,
-            ['invoice_id' => $invoiceId, 'reference' => $saleNo]
-        );
+        Finance::ledger($this->db, $this->tid, $studentId, 'charge', 'School store — ' . $saleNo, $total, $links);
 
         if ($paid > 0) {
-            $paymentId = $this->db->insert(
-                "INSERT INTO payments (tenant_id,invoice_id,amount,method,reference,received_by,notes) VALUES (?,?,?,?,?,?,?)",
-                [$this->tid, $invoiceId, $paid, $method === 'account' ? 'cash' : $method, $saleNo, $_SESSION['user_id'] ?? null, 'School store sale']
+            $paymentId = (int)$this->db->insert(
+                "INSERT INTO payments (tenant_id,invoice_id,amount,currency,method,reference,received_by,notes,payment_date,status)
+                 VALUES (?,?,?,?,?,?,?,?,?,'active')",
+                [$this->tid, $invoiceId, $paid, $currency, $method === 'account' ? 'cash' : $method, $saleNo, $_SESSION['user_id'] ?? null, 'School store sale', date('Y-m-d')]
             );
-            StudentAccountController::post(
-                $this->db, $this->tid, $studentId, 'payment', 'School store payment — ' . $saleNo, -$paid,
-                ['invoice_id' => $invoiceId, 'payment_id' => $paymentId, 'reference' => $saleNo]
-            );
+            Finance::ledger($this->db, $this->tid, $studentId, 'payment', 'School store payment — ' . $saleNo, -$paid, $links + ['payment_id' => $paymentId]);
         }
     }
 
@@ -441,10 +439,13 @@ class StoreController extends Controller {
             if ($sale['invoice_id']) {
                 $this->db->execute("UPDATE invoices SET status='waived', notes=CONCAT(COALESCE(notes,''),' — voided') WHERE id=? AND tenant_id=?",
                     [$sale['invoice_id'], $this->tid]);
+                // The money was handed back, so it no longer counts as income.
+                $this->db->execute("UPDATE payments SET status='cancelled', cancelled_at=NOW(), cancelled_by=?, cancel_reason=? WHERE invoice_id=? AND tenant_id=? AND status='active'",
+                    [$_SESSION['user_id'] ?? null, 'Store sale ' . $sale['sale_no'] . ' voided', $sale['invoice_id'], $this->tid]);
             }
             if ($sale['student_id']) {
                 // Credit back the charge so the family stops owing it.
-                StudentAccountController::post(
+                Finance::ledger(
                     $this->db, $this->tid, (int)$sale['student_id'], 'adjustment',
                     'Void of school store sale ' . $sale['sale_no'], -(float)$sale['total'],
                     ['invoice_id' => $sale['invoice_id'], 'reference' => $sale['sale_no']]
@@ -452,7 +453,7 @@ class StoreController extends Controller {
                 if ((float)$sale['amount_paid'] > 0) {
                     // Positive: the original payment credited the account, so handing the
                     // cash back must undo that credit, leaving the family square.
-                    StudentAccountController::post(
+                    Finance::ledger(
                         $this->db, $this->tid, (int)$sale['student_id'], 'refund',
                         'Refund on voided sale ' . $sale['sale_no'], (float)$sale['amount_paid'],
                         ['invoice_id' => $sale['invoice_id'], 'reference' => $sale['sale_no']]

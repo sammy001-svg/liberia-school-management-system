@@ -1,10 +1,10 @@
-<?php require ROOT_DIR . '/app/Views/layouts/header.php'; ?>
-<div class="breadcrumb"><a href="<?= $cfg['url'] ?>/school/finance">Finance</a><span>/</span><span>Bus Billing</span></div>
+<?php require ROOT_DIR . '/app/Views/layouts/header.php'; $def = $finSettings['default_currency']; ?>
+<div class="breadcrumb"><a href="<?= $cfg['url'] ?>/school/finance">Financial Records</a><span>/</span><span>Bus Billing</span></div>
 
 <div class="page-header">
   <div>
     <div class="page-header-title">Bus Billing</div>
-    <div class="page-header-sub">Generate monthly invoices for students using the school bus</div>
+    <div class="page-header-sub">Bill students who ride the school bus, one month at a time. Bus bills are paid on Fees Payment like any other bill.</div>
   </div>
   <a href="<?= $cfg['url'] ?>/school/transport/routes" class="btn btn-outline">Manage Routes</a>
 </div>
@@ -12,7 +12,7 @@
 <div class="stat-grid">
   <div class="stat-card"><div class="stat-label">Active Routes</div><div class="stat-value"><?= (int)$stats['totalRoutes'] ?></div></div>
   <div class="stat-card" style="--card-color: var(--info);"><div class="stat-label">Students Riding</div><div class="stat-value"><?= (int)$stats['totalStudents'] ?></div></div>
-  <div class="stat-card" style="--card-color: var(--success);"><div class="stat-label">Monthly Potential</div><div class="stat-value"><?= htmlspecialchars($tenant['currency'] ?? 'Ksh') ?><?= number_format($stats['monthlyPotential'],0) ?></div></div>
+  <div class="stat-card" style="--card-color: var(--success);"><div class="stat-label">Monthly Potential</div><div class="stat-value"><?= Finance::money($stats['monthlyPotential'], $def) ?></div></div>
 </div>
 
 <div class="card">
@@ -26,11 +26,11 @@
           <td class="fw-600"><?= htmlspecialchars($r['name']) ?></td>
           <td><?= htmlspecialchars($r['bus_number'] ?? '—') ?></td>
           <td><span class="badge badge-info"><?= (int)$r['student_count'] ?></span></td>
-          <td><?= htmlspecialchars($tenant['currency'] ?? 'Ksh') ?><?= number_format($r['monthly_fee'],2) ?></td>
+          <td><?= Finance::money($r['monthly_fee'], $def) ?></td>
           <td>
             <button type="button" class="btn btn-sm btn-primary" <?= $r['student_count']==0 ? 'disabled title="No students assigned to this route"' : '' ?> onclick='openGenerateModal(<?= json_encode([
               "id"=>$r["id"], "name"=>$r["name"], "student_count"=>$r["student_count"], "fee"=>$r["monthly_fee"],
-            ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'>Generate Invoices</button>
+            ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'>Create Bills</button>
           </td>
         </tr>
         <?php endforeach; ?>
@@ -42,11 +42,11 @@
   </div>
 </div>
 
-<!-- Generate Invoices Modal -->
+<!-- Create Bills Modal -->
 <div class="modal-overlay" id="generateModal">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title" id="generateModalTitle">Generate Bus Invoices</div>
+      <div class="modal-title" id="generateModalTitle">Create Bus Bills</div>
       <button class="modal-close" onclick="document.getElementById('generateModal').classList.remove('open')">&times;</button>
     </div>
     <form method="POST" action="<?= $cfg['url'] ?>/school/finance/bus-billing/generate">
@@ -64,7 +64,7 @@
             <input type="date" name="due_date" class="form-control">
           </div>
         </div>
-        <div class="form-hint">One invoice is created per student currently assigned to this route. Students already billed for the selected month are automatically skipped — safe to re-run.</div>
+        <div class="form-hint">One bill is created per student currently assigned to this route. Students already billed for the selected month are automatically skipped — safe to re-run.</div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="document.getElementById('generateModal').classList.remove('open')">Cancel</button>
@@ -77,8 +77,8 @@
 <script>
 function openGenerateModal(r) {
   document.getElementById('generateRouteId').value = r.id;
-  document.getElementById('generateModalTitle').textContent = 'Generate Bus Invoices — ' + r.name;
-  document.getElementById('generateSummary').textContent = 'This will bill ' + r.student_count + ' student(s) on this route <?= htmlspecialchars($tenant['currency'] ?? 'Ksh') ?>' + Number(r.fee).toFixed(2) + ' each for the selected month.';
+  document.getElementById('generateModalTitle').textContent = 'Create Bus Bills — ' + r.name;
+  document.getElementById('generateSummary').textContent = 'This will bill ' + r.student_count + ' student(s) on this route ' + <?= json_encode(Finance::CURRENCIES[$def] ?? $def) ?> + ' ' + Number(r.fee).toLocaleString(undefined, {minimumFractionDigits: 2}) + ' each for the selected month.';
   document.getElementById('generateModal').classList.add('open');
 }
 </script>

@@ -193,14 +193,13 @@ class BudgetController extends Controller {
         $type = in_array($_GET['type'] ?? '', ['income','expense','other'], true) ? $_GET['type'] : '';
         $visible = $type ? array_values(array_filter($rows, fn($r) => $r['line_type'] === $type)) : $rows;
 
-        // The Income view doubles as where non-fee income is recorded, so "Other Income"
-        // lives inside the Budget module rather than as a separate top-level section.
+        // Non-fee income is recorded in Extra Collections; the Income view lists it for context.
         $incomeEntries = [];
         if ($type === 'income') {
             $incomeEntries = $this->db->fetchAll(
                 "SELECT i.*, u.name AS recorded_by_name FROM incomes i
                  LEFT JOIN users u ON i.recorded_by=u.id
-                 WHERE i.tenant_id=? AND i.income_date BETWEEN ? AND ?
+                 WHERE i.tenant_id=? AND i.status='active' AND i.income_date BETWEEN ? AND ?
                  ORDER BY i.income_date DESC, i.id DESC",
                 [$this->tid, $budget['period_start'], $budget['period_end']]
             );
@@ -257,58 +256,5 @@ class BudgetController extends Controller {
         $this->db->execute("DELETE FROM budget_lines WHERE id=? AND tenant_id=?", [$id, $this->tid]);
         $this->flash('success', 'Budget line removed.');
         $this->redirect('/school/finance/budgets/' . $line['budget_id']);
-    }
-
-    // ── OTHER INCOME (non-fee) ───────────────────────────────────────
-    public function incomes(): void {
-        $this->guard();
-        $from = $_GET['from'] ?? date('Y-m-01');
-        $to   = $_GET['to']   ?? date('Y-m-d');
-        $rows = $this->db->fetchAll(
-            "SELECT i.*, u.name AS recorded_by_name FROM incomes i
-             LEFT JOIN users u ON i.recorded_by=u.id
-             WHERE i.tenant_id=? AND i.income_date BETWEEN ? AND ?
-             ORDER BY i.income_date DESC, i.id DESC", [$this->tid, $from, $to]
-        );
-        $byCategory = $this->db->fetchAll(
-            "SELECT category, COALESCE(SUM(amount),0) total FROM incomes
-             WHERE tenant_id=? AND income_date BETWEEN ? AND ? GROUP BY category ORDER BY total DESC",
-            [$this->tid, $from, $to]
-        );
-        $this->view('school/highschool/finance/incomes', [
-            'pageTitle' => 'Other Income', 'panelType' => 'school',
-            'rows' => $rows, 'byCategory' => $byCategory, 'from' => $from, 'to' => $to,
-            'total' => array_sum(array_column($rows, 'amount')),
-            'flash' => $this->getFlash(),
-        ]);
-    }
-
-    public function storeIncome(): void {
-        $this->guard();
-        $errors = $this->validate($_POST, [
-            'category'    => 'required|max:120',
-            'amount'      => 'required|numeric',
-            'income_date' => 'required|date',
-        ]);
-        if ($errors) { $this->failValidation($errors, '/school/finance/incomes'); }
-
-        $this->db->insert(
-            "INSERT INTO incomes (tenant_id,category,description,amount,income_date,source,method,reference,recorded_by)
-             VALUES (?,?,?,?,?,?,?,?,?)",
-            [
-                $this->tid, trim($_POST['category']), $_POST['description'] ?: null,
-                (float)$_POST['amount'], $_POST['income_date'], $_POST['source'] ?: null,
-                $_POST['method'] ?: null, $_POST['reference'] ?: null, $_SESSION['user_id'],
-            ]
-        );
-        $this->flash('success', 'Income recorded.');
-        $this->redirect('/school/finance/incomes');
-    }
-
-    public function deleteIncome(string $id): void {
-        $this->guard();
-        $this->db->execute("DELETE FROM incomes WHERE id=? AND tenant_id=?", [$id, $this->tid]);
-        $this->flash('success', 'Income entry removed.');
-        $this->redirect('/school/finance/incomes');
     }
 }

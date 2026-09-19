@@ -179,46 +179,29 @@ $router->get('/school/payroll/export',                       ['PayrollController
 $router->get('/school/payroll/payslips/{id}',                ['PayrollController', 'payslip']);
 $router->get('/school/my-payroll',                           ['PayrollController', 'mine']);
 $router->get('/school/finance',             ['FinancialRecordsController', 'overview']);
-$router->get('/school/finance/invoices',    ['FinanceController', 'invoices']);
-$router->get('/school/finance/invoices/create', ['FinanceController', 'createInvoice']);
-$router->post('/school/finance/invoices/store', ['FinanceController', 'storeInvoice']);
-$router->get('/school/finance/invoices/{id}/print', ['FinanceController', 'printInvoice']);
-$router->get('/school/finance/payments',    ['FinanceController', 'payments']);
-$router->post('/school/finance/payments/store', ['FinanceController', 'storePayment']);
-$router->get('/school/finance/fees',        ['FinanceController', 'feeStructures']);
-$router->post('/school/finance/fees/store', ['FinanceController', 'storeFeeStructure']);
-$router->post('/school/finance/fees/{id}/update',   ['FinanceController', 'updateFeeStructure']);
-$router->post('/school/finance/fees/{id}/delete',   ['FinanceController', 'deleteFeeStructure']);
-$router->post('/school/finance/fees/{id}/generate', ['FinanceController', 'generateFeeInvoices']);
 $router->get('/school/finance/expenses',    ['ExpenseController', 'index']);
 $router->post('/school/finance/expenses/store', ['ExpenseController', 'store']);
-$router->post('/school/finance/expenses/{id}/delete', ['FinanceController', 'deleteExpense']);
-$router->get('/school/finance/collection',  ['FinanceController', 'collection']);
-$router->get('/school/finance/bus-billing',  ['FinanceController', 'busBilling']);
-$router->post('/school/finance/bus-billing/generate', ['FinanceController', 'generateBusInvoices']);
-// ── BUDGETS & OTHER INCOME ──────────────────────────────────────
+$router->get('/school/finance/bus-billing',  ['BusBillingController', 'index']);
+$router->post('/school/finance/bus-billing/generate', ['BusBillingController', 'generate']);
+// Pages of the finance module that the financial system replaced: old links and
+// bookmarks land on the page that does the same job now.
+foreach (['/school/finance/invoices', '/school/finance/invoices/create', '/school/finance/invoices/{id}/print', '/school/finance/payments',
+          '/school/finance/fees', '/school/finance/collection', '/school/finance/reports', '/school/finance/reports/print',
+          '/school/finance/accounts', '/school/finance/accounts/{id}/statement', '/school/finance/arrears', '/school/finance/scholarships',
+          '/school/hr/payroll', '/school/hr/payroll/{id}/payslip'] as $legacy) {
+    $router->get($legacy, ['FinancialRecordsController', 'legacy']);
+}
+// ── BUDGETS ──────────────────────────────────────────────────────
 // Literal paths first so /budgets/store isn't captured by the {id} wildcard.
 $router->get('/school/finance/budgets',                       ['BudgetController', 'index']);
 $router->post('/school/finance/budgets/store',                ['BudgetController', 'store']);
 $router->get('/school/finance/incomes',                       ['CollectionController', 'index']);
-$router->post('/school/finance/incomes/store',                ['BudgetController', 'storeIncome']);
-$router->post('/school/finance/incomes/{id}/delete',          ['BudgetController', 'deleteIncome']);
 $router->post('/school/finance/budget-lines/{id}/delete',     ['BudgetController', 'deleteLine']);
 $router->get('/school/finance/budgets/manage',               ['BudgetController', 'manage']);
 $router->get('/school/finance/budgets/{id}',                  ['BudgetController', 'show']);
 $router->post('/school/finance/budgets/{id}/delete',          ['BudgetController', 'delete']);
 $router->post('/school/finance/budgets/{id}/status',          ['BudgetController', 'updateStatus']);
 $router->post('/school/finance/budgets/{id}/lines/store',     ['BudgetController', 'storeLine']);
-
-// ── STUDENT ACCOUNTS & RECEIVABLES ──────────────────────────────
-$router->get('/school/finance/accounts',                    ['StudentAccountController', 'index']);
-$router->get('/school/finance/arrears',                     ['StudentAccountController', 'arrears']);
-$router->get('/school/finance/scholarships',                ['StudentAccountController', 'scholarships']);
-$router->post('/school/finance/scholarships/store',         ['StudentAccountController', 'storeScholarship']);
-$router->post('/school/finance/scholarships/{id}/apply',    ['StudentAccountController', 'applyScholarship']);
-$router->post('/school/finance/scholarships/{id}/end',      ['StudentAccountController', 'endScholarship']);
-$router->get('/school/finance/accounts/{id}/statement',     ['StudentAccountController', 'statement']);
-$router->post('/school/finance/accounts/{id}/adjust',       ['StudentAccountController', 'adjust']);
 
 // ── SCHOOL STORE ────────────────────────────────────────────────
 // Literal paths precede the {id} routes so "sales"/"items" are never matched as ids.
@@ -235,8 +218,6 @@ $router->get('/school/store/items/{id}/movements',  ['StoreController', 'movemen
 $router->get('/school/store/sales/{id}/receipt',    ['StoreController', 'receipt']);
 $router->post('/school/store/sales/{id}/void',      ['StoreController', 'voidSale']);
 
-$router->get('/school/finance/reports',      ['FinanceController', 'reports']);
-$router->get('/school/finance/reports/print', ['FinanceController', 'printReport']);
 
 // ── SCHOOL BUS / TRANSPORT ───────────────────────────────────────
 $router->get('/school/transport/buses',            ['BusController', 'buses']);
@@ -403,10 +384,6 @@ $router->post('/school/users/{id}/generate-password', ['UserAccountController', 
 $router->post('/school/roles/{id}/copy-permissions', ['RoleController', 'copyPermissions']);
 $router->post('/school/roles/{id}/update',  ['RoleController', 'update']);
 $router->post('/school/roles/{id}/delete',  ['RoleController', 'delete']);
-$router->get('/school/hr/payroll',          ['HRController', 'payroll']);
-$router->post('/school/hr/payroll/generate', ['HRController', 'generatePayroll']);
-$router->post('/school/hr/payroll/{id}/pay', ['HRController', 'markPayrollPaid']);
-$router->get('/school/hr/payroll/{id}/payslip', ['HRController', 'payslip']);
 $router->get('/school/hr/leaves',           ['HRController', 'leaves']);
 $router->post('/school/hr/leaves/approve',  ['HRController', 'approveLeave']);
 
