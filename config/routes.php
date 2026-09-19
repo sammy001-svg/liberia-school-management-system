@@ -237,6 +237,26 @@ $router->post('/school/settings/login-slides/{id}/delete',  ['LoginSlideControll
 $router->post('/school/settings/login-slides/{id}/toggle',  ['LoginSlideController', 'toggle']);
 $router->post('/school/settings/login-slides/{id}/reorder', ['LoginSlideController', 'reorder']);
 
+// ── WEBSITE (public site editor) ────────────────────────────────
+// Literal paths before the {type}/{id} routes so "store" is never matched as an id.
+$router->get('/school/website',                     ['WebsiteAdminController', 'index']);
+$router->post('/school/website/toggle',             ['WebsiteAdminController', 'toggle']);
+$router->get('/school/website/pages/{page}',        ['WebsiteAdminController', 'editPage']);
+$router->post('/school/website/pages/{page}/save',  ['WebsiteAdminController', 'savePage']);
+$router->post('/school/website/pages/{page}/reset', ['WebsiteAdminController', 'resetPage']);
+$router->get('/school/website/news',                ['WebsiteAdminController', 'posts']);
+$router->post('/school/website/news/store',         ['WebsiteAdminController', 'storePost']);
+$router->post('/school/website/news/{id}/update',   ['WebsiteAdminController', 'updatePost']);
+$router->get('/school/website/gallery',             ['WebsiteAdminController', 'gallery']);
+$router->post('/school/website/gallery/store',      ['WebsiteAdminController', 'storeGallery']);
+$router->post('/school/website/gallery/{id}/update', ['WebsiteAdminController', 'updateGallery']);
+$router->get('/school/website/leaders',             ['WebsiteAdminController', 'leaders']);
+$router->post('/school/website/leaders/store',      ['WebsiteAdminController', 'storeLeader']);
+$router->post('/school/website/leaders/{id}/update', ['WebsiteAdminController', 'updateLeader']);
+$router->post('/school/website/{type}/{id}/delete',  ['WebsiteAdminController', 'deleteItem']);
+$router->post('/school/website/{type}/{id}/toggle',  ['WebsiteAdminController', 'toggleItem']);
+$router->post('/school/website/{type}/{id}/reorder', ['WebsiteAdminController', 'reorderItem']);
+
 // ── DEPARTMENTS & COURSES (used by Teachers, Grades, Timetable) ──
 $router->get('/school/departments',         ['AcademicsController', 'departments']);
 $router->get('/school/departments/create',  ['AcademicsController', 'createDepartment']);
@@ -366,3 +386,4 @@ $router->get('/junior-high',     ['WebsiteController', 'juniorHigh']);
 $router->get('/senior-high',     ['WebsiteController', 'seniorHigh']);
 $router->get('/admissions',      ['WebsiteController', 'admissions']);
 $router->get('/academy-news',    ['WebsiteController', 'news']);
+$router->get('/academy-news/{id}', ['WebsiteController', 'newsPost']);

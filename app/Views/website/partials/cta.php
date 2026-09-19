@@ -1,15 +1,15 @@
 <?php
-$ctaTitle = $ctaTitle ?? 'Begin your child’s educational journey <em>today!</em>';
-$ctaText  = $ctaText  ?? 'Start your child’s enrollment online, then complete the process on campus. It’s easy and fast — and space is limited.';
+// Uses the site-wide enroll banner unless the page sets $ctaKey to its own prefix.
+$ctaKey = $ctaKey ?? 'site';
 ?>
 <section class="section section--tight">
   <div class="container">
     <div class="cta-band" data-reveal>
-      <img src="<?= $img($ctaImage ?? 'assembly-panorama.jpg') ?>" alt="" loading="lazy">
+      <img src="<?= $im('site.cta_image') ?>" alt="" loading="lazy">
       <div>
         <span class="eyebrow eyebrow--light">Admissions Open</span>
-        <h2 class="display display--light"><?= $ctaTitle ?></h2>
-        <p><?= $ctaText ?></p>
+        <h2 class="display display--light"><?= $h("$ctaKey.cta_title") ?></h2>
+        <?= $paras("$ctaKey.cta_text") ?>
       </div>
       <div class="cta-actions">
         <a href="<?= $url('apply') ?>" class="btn btn-gold btn-lg">Enroll Now <?= wicon('arrow-right') ?></a>

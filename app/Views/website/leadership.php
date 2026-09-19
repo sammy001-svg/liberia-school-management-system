@@ -1,71 +1,70 @@
 <?php require __DIR__ . '/partials/header.php'; ?>
 
-<?php $hero = [
-    'image'   => 'community-team.jpg',
-    'eyebrow' => 'Our Leadership',
-    'title'   => 'Leading by <em>serving</em>.',
-    'lead'    => 'At CELDI Academy, leadership is a calling to serve: our board, administration, faculty and parents work together for every child.',
-    'crumbs'  => ['About' => $url('about-us'), 'Our Leadership' => null],
-]; require __DIR__ . '/partials/page_hero.php'; ?>
+<?php $heroKey = 'leadership'; $crumbs = ['About' => $url('about-us'), 'Our Leadership' => null]; require __DIR__ . '/partials/page_hero.php'; ?>
 
+<?php if ($raw('leadership.statement') !== ''): ?>
 <section class="section section--tight section--lilac">
   <div class="container">
-    <p class="statement" data-reveal>
+    <div class="statement" data-reveal>
       <span class="statement-mark" aria-hidden="true">“</span>
-      We are developing future leaders who are proactive and serve others — and that begins with <em>how we lead</em> ourselves.
-    </p>
+      <?= $h('leadership.statement') ?>
+    </div>
   </div>
 </section>
+<?php endif; ?>
 
+<?php if (!empty($leaders)): ?>
 <section class="section">
   <div class="container">
-    <div class="tier" data-reveal>
-      <div class="tier-head">
-        <span class="icon-badge"><?= wicon('building') ?></span>
-        <span class="tier-kicker">Governance</span>
-        <h3>The Board</h3>
-      </div>
-      <div class="tier-body">
-        <p class="lead" style="margin-top:0;">The Board provides the vision and stewardship that keep CELDI Academy faithful to its mission: a Christ-centered, technological, and vocational education that equips students to be critical thinkers, entrepreneurs, and servant leaders.</p>
-        <p>CELDI Academy is an affiliate ministry of UrbanPromise International, and its leadership is committed to the long-term growth and prosperity of the students and communities it serves.</p>
-      </div>
+    <div class="section-head section-head--center" data-reveal>
+      <span class="eyebrow eyebrow--center">Our People</span>
+      <h2 class="display"><?= $h('leadership.team_title') ?></h2>
     </div>
+    <div class="team-grid">
+      <?php foreach ($leaders as $i => $leader): ?>
+        <article class="team-card" data-reveal data-reveal-delay="<?= $i % 4 ?>">
+          <div class="team-photo">
+            <?php if (!empty($leader['photo_url'])): ?>
+              <img src="<?= htmlspecialchars($leader['photo_url']) ?>" alt="<?= htmlspecialchars($leader['name']) ?>" loading="lazy">
+            <?php else: ?>
+              <span class="team-initials"><?= htmlspecialchars(implode('', array_map(fn($w) => mb_substr($w, 0, 1), array_slice(preg_split('/\s+/', trim($leader['name'])), 0, 2)))) ?></span>
+            <?php endif; ?>
+          </div>
+          <div class="team-body">
+            <h3><?= htmlspecialchars($leader['name']) ?></h3>
+            <span class="team-role"><?= htmlspecialchars($leader['position']) ?></span>
+            <?php if (!empty($leader['bio'])): ?><p><?= nl2br(htmlspecialchars($leader['bio']), false) ?></p><?php endif; ?>
+          </div>
+        </article>
+      <?php endforeach; ?>
+    </div>
+  </div>
+</section>
+<?php endif; ?>
 
-    <div class="tier" data-reveal>
-      <div class="tier-head">
-        <span class="icon-badge icon-badge--green"><?= wicon('compass') ?></span>
-        <span class="tier-kicker">Administration</span>
-        <h3>School Leadership</h3>
+<section class="section<?= !empty($leaders) ? ' section--cream' : '' ?>">
+  <div class="container">
+    <?php foreach ([
+      ['board', 'building', '', 'Governance'],
+      ['admin', 'compass', 'icon-badge--green', 'Administration'],
+      ['staff', 'users', 'icon-badge--gold', 'Faculty & Staff'],
+      ['pta', 'heart', '', 'Parents'],
+    ] as [$key, $icon, $cls, $kicker]): ?>
+      <?php if ($raw("leadership.{$key}_title") === '' && $raw("leadership.{$key}_body") === '') continue; ?>
+      <div class="tier" data-reveal>
+        <div class="tier-head">
+          <span class="icon-badge <?= $cls ?>"><?= wicon($icon) ?></span>
+          <span class="tier-kicker"><?= $kicker ?></span>
+          <h3><?= $t("leadership.{$key}_title") ?></h3>
+        </div>
+        <div class="tier-body">
+          <?php $tierParas = preg_split('/\R\s*\R/', trim($raw("leadership.{$key}_body"))); ?>
+          <?php foreach ($tierParas as $n => $para): ?>
+            <p<?= $n === 0 ? ' class="lead" style="margin-top:0;"' : '' ?>><?= nl2br($fmt(trim($para)), false) ?></p>
+          <?php endforeach; ?>
+        </div>
       </div>
-      <div class="tier-body">
-        <p class="lead" style="margin-top:0;">The school’s administration leads the day-to-day life of the Academy across all four divisions — Early Childhood &amp; Daycare, Elementary, Junior High, and Senior High.</p>
-        <p>They set ambitious goals to increase graduation and success rates, uphold the Academy’s commitment to professional ethics and mentorship, and oversee the “chapters” model through which every student earns a Leadership Development Certificate.</p>
-      </div>
-    </div>
-
-    <div class="tier" data-reveal>
-      <div class="tier-head">
-        <span class="icon-badge icon-badge--gold"><?= wicon('users') ?></span>
-        <span class="tier-kicker">Faculty &amp; Staff</span>
-        <h3>Our Educators</h3>
-      </div>
-      <div class="tier-body">
-        <p class="lead" style="margin-top:0;">The strength of our academy lies in our educators. We don’t just hire teachers; we develop mentors.</p>
-        <p>Our staff undergo regular training and professional workshops to stay at the forefront of modern pedagogy. Through partnerships with global organizations, our teachers benefit from cross-cultural training and specialized seminars, ensuring every child receives instruction that meets international standards of excellence.</p>
-      </div>
-    </div>
-
-    <div class="tier" data-reveal>
-      <div class="tier-head">
-        <span class="icon-badge"><?= wicon('heart') ?></span>
-        <span class="tier-kicker">Parents</span>
-        <h3>Parent-Teacher Association</h3>
-      </div>
-      <div class="tier-body">
-        <p class="lead" style="margin-top:0;">Education is a partnership between the school and the home.</p>
-        <p>The PTA meets three times each academic year — once in the first semester and twice in the second — so that parents and teachers can work together to monitor progress and celebrate the growth of every student.</p>
-      </div>
-    </div>
+    <?php endforeach; ?>
   </div>
 </section>
 

@@ -6,15 +6,45 @@ $base = rtrim($cfg['url'], '/');
 $img  = fn(string $file) => $base . '/assets/website/img/' . $file;
 $url  = fn(string $path = '') => $base . '/' . ltrim($path, '/');
 
-// Contact details come from the school's published ClickSites pages; the email is
-// only shown when one is set in School Settings, since the old site had none.
+// Everything editable comes from $content (WebsiteContent::load): the school's saved
+// edits over the built-in defaults. These helpers are the only way views read it.
+$content = $content ?? [];
+$raw = fn(string $key) => (string)($content[$key] ?? '');
+// Escaped text with the light markup admins can type: **bold** and *highlight*.
+$fmt = function (string $text): string {
+    $html = htmlspecialchars($text);
+    $html = preg_replace('/\*\*(.+?)\*\*/s', '<strong>$1</strong>', $html);
+    return preg_replace('/\*(.+?)\*/s', '<em>$1</em>', $html);
+};
+$t = fn(string $key) => htmlspecialchars($raw($key));              // plain text
+$h = fn(string $key) => $fmt($raw($key));                          // one line with *highlight*
+$paras = function (string $key, string $class = '') use ($raw, $fmt): string {  // blank line = new paragraph
+    $out = '';
+    foreach (preg_split('/\R\s*\R/', trim($raw($key))) as $para) {
+        if (trim($para) === '') { continue; }
+        $out .= '<p' . ($class ? ' class="' . $class . '"' : '') . '>' . nl2br($fmt(trim($para)), false) . '</p>';
+    }
+    return $out;
+};
+$lines = fn(string $key) => array_values(array_filter(array_map('trim', preg_split('/\R/', $raw($key))), 'strlen'));
+// "A | B | C" per line -> [[A, B, C], ...], padded so views can destructure safely.
+$list = fn(string $key, int $parts = 2) => array_map(
+    fn($line) => array_pad(array_map('trim', explode('|', $line, $parts)), $parts, ''),
+    $lines($key)
+);
+// A bundled filename lives in assets/website/img; an uploaded image is already a URL.
+$im = function (string $key) use ($raw, $img): string {
+    $v = trim($raw($key));
+    return preg_match('#^(https?:)?/#', $v) ? htmlspecialchars($v) : $img($v);
+};
+
 $site = [
-    'name'    => 'CELDI Academy',
-    'motto'   => 'Pursuing Truth, Transforming Lives, and Serving God.',
-    'tagline' => 'Changing Liberia one child at a time',
-    'address' => 'Ben Town, Marshall Highway, Margibi County, Liberia',
-    'phones'  => ['+231 777 209 062', '+231 880 421 400'],
-    'email'   => trim((string)($tenant['email'] ?? '')),
+    'name'    => $raw('site.name'),
+    'motto'   => $raw('site.motto'),
+    'tagline' => $raw('site.tagline'),
+    'address' => $raw('site.address'),
+    'phones'  => array_values(array_filter([trim($raw('site.phone1')), trim($raw('site.phone2'))], 'strlen')) ?: [''],
+    'email'   => trim($raw('site.email')) !== '' ? trim($raw('site.email')) : trim((string)($tenant['email'] ?? '')),
 ];
 $telHref = fn(string $p) => 'tel:' . preg_replace('/[^\d+]/', '', $p);
 
@@ -38,7 +68,7 @@ $nav = [
     ['key' => 'admissions', 'label' => 'Admissions', 'href' => $url('admissions')],
     ['key' => 'news', 'label' => 'News & Events', 'href' => $url('academy-news')],
 ];
-$assetVer = '1';
+$assetVer = '3';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -52,10 +82,10 @@ $assetVer = '1';
 <meta property="og:site_name" content="<?= htmlspecialchars($site['name']) ?>">
 <meta property="og:title" content="<?= htmlspecialchars(($pageTitle ?? '') . ' — ' . $site['name']) ?>">
 <meta property="og:description" content="<?= htmlspecialchars($pageDescription ?? '') ?>">
-<meta property="og:image" content="<?= htmlspecialchars($img('hero-assembly.jpg')) ?>">
+<meta property="og:image" content="<?= $im('home.hero_image') ?>">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" type="image/png" href="<?= $img('celdi-logo.png') ?>">
-<link rel="apple-touch-icon" href="<?= $img('celdi-logo.png') ?>">
+<link rel="icon" href="<?= $im('site.logo') ?>">
+<link rel="apple-touch-icon" href="<?= $im('site.logo') ?>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -81,10 +111,10 @@ $assetVer = '1';
 <header class="site-header" data-header>
   <div class="container header-inner">
     <a class="brand" href="<?= $url() ?>" aria-label="<?= htmlspecialchars($site['name']) ?> — home">
-      <img src="<?= $img('celdi-logo.png') ?>" alt="" width="44" height="56">
+      <img src="<?= $im('site.logo') ?>" alt="" width="44" height="56">
       <span class="brand-text">
         <span class="brand-name"><?= htmlspecialchars($site['name']) ?></span>
-        <span class="brand-sub">Est. 2022 · Margibi, Liberia</span>
+        <span class="brand-sub"><?= $t('site.brand_sub') ?></span>
       </span>
     </a>
 
@@ -122,7 +152,7 @@ $assetVer = '1';
   <div class="mobile-nav-panel" role="dialog" aria-modal="true" aria-label="Menu">
     <div class="mobile-nav-head">
       <a class="brand" href="<?= $url() ?>">
-        <img src="<?= $img('celdi-logo.png') ?>" alt="" width="36" height="46">
+        <img src="<?= $im('site.logo') ?>" alt="" width="36" height="46">
         <span class="brand-name"><?= htmlspecialchars($site['name']) ?></span>
       </a>
       <button class="menu-close" type="button" aria-label="Close menu" data-menu-close><?= wicon('close') ?></button>

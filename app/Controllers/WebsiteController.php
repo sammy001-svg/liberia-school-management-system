@@ -1,11 +1,13 @@
 <?php
 require_once ROOT_DIR . '/core/Controller.php';
+require_once ROOT_DIR . '/app/Services/WebsiteContent.php';
 
 /**
  * The school's public website — the marketing pages a visitor sees before signing in.
  *
  * Every page is gated on tenants.website_enabled so a School Admin can take the whole
- * site offline from School Settings. When it is off, "/" behaves exactly as it did
+ * site offline from the Website module. Its text, photos, news, gallery and team are
+ * edited there too (WebsiteAdminController / WebsiteContent). When it is off, "/" behaves exactly as it did
  * before the website existed (straight to the login page) and every other website
  * URL redirects there too, so no half-published page is ever reachable.
  */
@@ -36,12 +38,17 @@ class WebsiteController extends Controller {
         return !empty($tenant['website_enabled']);
     }
 
-    private function page(string $view, string $title, string $description, string $active): void {
+    private function page(string $view, string $title, string $description, string $active, array $extra = []): void {
         if (!self::isEnabled($this->tenant)) {
             $this->redirect('/login');
         }
-        $this->view('website/' . $view, [
+        $tid = isset($this->tenant['id']) ? (int)$this->tenant['id'] : null;
+        $this->view('website/' . $view, $extra + [
             'tenant'          => $this->tenant,
+            'content'         => WebsiteContent::load($this->db, $tid),
+            // Uploaded photos replace the built-in gallery once the school adds any.
+            'galleryPhotos'   => $tid ? WebsiteContent::rows($this->db,
+                "SELECT image_url, caption FROM website_gallery WHERE tenant_id=? AND is_active=1 ORDER BY sort_order, id", [$tid]) : [],
             'pageTitle'       => $title,
             'pageDescription' => $description,
             'activeNav'       => $active,
@@ -51,8 +58,16 @@ class WebsiteController extends Controller {
         ]);
     }
 
+    /** Published posts, newest first. */
+    private function posts(int $limit): array {
+        if (empty($this->tenant['id'])) { return []; }
+        return WebsiteContent::rows($this->db,
+            "SELECT * FROM website_posts WHERE tenant_id=? AND is_published=1 AND published_on <= CURDATE()
+              ORDER BY published_on DESC, id DESC LIMIT " . (int)$limit, [(int)$this->tenant['id']]);
+    }
+
     public function home(): void {
-        $this->page('home', 'Home', 'CELDI Academy is a K-12 school in Ben Town, Margibi County, Liberia, changing Liberia one child at a time through Christ-centered, technological and vocational education.', 'home');
+        $this->page('home', 'Home', 'CELDI Academy is a K-12 school in Ben Town, Margibi County, Liberia, changing Liberia one child at a time through Christ-centered, technological and vocational education.', 'home', ['posts' => $this->posts(3)]);
     }
 
     public function about(): void {
@@ -60,7 +75,10 @@ class WebsiteController extends Controller {
     }
 
     public function leadership(): void {
-        $this->page('leadership', 'Our Leadership', 'How CELDI Academy is led: board, administration, faculty and parents working together.', 'about');
+        $this->page('leadership', 'Our Leadership', 'How CELDI Academy is led: board, administration, faculty and parents working together.', 'about', [
+            'leaders' => empty($this->tenant['id']) ? [] : WebsiteContent::rows($this->db,
+                "SELECT * FROM website_leaders WHERE tenant_id=? AND is_active=1 ORDER BY sort_order, id", [(int)$this->tenant['id']]),
+        ]);
     }
 
     public function studentLife(): void {
@@ -92,6 +110,23 @@ class WebsiteController extends Controller {
     }
 
     public function news(): void {
-        $this->page('news', 'News & Events', 'The CELDI Academy academic calendar, events and highlights from campus.', 'news');
+        $this->page('news', 'News & Events', 'The CELDI Academy academic calendar, events and highlights from campus.', 'news', ['posts' => $this->posts(24)]);
+    }
+
+    public function newsPost(string $id): void {
+        $post = null;
+        if (!empty($this->tenant['id'])) {
+            $post = WebsiteContent::rows($this->db,
+                "SELECT * FROM website_posts WHERE id=? AND tenant_id=? AND is_published=1 AND published_on <= CURDATE()",
+                [$id, (int)$this->tenant['id']])[0] ?? null;
+        }
+        if (!$post) {
+            $this->redirect('/academy-news');
+        }
+        $excerpt = $post['excerpt'] ?: mb_substr(trim(strip_tags((string)$post['body'])), 0, 160);
+        $this->page('news_post', $post['title'], $excerpt, 'news', [
+            'post'  => $post,
+            'more'  => array_values(array_filter($this->posts(4), fn($p) => (int)$p['id'] !== (int)$post['id'])),
+        ]);
     }
 }

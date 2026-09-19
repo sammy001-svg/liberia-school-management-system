@@ -3,14 +3,16 @@
 <footer class="site-footer">
   <div class="container">
     <div class="footer-affiliate">
-      <img src="<?= $img('urbanpromise-logo.png') ?>" alt="UrbanPromise International" loading="lazy" width="240" height="48">
-      <p>CELDI Academy is an affiliate ministry of <strong>UrbanPromise International</strong>.</p>
+      <?php if (trim($raw('site.affiliation_logo')) !== ''): ?>
+        <img src="<?= $im('site.affiliation_logo') ?>" alt="" loading="lazy" width="240" height="48">
+      <?php endif; ?>
+      <p><?= $h('site.affiliation') ?></p>
     </div>
 
     <div class="footer-grid">
       <div class="footer-brand">
         <a class="brand brand--light" href="<?= $url() ?>">
-          <img src="<?= $img('celdi-logo.png') ?>" alt="" width="52" height="66" loading="lazy">
+          <img src="<?= $im('site.logo') ?>" alt="" width="52" height="66" loading="lazy">
           <span class="brand-text">
             <span class="brand-name"><?= htmlspecialchars($site['name']) ?></span>
             <span class="brand-sub"><?= htmlspecialchars($site['tagline']) ?></span>
@@ -62,7 +64,7 @@
 
     <div class="footer-bottom">
       <span>© <?= date('Y') ?> <?= htmlspecialchars($site['name']) ?>. All rights reserved.</span>
-      <span>Ben Town · Margibi County · Liberia</span>
+      <span><?= $t('site.tagline') ?></span>
     </div>
   </div>
 </footer>

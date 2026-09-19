@@ -124,14 +124,8 @@
   <div class="card mt-16">
     <div class="card-header"><div class="card-title">🌐 Public Website</div></div>
     <div class="card-body">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-        <input type="checkbox" name="website_enabled" value="1" <?= ($tenant['website_enabled'] ?? 1) ? 'checked' : '' ?>>
-        <span class="form-label" style="margin:0;">Show the school's public website</span>
-      </label>
-      <div class="form-hint">When on, visitors to <strong><?= htmlspecialchars($cfg['url']) ?>/</strong> see the school website (About, Divisions, Admissions, News), with buttons to apply online and sign in to the portal. When off, every website page goes straight to the login page instead.</div>
-      <?php if ($tenant['website_enabled'] ?? 1): ?>
-        <a href="<?= $cfg['url'] ?>/" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="margin-top:12px;">View website ↗</a>
-      <?php endif; ?>
+      <div class="form-hint" style="margin:0 0 10px;font-size:12.5px;">The school website is currently <strong><?= ($tenant['website_enabled'] ?? 1) ? 'on' : 'off' ?></strong>. Switch it on or off, and edit its pages, news, gallery and leadership team, in the Website module.</div>
+      <a href="<?= $cfg['url'] ?>/school/website" class="btn btn-secondary btn-sm">Open Website module →</a>
     </div>
   </div>
 
