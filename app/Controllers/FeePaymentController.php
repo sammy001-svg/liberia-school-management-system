@@ -38,6 +38,7 @@ class FeePaymentController extends FinanceBaseController {
                 "SELECT e.*, c.name AS class_name, st.name AS type_name FROM enrollments e LEFT JOIN classes c ON c.id=e.class_id
                  LEFT JOIN student_types st ON st.id=e.student_type_id WHERE e.student_id=? AND e.academic_year_id=?", [$studentId, $year['id']]);
             $data['bills'] = $this->bills($studentId, $year);
+            $data['sponsorships'] = Finance::sponsorships($this->db, $this->tid, $studentId, (int)$year['id']);
             $invoiceIds = array_map('intval', array_column($data['bills'], 'id')) ?: [0];
             $data['payments'] = $this->db->fetchAll(
                 "SELECT p.*, COALESCE(i.description, i.notes, i.invoice_no) AS label, u.name AS received_by_name
@@ -83,12 +84,19 @@ class FeePaymentController extends FinanceBaseController {
             if ($invoice['status'] === 'waived') { $errors['invoice_id'] = 'That bill was written off.'; }
             elseif ($amount > $left + 0.005) { $errors['amount'] = 'That is more than the ' . Finance::money(max(0, $left), $invoice['currency']) . ' left on this bill.'; }
         }
+        // "Received from": the family, or a sponsorship scheme paying for this child.
+        $sponsorshipId = (int)($_POST['sponsorship_id'] ?? 0);
+        if ($sponsorshipId && !$this->db->fetchOne(
+            "SELECT id FROM sponsorships WHERE id=? AND tenant_id=? AND student_id=? AND status='active'",
+            [$sponsorshipId, $this->tid, $studentId])) {
+            $errors['sponsorship_id'] = 'That sponsorship is not active for this student.';
+        }
         $file = $this->storeProof('receipt_file', $errors);
         if ($errors) { $this->failValidation($errors, $back); }
 
         $id = Finance::recordPayment($this->db, $this->tid, (int)$invoice['id'], $amount, [
             'method' => $method, 'reference' => $reference ?: null, 'notes' => trim($_POST['comment'] ?? '') ?: null,
-            'payment_date' => $date, 'receipt_file' => $file,
+            'payment_date' => $date, 'receipt_file' => $file, 'sponsorship_id' => $sponsorshipId ?: null,
         ]);
         $status = $this->db->fetchOne("SELECT status FROM payments WHERE id=?", [$id])['status'] ?? 'active';
         $this->flash('success', $status === 'pending'

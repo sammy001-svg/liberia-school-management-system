@@ -68,6 +68,9 @@ $copies = $copies ?? ['Student copy', 'School copy'];
     </div>
     <div class="line"><span>Student Name:</span><span class="fill"><?= htmlspecialchars($r['student_name']) ?></span><span>Class:</span><span class="fill" style="flex:.45;"><?= htmlspecialchars($r['class_name'] ?? '') ?></span></div>
     <div class="line"><span>Payment Purpose:</span><span class="fill"><?= htmlspecialchars($r['label']) ?><?= $r['is_arrears'] ? ' (Arrears)' : '' ?></span></div>
+    <?php if (!empty($r['scheme_name'])): ?>
+    <div class="line"><span>Received From:</span><span class="fill"><?= htmlspecialchars($r['scheme_name']) ?> (sponsor)</span></div>
+    <?php endif; ?>
     <div class="grid">
       <div>
         <div><b>Amount Due:</b> <?= Finance::money($due, $cur) ?></div>

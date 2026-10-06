@@ -164,6 +164,11 @@ $router->get('/school/finance/profit-loss',                  ['FinancialRecordsC
 $router->get('/school/finance/statements',                   ['FinancialRecordsController', 'statements']);
 $router->get('/school/finance/daily-receipts',               ['FinancialRecordsController', 'dailyReceipts']);
 $router->get('/school/finance/audit',                        ['FinancialRecordsController', 'audit']);
+$router->get('/school/finance/sponsorships',                 ['SponsorshipController', 'index']);
+$router->post('/school/finance/sponsorships/schemes/save',   ['SponsorshipController', 'saveScheme']);
+$router->post('/school/finance/sponsorships/sponsor',        ['SponsorshipController', 'sponsor']);
+$router->post('/school/finance/sponsorships/{id}/end',       ['SponsorshipController', 'end']);
+$router->get('/school/finance/sponsorships/{id}',            ['SponsorshipController', 'show']);
 $router->get('/school/finance/settings',                     ['FinanceSettingsController', 'index']);
 $router->post('/school/finance/settings/save',               ['FinanceSettingsController', 'save']);
 $router->post('/school/finance/settings/categories',         ['FinanceSettingsController', 'saveCategories']);

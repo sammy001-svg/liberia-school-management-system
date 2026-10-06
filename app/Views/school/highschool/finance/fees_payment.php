@@ -52,6 +52,11 @@ $justPaid = (int)($_GET['receipt'] ?? 0);
         <div><div style="color:var(--text-muted);font-size:11.5px;">Class (<?= htmlspecialchars($year['name']) ?>)</div><div class="fw-600"><?= htmlspecialchars($enrollment['class_name'] ?? ($student['class_name'] ?? '—')) ?></div></div>
         <div><div style="color:var(--text-muted);font-size:11.5px;">Student Type</div><div class="fw-600"><?= htmlspecialchars($enrollment['type_name'] ?? '—') ?></div></div>
         <div><div style="color:var(--text-muted);font-size:11.5px;">New / Old</div><div class="fw-600"><?= $enrollment ? ($enrollment['category'] === 'old' ? 'Old Student' : 'New Student') : '—' ?></div></div>
+        <?php if (!empty($sponsorships)): ?>
+        <div><div style="color:var(--text-muted);font-size:11.5px;">Sponsored by</div>
+          <div class="fw-600"><?php foreach ($sponsorships as $sp): ?><div><a href="<?= $base ?>/sponsorships/<?= (int)$sp['scheme_id'] ?>?year=<?= (int)$year['id'] ?>"><?= htmlspecialchars($sp['scheme_name']) ?></a>
+            <span style="font-weight:400;color:var(--text-muted);font-size:11.5px;">— <?= htmlspecialchars(Finance::coverLabel($sp, $def)) ?></span></div><?php endforeach; ?></div></div>
+        <?php endif; ?>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <a href="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>" class="btn btn-sm btn-outline">Profile</a>
@@ -93,6 +98,15 @@ $justPaid = (int)($_GET['receipt'] ?? 0);
             </select>
             <div class="form-hint" id="billHint"></div>
           </div>
+          <?php if (!empty($sponsorships)): ?>
+          <div class="form-group"><label class="form-label">Received From *</label>
+            <select name="sponsorship_id" class="form-control">
+              <option value="">The family</option>
+              <?php foreach ($sponsorships as $sp): ?><option value="<?= (int)$sp['id'] ?>"><?= htmlspecialchars($sp['scheme_name']) ?> (sponsor)</option><?php endforeach; ?>
+            </select>
+            <div class="form-hint">Money from a scheme is counted against that scheme on the Sponsorships screen.</div>
+          </div>
+          <?php endif; ?>
           <div class="form-group"><label class="form-label">Amount *</label>
             <div style="display:flex;gap:6px;align-items:center;"><span id="curTag" class="badge badge-muted" style="font-size:12px;"><?= $def ?></span>
               <input type="number" name="amount" id="payAmount" class="form-control" min="0.01" step="0.01" required></div>

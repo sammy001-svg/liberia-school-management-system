@@ -134,7 +134,8 @@ $confirmed = array_filter($acct['payments'], fn($p) => $p['status'] === 'active'
         <tr>
           <td><?= date('M j, Y', strtotime($p['pay_date'])) ?></td>
           <td><?= $p['status'] === 'active' ? (int)$p['id'] : '—' ?></td>
-          <td class="wrap"><?= htmlspecialchars($p['label']) ?><?= $p['is_arrears'] ? ' <span class="badge badge-orange">Arrears</span>' : '' ?></td>
+          <td class="wrap"><?= htmlspecialchars($p['label']) ?><?= $p['is_arrears'] ? ' <span class="badge badge-orange">Arrears</span>' : '' ?>
+            <?php if (!empty($p['scheme_name'])): ?><div style="font-size:11px;color:var(--text-muted);">Paid by <?= htmlspecialchars($p['scheme_name']) ?></div><?php endif; ?></td>
           <td><?= htmlspecialchars($methods[$p['method']] ?? ucfirst((string)$p['method'])) ?></td>
           <td style="text-align:right;" class="fw-700"><?= Finance::money($p['amount'], $p['cur']) ?></td>
           <td><?php if ($p['status'] === 'active'): ?><a class="btn btn-sm btn-secondary" target="_blank" rel="noopener" href="<?= htmlspecialchars($receiptUrl . '/' . (int)$p['id']) ?>">Receipt</a>
@@ -151,6 +152,7 @@ $confirmed = array_filter($acct['payments'], fn($p) => $p['status'] === 'active'
           <?php if ($p['status'] === 'active'): ?><a class="btn btn-sm btn-secondary" target="_blank" rel="noopener" href="<?= htmlspecialchars($receiptUrl . '/' . (int)$p['id']) ?>">Receipt</a>
           <?php else: ?><span class="badge badge-info">Awaiting confirmation</span><?php endif; ?></div>
         <div class="row"><span>For</span><span><?= htmlspecialchars($p['label']) ?></span></div>
+        <?php if (!empty($p['scheme_name'])): ?><div class="row"><span>Paid by</span><span><?= htmlspecialchars($p['scheme_name']) ?></span></div><?php endif; ?>
         <div class="row"><span>Date</span><span><?= date('M j, Y', strtotime($p['pay_date'])) ?></span></div>
         <div class="row"><span>Method</span><span><?= htmlspecialchars($methods[$p['method']] ?? ucfirst((string)$p['method'])) ?></span></div>
       </div>

@@ -23,12 +23,15 @@
 class Finance {
     public const CURRENCIES = ['LRD' => 'L$', 'USD' => 'US$'];
 
-    private const SCHEMA_VERSION = 1;
+    private const SCHEMA_VERSION = 2;
 
     public const DEFAULT_STUDENT_TYPES = [
         'Regular', 'Admin. Ward', 'Discount on Tuition', 'Full Scholarship', 'Partial Scholarship',
         'Proprietor Ward', 'Scholarship', "Teacher's Ward", 'Ward',
     ];
+    /** Sponsorship schemes every school starts with; more can be added on the Sponsorships screen. */
+    public const DEFAULT_SPONSORSHIP_SCHEMES = ['Serve the Children (STC)', 'Aunty Shar Child Sponsorship'];
+
     public const DEFAULT_EXPENSE_CATEGORIES = [
         'Bank charges', 'Business Registration', 'Cafeteria Expense', 'Charity/General', 'Communication',
         'Extracurricular activities', 'General School supplies', 'Goodwill', 'Health/Sanitation', 'ID Cards',
@@ -150,6 +153,25 @@ class Finance {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, KEY idx_writeoffs (tenant_id, student_id),
             FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE) $engine");
 
+        // Sponsorships: a sponsor (scheme) pays some or all of a child's bills.
+        $db->execute("CREATE TABLE IF NOT EXISTS sponsorship_schemes (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, tenant_id INT UNSIGNED NOT NULL, name VARCHAR(150) NOT NULL,
+            contact_person VARCHAR(150) DEFAULT NULL, phone VARCHAR(40) DEFAULT NULL, email VARCHAR(150) DEFAULT NULL,
+            notes VARCHAR(500) DEFAULT NULL, is_active TINYINT(1) NOT NULL DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uniq_scheme (tenant_id, name), FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE) $engine");
+        $db->execute("CREATE TABLE IF NOT EXISTS sponsorships (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, tenant_id INT UNSIGNED NOT NULL, scheme_id INT UNSIGNED NOT NULL,
+            student_id INT UNSIGNED NOT NULL, academic_year_id INT UNSIGNED NOT NULL,
+            cover_type ENUM('full','percent','amount') NOT NULL DEFAULT 'full', cover_value DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+            currency CHAR(3) DEFAULT NULL, reference VARCHAR(80) DEFAULT NULL, notes VARCHAR(500) DEFAULT NULL,
+            status ENUM('active','ended') NOT NULL DEFAULT 'active', ended_at DATETIME DEFAULT NULL, end_reason VARCHAR(255) DEFAULT NULL,
+            created_by INT UNSIGNED DEFAULT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uniq_sponsorship (scheme_id, student_id, academic_year_id),
+            KEY idx_sponsorship (tenant_id, academic_year_id, status),
+            FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+            FOREIGN KEY (scheme_id) REFERENCES sponsorship_schemes(id) ON DELETE CASCADE,
+            FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE) $engine");
+
         // Payroll
         $db->execute("CREATE TABLE IF NOT EXISTS payroll_profiles (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, tenant_id INT UNSIGNED NOT NULL, user_id INT UNSIGNED NOT NULL,
@@ -201,6 +223,7 @@ class Finance {
             'is_arrears' => 'TINYINT(1) NOT NULL DEFAULT 0', 'receipt_file' => 'VARCHAR(255) DEFAULT NULL',
             'cancelled_at' => 'DATETIME DEFAULT NULL', 'cancelled_by' => 'INT UNSIGNED DEFAULT NULL', 'cancel_reason' => 'VARCHAR(255) DEFAULT NULL',
             'approved_at' => 'DATETIME DEFAULT NULL', 'approved_by' => 'INT UNSIGNED DEFAULT NULL',
+            'sponsorship_id' => 'INT UNSIGNED DEFAULT NULL',
         ]);
         self::addColumns($db, 'expenses', [
             'currency' => 'CHAR(3) DEFAULT NULL', 'academic_year_id' => 'INT UNSIGNED DEFAULT NULL',
@@ -232,6 +255,13 @@ class Finance {
         $db->execute("ALTER TABLE invoices MODIFY COLUMN amount_due DECIMAL(14,2) NOT NULL");
         $db->execute("ALTER TABLE invoices MODIFY COLUMN amount_paid DECIMAL(14,2) DEFAULT 0.00");
         $db->execute("UPDATE payments SET payment_date = DATE(paid_at) WHERE payment_date IS NULL");
+
+        // The schools' two standing sponsorship schemes, for every school already set up.
+        foreach ($db->fetchAll("SELECT id FROM tenants") as $t) {
+            foreach (self::DEFAULT_SPONSORSHIP_SCHEMES as $name) {
+                $db->execute("INSERT IGNORE INTO sponsorship_schemes (tenant_id,name) VALUES (?,?)", [$t['id'], $name]);
+            }
+        }
     }
 
     // ── Per-school setup ──────────────────────────────────────────────
@@ -245,6 +275,9 @@ class Finance {
                 foreach (self::DEFAULT_STUDENT_TYPES as $i => $name) {
                     $db->execute("INSERT IGNORE INTO student_types (tenant_id,name,sort_order) VALUES (?,?,?)", [$tid, $name, $i]);
                 }
+            }
+            foreach (self::DEFAULT_SPONSORSHIP_SCHEMES as $name) {
+                $db->execute("INSERT IGNORE INTO sponsorship_schemes (tenant_id,name) VALUES (?,?)", [$tid, $name]);
             }
             if (!$db->fetchOne("SELECT id FROM finance_categories WHERE tenant_id=? LIMIT 1", [$tid])) {
                 // Categories the school already used come along, so nothing recorded goes uncategorised.
@@ -494,11 +527,11 @@ class Finance {
         }
         $date = $data['payment_date'] ?? date('Y-m-d');
         $paymentId = (int)$db->insert(
-            "INSERT INTO payments (tenant_id,invoice_id,amount,currency,method,reference,received_by,notes,paid_at,payment_date,status,is_arrears,receipt_file)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO payments (tenant_id,invoice_id,amount,currency,method,reference,received_by,notes,paid_at,payment_date,status,is_arrears,receipt_file,sponsorship_id)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             [$tid, $invoiceId, round($amount, 2), $inv['currency'] ?: $settings['default_currency'], $data['method'] ?? 'cash',
              $data['reference'] ?? null, $_SESSION['user_id'] ?? null, $data['notes'] ?? null, $date . ' ' . date('H:i:s'), $date,
-             $pending ? 'pending' : 'active', $isArrears, $data['receipt_file'] ?? null]
+             $pending ? 'pending' : 'active', $isArrears, $data['receipt_file'] ?? null, $data['sponsorship_id'] ?? null]
         );
         if (!$pending) { self::applyPayment($db, $tid, $paymentId); }
         return $paymentId;
@@ -608,6 +641,60 @@ class Finance {
         return $out;
     }
 
+    // ── Sponsorships ──────────────────────────────────────────────────
+
+    /** Active sponsorships for a student in a year, with the scheme's name. */
+    public static function sponsorships(Database $db, int $tid, int $studentId, int $yearId): array {
+        return $db->fetchAll(
+            "SELECT sp.*, sc.name AS scheme_name FROM sponsorships sp JOIN sponsorship_schemes sc ON sc.id=sp.scheme_id
+             WHERE sp.tenant_id=? AND sp.student_id=? AND sp.academic_year_id=? AND sp.status='active' ORDER BY sc.name",
+            [$tid, $studentId, $yearId]);
+    }
+
+    /** How a cover is written on screen: "Everything", "50% of the fees", "L$ 20,000.00". */
+    public static function coverLabel(array $sponsorship, ?string $currency = null): string {
+        return match ($sponsorship['cover_type']) {
+            'percent' => rtrim(rtrim(number_format((float)$sponsorship['cover_value'], 2, '.', ''), '0'), '.') . '% of the fees',
+            'amount' => self::money($sponsorship['cover_value'], $sponsorship['currency'] ?: $currency),
+            default => 'Everything',
+        };
+    }
+
+    /**
+     * What each sponsorship covers of a student's year, per currency, and what the scheme has
+     * actually paid. A fixed amount counts in its own currency only; a percentage applies to
+     * every currency the student is billed in.
+     */
+    public static function sponsorshipTotals(Database $db, int $tid, array $sponsorship): array {
+        $def = self::settings($db, $tid)['default_currency'];
+        $billed = [];
+        foreach ($db->fetchAll(
+            "SELECT COALESCE(i.currency, ?) cur, SUM(i.amount_due - i.discount) net FROM invoices i
+             WHERE i.tenant_id=? AND i.student_id=? AND i.academic_year_id=? AND i.status<>'waived' GROUP BY cur",
+            [$def, $tid, $sponsorship['student_id'], $sponsorship['academic_year_id']]) as $r) {
+            $billed[$r['cur']] = (float)$r['net'];
+        }
+        $cover = [];
+        foreach ($billed as $cur => $net) {
+            $cover[$cur] = match ($sponsorship['cover_type']) {
+                'percent' => round($net * (float)$sponsorship['cover_value'] / 100, 2),
+                'amount' => $cur === ($sponsorship['currency'] ?: $def) ? min($net, (float)$sponsorship['cover_value']) : 0.0,
+                default => $net,
+            };
+        }
+        $paid = array_map('floatval', array_column($db->fetchAll(
+            "SELECT COALESCE(p.currency, i.currency, ?) cur, SUM(p.amount) t FROM payments p JOIN invoices i ON i.id=p.invoice_id
+             WHERE p.sponsorship_id=? AND p.status='active' GROUP BY cur", [$def, $sponsorship['id']]), 't', 'cur'));
+        $out = [];
+        foreach (array_unique(array_merge(array_keys($billed), array_keys($cover), array_keys($paid))) as $cur) {
+            $c = round($cover[$cur] ?? 0, 2);
+            $p = round($paid[$cur] ?? 0, 2);
+            $out[$cur] = ['billed' => round($billed[$cur] ?? 0, 2), 'cover' => $c, 'paid' => $p, 'owing' => round(max(0, $c - $p), 2)];
+        }
+        uksort($out, fn($a, $b) => ($a === $def ? -1 : 0) - ($b === $def ? -1 : 0));
+        return $out;
+    }
+
     // ── Family view (parent / student portals) ────────────────────────
 
     /**
@@ -667,8 +754,10 @@ class Finance {
 
         $out['payments'] = $db->fetchAll(
             "SELECT p.id, p.amount, p.method, p.reference, p.status, p.is_arrears, COALESCE(p.currency, i.currency, ?) AS cur,
-                    COALESCE(p.payment_date, DATE(p.paid_at)) AS pay_date, COALESCE(i.description, i.notes, i.invoice_no) AS label
+                    COALESCE(p.payment_date, DATE(p.paid_at)) AS pay_date, COALESCE(i.description, i.notes, i.invoice_no) AS label,
+                    sc.name AS scheme_name
              FROM payments p JOIN invoices i ON i.id=p.invoice_id
+             LEFT JOIN sponsorships sp ON sp.id=p.sponsorship_id LEFT JOIN sponsorship_schemes sc ON sc.id=sp.scheme_id
              WHERE p.tenant_id=? AND i.student_id=? AND p.status IN ('active','pending') AND {$inYear}
              ORDER BY pay_date DESC, p.id DESC", array_merge([$def, $tid, $studentId], $inYearParams));
 
@@ -680,13 +769,14 @@ class Finance {
     public static function receiptRows(Database $db, int $tid, string $where, array $params): array {
         return $db->fetchAll(
             "SELECT p.*, COALESCE(i.description, i.notes, i.invoice_no) AS label, i.amount_due, i.discount, i.student_id, i.academic_year_id,
-                    s.admission_no, su.name AS student_name, COALESCE(ec.name, c.name) AS class_name, ru.name AS received_by_name,
+                    s.admission_no, su.name AS student_name, COALESCE(ec.name, c.name) AS class_name, ru.name AS received_by_name, sc.name AS scheme_name,
                     (SELECT COALESCE(SUM(p2.amount),0) FROM payments p2 WHERE p2.invoice_id=p.invoice_id AND p2.status='active'
                        AND (COALESCE(p2.payment_date, DATE(p2.paid_at)) < COALESCE(p.payment_date, DATE(p.paid_at))
                             OR (COALESCE(p2.payment_date, DATE(p2.paid_at)) = COALESCE(p.payment_date, DATE(p.paid_at)) AND p2.id <= p.id))) AS paid_to_date
              FROM payments p JOIN invoices i ON i.id=p.invoice_id JOIN students s ON s.id=i.student_id JOIN users su ON su.id=s.user_id
              LEFT JOIN enrollments e ON e.id=i.enrollment_id LEFT JOIN classes ec ON ec.id=e.class_id LEFT JOIN classes c ON c.id=s.class_id
              LEFT JOIN users ru ON ru.id=p.received_by
+             LEFT JOIN sponsorships sp ON sp.id=p.sponsorship_id LEFT JOIN sponsorship_schemes sc ON sc.id=sp.scheme_id
              WHERE p.tenant_id=? AND p.status='active' AND {$where}
              ORDER BY COALESCE(p.payment_date, DATE(p.paid_at)), p.id", array_merge([$tid], $params));
     }
