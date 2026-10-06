@@ -409,13 +409,19 @@ class Finance {
         // and old can otherwise be left holding the previous set as well, so their account
         // shows two sets of fees. Invoices money was received against win over empty ones, and
         // the leftovers are cleaned up below.
+        // Bills of this year the student already holds. Older versions of the system left
+        // invoices without a year stamped on them; Fees Payment shows those on the year they
+        // fall in, so they are rebuilt here too — otherwise they sit on the account forever.
+        // Invoices belonging to a different year are left alone: those are real arrears.
+        $yr = $db->fetchOne("SELECT start_date, end_date FROM academic_years WHERE id=?", [$e['academic_year_id']]);
         $existing = $extra = [];
         foreach ($db->fetchAll(
             "SELECT i.*, (SELECT COUNT(*) FROM payments p WHERE p.invoice_id=i.id AND p.status IN ('active','pending')) AS pay_count
-             FROM invoices i WHERE i.tenant_id=? AND i.student_id=? AND i.academic_year_id=? AND i.fee_bill_id IS NOT NULL
+             FROM invoices i WHERE i.tenant_id=? AND i.student_id=? AND i.fee_bill_id IS NOT NULL
+               AND (i.academic_year_id=? OR (i.academic_year_id IS NULL AND DATE(i.created_at) BETWEEN ? AND ?))
              ORDER BY (SELECT COUNT(*) FROM payments p WHERE p.invoice_id=i.id AND p.status IN ('active','pending')) DESC,
                       (i.enrollment_id=?) DESC, i.id",
-            [$tid, $e['student_id'], $e['academic_year_id'], $enrollmentId]) as $inv) {
+            [$tid, $e['student_id'], $e['academic_year_id'], $yr['start_date'] ?? '1900-01-01', $yr['end_date'] ?? '2999-12-31', $enrollmentId]) as $inv) {
             $bid = (int)$inv['fee_bill_id'];
             // The same bill twice (a duplicate from an earlier enrollment) keeps one copy.
             if (isset($existing[$bid])) { $extra[] = $inv; continue; }
@@ -431,7 +437,8 @@ class Finance {
             if (!isset($existing[$bid])) {
                 foreach ($existing as $oldBid => $cand) {
                     if ($cand['description'] === $b['description'] && !isset($billIds[$oldBid])) {
-                        $db->execute("UPDATE invoices SET fee_bill_id=?, enrollment_id=? WHERE id=?", [$bid, $enrollmentId, $cand['id']]);
+                        $db->execute("UPDATE invoices SET fee_bill_id=?, enrollment_id=?, academic_year_id=? WHERE id=?",
+                            [$bid, $enrollmentId, $e['academic_year_id'], $cand['id']]);
                         $cand['fee_bill_id'] = $bid;
                         if ($b['once_per_year']) { $cand['amount_due'] = $b['amount']; } // already charged this year: keep it
                         $existing[$bid] = $cand;
@@ -443,8 +450,9 @@ class Finance {
             if (isset($existing[$bid])) {
                 $inv = $existing[$bid];
                 unset($existing[$bid]);
-                if ((int)$inv['enrollment_id'] !== $enrollmentId) {
-                    $db->execute("UPDATE invoices SET enrollment_id=? WHERE id=?", [$enrollmentId, $inv['id']]);
+                if ((int)$inv['enrollment_id'] !== $enrollmentId || $inv['academic_year_id'] === null) {
+                    $db->execute("UPDATE invoices SET enrollment_id=?, academic_year_id=? WHERE id=?",
+                        [$enrollmentId, $e['academic_year_id'], $inv['id']]);
                 }
                 $diff = round((float)$b['amount'] - (float)$inv['amount_due'], 2);
                 if (abs($diff) >= 0.005 || $inv['description'] !== $b['description'] || $inv['due_date'] !== $b['end_date'] || $inv['currency'] !== $b['currency']) {
@@ -472,8 +480,9 @@ class Finance {
         // was received against — that money has to stay on the student's record.
         foreach (array_merge(array_values($existing), $extra) as $inv) {
             if ((int)$inv['pay_count'] > 0) {
-                if ((int)$inv['enrollment_id'] !== $enrollmentId) {
-                    $db->execute("UPDATE invoices SET enrollment_id=? WHERE id=?", [$enrollmentId, $inv['id']]);
+                if ((int)$inv['enrollment_id'] !== $enrollmentId || $inv['academic_year_id'] === null) {
+                    $db->execute("UPDATE invoices SET enrollment_id=?, academic_year_id=? WHERE id=?",
+                        [$enrollmentId, $e['academic_year_id'], $inv['id']]);
                 }
                 $kept++;
                 continue;
