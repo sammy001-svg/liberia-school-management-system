@@ -54,7 +54,8 @@ class BillingController extends FinanceBaseController {
             'pageTitle' => 'Billing Setup', 'year' => $year, 'years' => $this->years(), 'classes' => $classes,
             'class' => $class, 'bills' => $bills, 'types' => $types, 'typeNames' => $typeNames,
             'typeTotals' => $typeTotals, 'descriptions' => $descriptions, 'enrolled' => $enrolled,
-            'misplaced' => ['new' => self::misplaced($bills['new'], 'new'), 'old' => self::misplaced($bills['old'], 'old')],
+            'misplaced' => ['new' => self::misplaced($bills['new'], 'new', $bills['old']),
+                            'old' => self::misplaced($bills['old'], 'old', $bills['new'])],
         ]);
     }
 
@@ -62,10 +63,19 @@ class BillingController extends FinanceBaseController {
      * Bills sitting in the wrong list — an "…Old Student" bill typed into the New Students
      * list bills every new student for it, which is how a student ends up with both sets.
      */
-    public static function misplaced(array $bills, string $category): array {
+    public static function misplaced(array $bills, string $category, array $otherList = []): array {
         $wrongWord = $category === 'new' ? 'old' : 'new';
         $pattern = '/(^|[^a-z])' . $wrongWord . '[ _.-]*(student|pupil)/i';
-        return array_values(array_filter($bills, fn($b) => (bool)preg_match($pattern, (string)$b['description'])));
+        $otherNames = array_column($otherList, 'description');
+        $out = [];
+        foreach ($bills as $b) {
+            if (!preg_match($pattern, (string)$b['description'])) { continue; }
+            // Both lists carrying the same name is a naming problem, not a filing one: moving it
+            // would bill it twice, so the school is told to rename this one instead.
+            $b['clash'] = in_array($b['description'], $otherNames, true);
+            $out[] = $b;
+        }
+        return $out;
     }
 
     /** Moves bills into the other list (new ↔ old) and rebuilds the class's students' bills. */
@@ -111,6 +121,32 @@ class BillingController extends FinanceBaseController {
             ? "{$moved} bill(s) were in the wrong list and have been moved. Every affected student's bills were rebuilt — unpaid copies on the wrong students are gone, and bills with money on them were kept."
             : 'Checked every class: no bills are sitting in the wrong list.');
         $this->back((int)($_POST['academic_year_id'] ?? 0), (int)($_POST['class_id'] ?? 0), (string)($_POST['tab'] ?? ''));
+    }
+
+    /**
+     * Rebuilds every enrolled student's bills for a year, class by class, from the current
+     * billing setup. This is what clears bills left over from an earlier setup. Bills with
+     * money on them are kept.
+     */
+    public function rebuildYear(): void {
+        $this->guard(['finance.manage']);
+        $yearId = (int)($_POST['academic_year_id'] ?? 0);
+        $year = $this->db->fetchOne("SELECT * FROM academic_years WHERE id=? AND tenant_id=?", [$yearId, $this->tid]);
+        if (!$year) { $this->flash('danger', 'Choose a school year first.'); $this->back($yearId); }
+        $classes = array_column($this->db->fetchAll(
+            "SELECT DISTINCT class_id FROM enrollments WHERE tenant_id=? AND academic_year_id=?", [$this->tid, $yearId]), 'class_id');
+        set_time_limit(300);
+        $students = $created = $updated = $removed = $kept = 0;
+        foreach ($classes as $cid) {
+            foreach ($this->db->fetchAll("SELECT id FROM enrollments WHERE tenant_id=? AND academic_year_id=? AND class_id=?",
+                [$this->tid, $yearId, (int)$cid]) as $e) {
+                [$c, $u, $r, $k] = Finance::syncEnrollment($this->db, (int)$e['id']);
+                $students++; $created += $c; $updated += $u; $removed += $r; $kept += $k;
+            }
+        }
+        $this->flash('success', "Rebuilt the bills of {$students} student(s) in {$year['name']}: {$created} added, {$updated} re-priced, "
+            . "{$removed} left-over bill(s) removed, {$kept} kept because money was received against them.");
+        $this->back($yearId, (int)($_POST['class_id'] ?? 0), (string)($_POST['tab'] ?? ''));
     }
 
     private function back(int $yearId, int $classId = 0, string $tab = ''): never {

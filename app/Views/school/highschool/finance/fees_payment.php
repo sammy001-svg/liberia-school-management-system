@@ -134,13 +134,17 @@ $justPaid = (int)($_GET['receipt'] ?? 0);
             <tbody>
               <?php foreach ($bills as $b): [$bc, $bl] = $billBadge[$b['status']] ?? ['badge-muted', $b['status']]; $cur = $b['currency'] ?: $def; ?>
                 <?php
-                  // A bill from the other list (or another class) is a leftover from an earlier
-                  // enrollment: it is flagged rather than hidden, because money may be on it.
-                  $odd = $enrollment && $b['bill_category'] && ($b['bill_category'] !== $enrollment['category'] || (int)$b['bill_class_id'] !== (int)$enrollment['class_id']);
+                  // Bills that are not part of this student's current billing setup: either from
+                  // the other list / another class, or from a setup that has since been replaced.
+                  // They are flagged rather than hidden, because money may be on them.
+                  $fromOther = $enrollment && $b['bill_category']
+                      && ($b['bill_category'] !== $enrollment['category'] || (int)$b['bill_class_id'] !== (int)$enrollment['class_id']);
+                  $fromOldSetup = $b['fee_bill_id'] && !$b['bill_category'];
                 ?>
                 <tr>
                   <td class="fw-600"><?= htmlspecialchars($b['label']) ?>
-                    <?php if ($odd): ?><span class="badge badge-warning" title="This bill comes from the <?= $b['bill_category'] === 'old' ? 'Old' : 'New' ?> Students list of another class or category — use Recalculate Bills to clear it if it does not belong here."><?= $b['bill_category'] === 'old' ? 'Old' : 'New' ?> students&apos; bill</span><?php endif; ?>
+                    <?php if ($fromOther): ?><span class="badge badge-warning" title="This bill comes from the <?= $b['bill_category'] === 'old' ? 'Old' : 'New' ?> Students list of another class or category — use Recalculate Bills to clear it if it does not belong here."><?= $b['bill_category'] === 'old' ? 'Old' : 'New' ?> students&apos; bill</span><?php endif; ?>
+                    <?php if ($fromOldSetup): ?><span class="badge badge-warning" title="This bill is not in the class billing setup any more — it is left from an earlier setup. It stays because money was received against it. Merge Descriptions on Billing Setup joins it to its replacement, or write off the balance.">From an earlier setup</span><?php endif; ?>
                   </td>
                   <td style="font-size:12px;color:var(--text-muted);"><?= $b['due_date'] ? date('M d, Y', strtotime($b['due_date'])) : '—' ?></td>
                   <td style="text-align:right;"><?= Finance::money((float)$b['amount_due'] - (float)$b['discount'], $cur) ?></td>

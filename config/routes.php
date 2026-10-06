@@ -131,6 +131,7 @@ $router->post('/school/finance/billing/save',                ['BillingController
 $router->post('/school/finance/billing/copy',                ['BillingController', 'copy']);
 $router->post('/school/finance/billing/move',                ['BillingController', 'move']);
 $router->post('/school/finance/billing/fix-lists',           ['BillingController', 'fixLists']);
+$router->post('/school/finance/billing/rebuild-year',        ['BillingController', 'rebuildYear']);
 $router->post('/school/finance/billing/carry-forward',       ['BillingController', 'carryForward']);
 $router->post('/school/finance/billing/descriptions/merge',  ['BillingController', 'mergeDescriptions']);
 $router->post('/school/finance/billing/types',               ['BillingController', 'saveTypes']);

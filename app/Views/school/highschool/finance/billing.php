@@ -34,6 +34,15 @@ $base = $cfg['url'] . '/school/finance/billing';
       <input type="hidden" name="tab" value="<?= $tab ?>">
       <button type="submit" class="btn btn-outline" title="Finds old-student bills sitting in the New Students list, and the other way round">Check New / Old Lists</button>
     </form>
+    <?php if ($year): ?>
+    <form method="POST" action="<?= $base ?>/rebuild-year" data-confirm="Rebuild every enrolled student's bills for <?= htmlspecialchars($year['name']) ?> from the current billing setup? This clears bills left over from an earlier setup. Bills with money on them are kept." data-confirm-title="Rebuild Students&apos; Bills" data-confirm-label="Rebuild">
+      <input type="hidden" name="csrf_token" value="<?= $csrf ?>">
+      <input type="hidden" name="academic_year_id" value="<?= (int)$year['id'] ?>">
+      <input type="hidden" name="class_id" value="<?= (int)($class['id'] ?? 0) ?>">
+      <input type="hidden" name="tab" value="<?= $tab ?>">
+      <button type="submit" class="btn btn-outline" title="Clears bills left over from an earlier billing setup, for every student in this year">Rebuild Students&apos; Bills</button>
+    </form>
+    <?php endif; ?>
     <button type="button" class="btn btn-secondary" onclick="openModal('carryModal')">Copy From Previous Year</button>
   </div>
 </div>
@@ -101,27 +110,50 @@ $base = $cfg['url'] . '/school/finance/billing';
       </div>
     </div>
 
-    <?php $wrong = $misplaced[$tab] ?? []; if ($wrong): ?>
+    <?php
+      $wrong = $misplaced[$tab] ?? [];
+      $movable = array_values(array_filter($wrong, fn($w) => empty($w['clash'])));
+      $renameMe = array_values(array_filter($wrong, fn($w) => !empty($w['clash'])));
+      $thisList = $tab === 'new' ? 'New' : 'Old';
+      $otherList = $tab === 'new' ? 'Old' : 'New';
+      $whoPays = $tab === 'new' ? 'new' : 'returning';
+    ?>
+    <?php if ($movable): ?>
     <form method="POST" action="<?= $base ?>/move" style="margin:12px 16px 0;">
       <input type="hidden" name="csrf_token" value="<?= $csrf ?>">
       <input type="hidden" name="academic_year_id" value="<?= $year['id'] ?>">
       <input type="hidden" name="class_id" value="<?= $class['id'] ?>">
       <input type="hidden" name="category" value="<?= $tab ?>">
       <div class="alert alert-warning" style="display:block;">
-        <strong><?= count($wrong) ?> bill<?= count($wrong) > 1 ? 's look' : ' looks' ?> like <?= $tab === 'new' ? 'old' : 'new' ?>-student fees</strong>, but <?= count($wrong) > 1 ? 'they are' : 'it is' ?>
-        in the <?= $tab === 'new' ? 'New' : 'Old' ?> Students list, so every <?= $tab === 'new' ? 'new' : 'returning' ?> student in this class is billed for <?= count($wrong) > 1 ? 'them' : 'it' ?>.
+        <strong><?= count($movable) ?> bill<?= count($movable) > 1 ? 's look' : ' looks' ?> like <?= strtolower($otherList) ?>-student fees</strong>, but <?= count($movable) > 1 ? 'they are' : 'it is' ?>
+        in the <?= $thisList ?> Students list, so every <?= $whoPays ?> student in this class is billed for <?= count($movable) > 1 ? 'them' : 'it' ?>.
         <div style="margin:8px 0;display:flex;flex-direction:column;gap:4px;">
-          <?php foreach ($wrong as $w): ?>
+          <?php foreach ($movable as $w): ?>
             <label style="display:flex;gap:8px;align-items:center;font-size:13px;color:var(--text);">
               <input type="checkbox" name="bill_ids[]" value="<?= (int)$w['id'] ?>" checked>
               <?= htmlspecialchars($w['description']) ?> — <?= Finance::money($w['amount'], $w['currency']) ?>
             </label>
           <?php endforeach; ?>
         </div>
-        <button type="submit" class="btn btn-sm btn-warning">Move to the <?= $tab === 'new' ? 'Old' : 'New' ?> Students list</button>
+        <button type="submit" class="btn btn-sm btn-warning">Move to the <?= $otherList ?> Students list</button>
         <span style="font-size:11.5px;color:var(--text-muted);margin-left:8px;">Students' bills are rebuilt straight away. Bills with money on them are kept.</span>
       </div>
     </form>
+    <?php endif; ?>
+
+    <?php if ($renameMe): ?>
+    <div class="alert alert-warning" style="display:block;margin:12px 16px 0;">
+      <strong>Check <?= count($renameMe) > 1 ? 'these names' : 'this name' ?>.</strong>
+      The <?= $otherList ?> Students list has a bill with the same name, so <?= count($renameMe) > 1 ? 'these belong here' : 'this one belongs here' ?> —
+      but the name says <?= strtolower($otherList) ?> student, which confuses everyone reading a <?= $whoPays ?> student's account:
+      <div style="margin:8px 0 0;display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--text);">
+        <?php foreach ($renameMe as $w): ?>
+          <div>• <?= htmlspecialchars($w['description']) ?> — <?= Finance::money($w['amount'], $w['currency']) ?>
+            <span style="color:var(--text-muted);font-size:11.5px;">→ rename it below (e.g. "<?= htmlspecialchars(preg_replace('/(new|old)/i', $tab === 'new' ? 'New' : 'Old', $w['description'])) ?>") and save.</span>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    </div>
     <?php endif; ?>
 
     <form method="POST" action="<?= $base ?>/save" id="billForm">
