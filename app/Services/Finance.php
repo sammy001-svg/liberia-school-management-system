@@ -366,9 +366,22 @@ class Finance {
         if (!$e) { return [0, 0, 0, 0]; }
         $tid = (int)$e['tenant_id'];
         $bills = $e['status'] === 'active' ? self::billsFor($db, $e) : [];
-        $existing = [];
-        foreach ($db->fetchAll("SELECT * FROM invoices WHERE enrollment_id=? AND fee_bill_id IS NOT NULL", [$enrollmentId]) as $inv) {
-            $existing[(int)$inv['fee_bill_id']] = $inv;
+        // Every fee bill this student already holds for the year — not just the ones on this
+        // enrollment row. A student re-enrolled, moved between classes or switched between new
+        // and old can otherwise be left holding the previous set as well, so their account
+        // shows two sets of fees. Invoices money was received against win over empty ones, and
+        // the leftovers are cleaned up below.
+        $existing = $extra = [];
+        foreach ($db->fetchAll(
+            "SELECT i.*, (SELECT COUNT(*) FROM payments p WHERE p.invoice_id=i.id AND p.status IN ('active','pending')) AS pay_count
+             FROM invoices i WHERE i.tenant_id=? AND i.student_id=? AND i.academic_year_id=? AND i.fee_bill_id IS NOT NULL
+             ORDER BY (SELECT COUNT(*) FROM payments p WHERE p.invoice_id=i.id AND p.status IN ('active','pending')) DESC,
+                      (i.enrollment_id=?) DESC, i.id",
+            [$tid, $e['student_id'], $e['academic_year_id'], $enrollmentId]) as $inv) {
+            $bid = (int)$inv['fee_bill_id'];
+            // The same bill twice (a duplicate from an earlier enrollment) keeps one copy.
+            if (isset($existing[$bid])) { $extra[] = $inv; continue; }
+            $existing[$bid] = $inv;
         }
         $created = $updated = $removed = $kept = 0;
         $billIds = array_flip(array_map('intval', array_column($bills, 'id')));
@@ -380,7 +393,7 @@ class Finance {
             if (!isset($existing[$bid])) {
                 foreach ($existing as $oldBid => $cand) {
                     if ($cand['description'] === $b['description'] && !isset($billIds[$oldBid])) {
-                        $db->execute("UPDATE invoices SET fee_bill_id=? WHERE id=?", [$bid, $cand['id']]);
+                        $db->execute("UPDATE invoices SET fee_bill_id=?, enrollment_id=? WHERE id=?", [$bid, $enrollmentId, $cand['id']]);
                         $cand['fee_bill_id'] = $bid;
                         if ($b['once_per_year']) { $cand['amount_due'] = $b['amount']; } // already charged this year: keep it
                         $existing[$bid] = $cand;
@@ -392,6 +405,9 @@ class Finance {
             if (isset($existing[$bid])) {
                 $inv = $existing[$bid];
                 unset($existing[$bid]);
+                if ((int)$inv['enrollment_id'] !== $enrollmentId) {
+                    $db->execute("UPDATE invoices SET enrollment_id=? WHERE id=?", [$enrollmentId, $inv['id']]);
+                }
                 $diff = round((float)$b['amount'] - (float)$inv['amount_due'], 2);
                 if (abs($diff) >= 0.005 || $inv['description'] !== $b['description'] || $inv['due_date'] !== $b['end_date'] || $inv['currency'] !== $b['currency']) {
                     $db->execute("UPDATE invoices SET amount_due=?, description=?, due_date=?, currency=? WHERE id=?",
@@ -414,10 +430,16 @@ class Finance {
                 $links + ['invoice_id' => $invId, 'reference' => $no, 'date' => $b['start_date'] ?: date('Y-m-d')]);
             $created++;
         }
-        // Bills that no longer apply: drop unpaid copies, keep anything money was received against.
-        foreach ($existing as $inv) {
-            $hasPayments = (int)($db->fetchOne("SELECT COUNT(*) c FROM payments WHERE invoice_id=? AND status IN ('active','pending')", [$inv['id']])['c'] ?? 0);
-            if ($hasPayments) { $kept++; continue; }
+        // Bills that no longer apply (and duplicates): drop unpaid copies, keep anything money
+        // was received against — that money has to stay on the student's record.
+        foreach (array_merge(array_values($existing), $extra) as $inv) {
+            if ((int)$inv['pay_count'] > 0) {
+                if ((int)$inv['enrollment_id'] !== $enrollmentId) {
+                    $db->execute("UPDATE invoices SET enrollment_id=? WHERE id=?", [$enrollmentId, $inv['id']]);
+                }
+                $kept++;
+                continue;
+            }
             self::ledger($db, $tid, (int)$e['student_id'], 'adjustment', "Bill removed: {$inv['description']}", -(float)$inv['amount_due'],
                 ['invoice_id' => $inv['id'], 'reference' => $inv['invoice_no'], 'academic_year_id' => $e['academic_year_id'], 'currency' => $inv['currency']]);
             $db->execute("DELETE FROM invoices WHERE id=?", [$inv['id']]);

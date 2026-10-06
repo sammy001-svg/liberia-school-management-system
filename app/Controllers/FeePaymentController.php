@@ -16,7 +16,7 @@ class FeePaymentController extends FinanceBaseController {
     /** A student's bills for one year (enrollment bills plus any other invoices dated in that year). */
     private function bills(int $studentId, array $year): array {
         return $this->db->fetchAll(
-            "SELECT i.*, fb.start_date AS bill_start, fb.sort_order,
+            "SELECT i.*, fb.start_date AS bill_start, fb.sort_order, fb.category AS bill_category, fb.class_id AS bill_class_id,
                     COALESCE(i.description, fs.name, i.notes, i.invoice_no) AS label,
                     (i.amount_due - i.discount - i.amount_paid) AS balance
              FROM invoices i LEFT JOIN fee_bills fb ON fb.id=i.fee_bill_id LEFT JOIN fee_structures fs ON fs.id=i.fee_structure_id
@@ -171,5 +171,30 @@ class FeePaymentController extends FinanceBaseController {
             'tenant' => $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]),
             'finSettings' => $this->settings,
         ]);
+    }
+
+    /**
+     * Rebuilds this student's bills for the year from the class billing setup — the fix for
+     * an account still holding bills from an earlier enrollment, class or new/old category.
+     * Bills with money on them are never removed.
+     */
+    public function recalculate(): void {
+        $this->guard();
+        $studentId = (int)($_POST['student_id'] ?? 0);
+        $yearId = (int)($_POST['academic_year_id'] ?? 0);
+        $back = '/school/finance/fees-payment?student=' . $studentId . '&year=' . $yearId;
+        $e = $this->db->fetchOne("SELECT id FROM enrollments WHERE tenant_id=? AND student_id=? AND academic_year_id=?", [$this->tid, $studentId, $yearId]);
+        if (!$e) {
+            $this->flash('danger', 'This student is not enrolled for that year, so there are no bills to rebuild.');
+            $this->redirect($back);
+        }
+        [$created, $updated, $removed, $kept] = Finance::syncEnrollment($this->db, (int)$e['id']);
+        $parts = [];
+        if ($created) { $parts[] = "{$created} added"; }
+        if ($updated) { $parts[] = "{$updated} re-priced"; }
+        if ($removed) { $parts[] = "{$removed} removed"; }
+        if ($kept) { $parts[] = "{$kept} kept (money already received)"; }
+        $this->flash('success', $parts ? 'Bills rebuilt: ' . implode(', ', $parts) . '.' : 'Bills already match the billing setup — nothing to change.');
+        $this->redirect($back);
     }
 }

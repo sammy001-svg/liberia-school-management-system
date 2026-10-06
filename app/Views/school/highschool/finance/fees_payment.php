@@ -56,6 +56,14 @@ $justPaid = (int)($_GET['receipt'] ?? 0);
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <a href="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>" class="btn btn-sm btn-outline">Profile</a>
         <a href="<?= $base ?>/statements?mode=student&student=<?= $student['id'] ?>&year=<?= $year['id'] ?>" class="btn btn-sm btn-outline">Statement</a>
+        <?php if ($enrollment): ?>
+        <form method="POST" action="<?= $base ?>/fees-payment/recalculate" data-confirm="Rebuild this student&apos;s bills for <?= htmlspecialchars($year['name']) ?> from the class billing setup? Bills with money on them are kept." data-confirm-title="Rebuild Bills" data-confirm-label="Rebuild">
+          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+          <input type="hidden" name="student_id" value="<?= (int)$student['id'] ?>">
+          <input type="hidden" name="academic_year_id" value="<?= (int)$year['id'] ?>">
+          <button type="submit" class="btn btn-sm btn-outline" title="Rebuild the bills from Billing Setup">Recalculate Bills</button>
+        </form>
+        <?php endif; ?>
       </div>
     </div>
   </div>
@@ -111,8 +119,15 @@ $justPaid = (int)($_GET['receipt'] ?? 0);
             <thead><tr><th>Bill</th><th>Pay By</th><th style="text-align:right;">Amount</th><th style="text-align:right;">Paid</th><th style="text-align:right;">Balance</th><th>Status</th></tr></thead>
             <tbody>
               <?php foreach ($bills as $b): [$bc, $bl] = $billBadge[$b['status']] ?? ['badge-muted', $b['status']]; $cur = $b['currency'] ?: $def; ?>
+                <?php
+                  // A bill from the other list (or another class) is a leftover from an earlier
+                  // enrollment: it is flagged rather than hidden, because money may be on it.
+                  $odd = $enrollment && $b['bill_category'] && ($b['bill_category'] !== $enrollment['category'] || (int)$b['bill_class_id'] !== (int)$enrollment['class_id']);
+                ?>
                 <tr>
-                  <td class="fw-600"><?= htmlspecialchars($b['label']) ?></td>
+                  <td class="fw-600"><?= htmlspecialchars($b['label']) ?>
+                    <?php if ($odd): ?><span class="badge badge-warning" title="This bill comes from the <?= $b['bill_category'] === 'old' ? 'Old' : 'New' ?> Students list of another class or category — use Recalculate Bills to clear it if it does not belong here."><?= $b['bill_category'] === 'old' ? 'Old' : 'New' ?> students&apos; bill</span><?php endif; ?>
+                  </td>
                   <td style="font-size:12px;color:var(--text-muted);"><?= $b['due_date'] ? date('M d, Y', strtotime($b['due_date'])) : '—' ?></td>
                   <td style="text-align:right;"><?= Finance::money((float)$b['amount_due'] - (float)$b['discount'], $cur) ?></td>
                   <td style="text-align:right;"><?= Finance::money($b['amount_paid'], $cur) ?></td>

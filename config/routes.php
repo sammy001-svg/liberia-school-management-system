@@ -139,6 +139,7 @@ $router->post('/school/finance/enrollment/{id}/update',      ['EnrollmentControl
 $router->post('/school/finance/enrollment/{id}/withdraw',    ['EnrollmentController', 'withdraw']);
 $router->get('/school/finance/fees-payment',                 ['FeePaymentController', 'show']);
 $router->post('/school/finance/fees-payment/store',          ['FeePaymentController', 'store']);
+$router->post('/school/finance/fees-payment/recalculate',    ['FeePaymentController', 'recalculate']);
 $router->get('/school/finance/fees-payment/receipts',        ['FeePaymentController', 'receipts']);
 $router->get('/school/finance/payment-approvals',            ['FeePaymentController', 'approvals']);
 $router->get('/school/finance/payments/{id}/receipt',        ['FeePaymentController', 'receipt']);
