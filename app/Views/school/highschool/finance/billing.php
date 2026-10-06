@@ -84,6 +84,39 @@ $base = $cfg['url'] . '/school/finance/billing';
         <a href="<?= $base ?>?year=<?= $year['id'] ?>&class=<?= $class['id'] ?>&tab=<?= $k ?>" class="<?= $tab === $k ? 'active' : '' ?>"><?= $label ?> (<?= count($bills[$k]) ?>)</a>
       <?php endforeach; ?>
     </div>
+    <div style="padding:14px 16px 0;">
+      <div style="font-size:13px;color:var(--text-muted);">
+        You are editing <strong style="color:var(--text);">what <?= $tab === 'new' ? 'NEW' : 'OLD' ?> students pay</strong> in
+        <strong style="color:var(--text);"><?= htmlspecialchars($class['name']) ?></strong> for <?= htmlspecialchars($year['name']) ?>.
+        Every <?= $tab === 'new' ? 'new' : 'returning' ?> student enrolled in this class is billed for all of these.
+        <?= $tab === 'new' ? 'Old' : 'New' ?> students have their own list — use the
+        <a href="<?= $base ?>?year=<?= $year['id'] ?>&class=<?= $class['id'] ?>&tab=<?= $tab === 'new' ? 'old' : 'new' ?>"><?= $tab === 'new' ? 'Old' : 'New' ?> Students</a> tab.
+      </div>
+    </div>
+
+    <?php $wrong = $misplaced[$tab] ?? []; if ($wrong): ?>
+    <form method="POST" action="<?= $base ?>/move" style="margin:12px 16px 0;">
+      <input type="hidden" name="csrf_token" value="<?= $csrf ?>">
+      <input type="hidden" name="academic_year_id" value="<?= $year['id'] ?>">
+      <input type="hidden" name="class_id" value="<?= $class['id'] ?>">
+      <input type="hidden" name="category" value="<?= $tab ?>">
+      <div class="alert alert-warning" style="display:block;">
+        <strong><?= count($wrong) ?> bill<?= count($wrong) > 1 ? 's look' : ' looks' ?> like <?= $tab === 'new' ? 'old' : 'new' ?>-student fees</strong>, but <?= count($wrong) > 1 ? 'they are' : 'it is' ?>
+        in the <?= $tab === 'new' ? 'New' : 'Old' ?> Students list, so every <?= $tab === 'new' ? 'new' : 'returning' ?> student in this class is billed for <?= count($wrong) > 1 ? 'them' : 'it' ?>.
+        <div style="margin:8px 0;display:flex;flex-direction:column;gap:4px;">
+          <?php foreach ($wrong as $w): ?>
+            <label style="display:flex;gap:8px;align-items:center;font-size:13px;color:var(--text);">
+              <input type="checkbox" name="bill_ids[]" value="<?= (int)$w['id'] ?>" checked>
+              <?= htmlspecialchars($w['description']) ?> — <?= Finance::money($w['amount'], $w['currency']) ?>
+            </label>
+          <?php endforeach; ?>
+        </div>
+        <button type="submit" class="btn btn-sm btn-warning">Move to the <?= $tab === 'new' ? 'Old' : 'New' ?> Students list</button>
+        <span style="font-size:11.5px;color:var(--text-muted);margin-left:8px;">Students' bills are rebuilt straight away. Bills with money on them are kept.</span>
+      </div>
+    </form>
+    <?php endif; ?>
+
     <form method="POST" action="<?= $base ?>/save" id="billForm">
       <input type="hidden" name="csrf_token" value="<?= $csrf ?>">
       <input type="hidden" name="academic_year_id" value="<?= $year['id'] ?>">

@@ -54,7 +54,53 @@ class BillingController extends FinanceBaseController {
             'pageTitle' => 'Billing Setup', 'year' => $year, 'years' => $this->years(), 'classes' => $classes,
             'class' => $class, 'bills' => $bills, 'types' => $types, 'typeNames' => $typeNames,
             'typeTotals' => $typeTotals, 'descriptions' => $descriptions, 'enrolled' => $enrolled,
+            'misplaced' => ['new' => self::misplaced($bills['new'], 'new'), 'old' => self::misplaced($bills['old'], 'old')],
         ]);
+    }
+
+    /**
+     * Bills sitting in the wrong list — an "…Old Student" bill typed into the New Students
+     * list bills every new student for it, which is how a student ends up with both sets.
+     */
+    public static function misplaced(array $bills, string $category): array {
+        $wrongWord = $category === 'new' ? 'old' : 'new';
+        $pattern = '/(^|[^a-z])' . $wrongWord . '[ _.-]*(student|pupil)/i';
+        return array_values(array_filter($bills, fn($b) => (bool)preg_match($pattern, (string)$b['description'])));
+    }
+
+    /** Moves bills into the other list (new ↔ old) and rebuilds the class's students' bills. */
+    public function move(): void {
+        $this->guard(['finance.manage']);
+        $yearId = (int)($_POST['academic_year_id'] ?? 0);
+        $classId = (int)($_POST['class_id'] ?? 0);
+        $from = ($_POST['category'] ?? 'new') === 'old' ? 'old' : 'new';
+        $to = $from === 'new' ? 'old' : 'new';
+        $ids = array_filter(array_map('intval', (array)($_POST['bill_ids'] ?? [])));
+        if (!$ids) {
+            $this->flash('danger', 'Tick the bills to move first.');
+            $this->back($yearId, $classId, $from);
+        }
+        $in = implode(',', array_fill(0, count($ids), '?'));
+        $bills = $this->db->fetchAll(
+            "SELECT * FROM fee_bills WHERE tenant_id=? AND academic_year_id=? AND class_id=? AND category=? AND id IN ($in)",
+            array_merge([$this->tid, $yearId, $classId, $from], $ids));
+        $moved = 0; $clashes = [];
+        foreach ($bills as $b) {
+            // The other list already has a bill of that name: moving would bill it twice.
+            if ($this->db->fetchOne("SELECT id FROM fee_bills WHERE tenant_id=? AND academic_year_id=? AND class_id=? AND category=? AND description=?",
+                [$this->tid, $yearId, $classId, $to, $b['description']])) {
+                $clashes[] = $b['description'];
+                continue;
+            }
+            $this->db->execute("UPDATE fee_bills SET category=? WHERE id=?", [$to, $b['id']]);
+            $moved++;
+        }
+        if ($moved) { Finance::syncClass($this->db, $this->tid, $yearId, $classId); }
+        $label = $to === 'old' ? 'Old Students' : 'New Students';
+        $msg = $moved ? "{$moved} bill(s) moved to the {$label} list. The students' bills were rebuilt — unpaid copies on the wrong students were removed." : '';
+        if ($clashes) { $msg .= ($msg ? ' ' : '') . 'Left alone (the ' . $label . ' list already has a bill with that name): ' . implode(', ', $clashes) . '.'; }
+        $this->flash($moved ? 'success' : 'warning', $msg ?: 'Nothing was moved.');
+        $this->back($yearId, $classId, $from);
     }
 
     private function back(int $yearId, int $classId = 0, string $tab = ''): never {
