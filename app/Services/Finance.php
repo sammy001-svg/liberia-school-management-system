@@ -23,7 +23,7 @@
 class Finance {
     public const CURRENCIES = ['LRD' => 'L$', 'USD' => 'US$'];
 
-    private const SCHEMA_VERSION = 2;
+    private const SCHEMA_VERSION = 3;
 
     public const DEFAULT_STUDENT_TYPES = [
         'Regular', 'Admin. Ward', 'Discount on Tuition', 'Full Scholarship', 'Partial Scholarship',
@@ -255,6 +255,11 @@ class Finance {
         $db->execute("ALTER TABLE invoices MODIFY COLUMN amount_due DECIMAL(14,2) NOT NULL");
         $db->execute("ALTER TABLE invoices MODIFY COLUMN amount_paid DECIMAL(14,2) DEFAULT 0.00");
         $db->execute("UPDATE payments SET payment_date = DATE(paid_at) WHERE payment_date IS NULL");
+
+        // Bills typed into the wrong list bill the wrong children: an "…Old Student" fee sitting
+        // in the New Students list charges every new student for it. Put them where they belong
+        // and rebuild those classes' bills, once, so no one has to find them by hand.
+        self::repairBillLists($db);
 
         // The schools' two standing sponsorship schemes, for every school already set up.
         foreach ($db->fetchAll("SELECT id FROM tenants") as $t) {
@@ -489,6 +494,35 @@ class Finance {
             $n++;
         }
         return $n;
+    }
+
+    /**
+     * Moves fee bills whose name belongs to the other list (new ↔ old) and rebuilds the bills
+     * of every student in the classes touched. A bill is only moved when the other list has no
+     * bill of that name, so nothing is ever charged twice; bills with money on them are kept.
+     */
+    public static function repairBillLists(Database $db, int $onlyTenant = 0): int {
+        $moved = 0;
+        $classes = [];
+        $where = $onlyTenant ? ' WHERE tenant_id=' . $onlyTenant : '';
+        foreach ($db->fetchAll("SELECT id, tenant_id, academic_year_id, class_id, category, description FROM fee_bills{$where}") as $b) {
+            $other = $b['category'] === 'new' ? 'old' : 'new';
+            $pattern = '/(^|[^a-z])' . $other . '[ _.-]*(student|pupil)/i';
+            if (!preg_match($pattern, (string)$b['description'])) { continue; }
+            $clash = $db->fetchOne(
+                "SELECT id FROM fee_bills WHERE tenant_id=? AND academic_year_id=? AND class_id=? AND category=? AND description=?",
+                [$b['tenant_id'], $b['academic_year_id'], $b['class_id'], $other, $b['description']]);
+            if ($clash) { continue; }
+            $db->execute("UPDATE fee_bills SET category=? WHERE id=?", [$other, $b['id']]);
+            $classes[$b['tenant_id'] . '|' . $b['academic_year_id'] . '|' . $b['class_id']] = true;
+            $moved++;
+        }
+        foreach (array_keys($classes) as $key) {
+            [$tid, $yearId, $classId] = array_map('intval', explode('|', $key));
+            self::syncClass($db, $tid, $yearId, $classId);
+        }
+        if ($moved) { error_log("Finance: moved {$moved} fee bill(s) into the right new/old list and rebuilt the affected classes."); }
+        return $moved;
     }
 
     /**

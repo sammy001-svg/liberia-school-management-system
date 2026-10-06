@@ -27,6 +27,13 @@ $base = $cfg['url'] . '/school/finance/billing';
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     <button type="button" class="btn btn-outline" onclick="openModal('typesModal')">⚙ Student Types</button>
     <button type="button" class="btn btn-outline" onclick="openModal('mergeModal')">Merge Descriptions</button>
+    <form method="POST" action="<?= $base ?>/fix-lists" data-confirm="Check every class and year for bills sitting in the wrong new/old list and move them? Students' bills are rebuilt; bills with money on them are kept." data-confirm-title="Check Billing Lists" data-confirm-label="Check">
+      <input type="hidden" name="csrf_token" value="<?= $csrf ?>">
+      <input type="hidden" name="academic_year_id" value="<?= (int)($year['id'] ?? 0) ?>">
+      <input type="hidden" name="class_id" value="<?= (int)($class['id'] ?? 0) ?>">
+      <input type="hidden" name="tab" value="<?= $tab ?>">
+      <button type="submit" class="btn btn-outline" title="Finds old-student bills sitting in the New Students list, and the other way round">Check New / Old Lists</button>
+    </form>
     <button type="button" class="btn btn-secondary" onclick="openModal('carryModal')">Copy From Previous Year</button>
   </div>
 </div>

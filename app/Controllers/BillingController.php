@@ -103,6 +103,16 @@ class BillingController extends FinanceBaseController {
         $this->back($yearId, $classId, $from);
     }
 
+    /** Checks every class and year for bills sitting in the wrong list, and puts them right. */
+    public function fixLists(): void {
+        $this->guard(['finance.manage']);
+        $moved = Finance::repairBillLists($this->db, $this->tid);
+        $this->flash($moved ? 'success' : 'info', $moved
+            ? "{$moved} bill(s) were in the wrong list and have been moved. Every affected student's bills were rebuilt — unpaid copies on the wrong students are gone, and bills with money on them were kept."
+            : 'Checked every class: no bills are sitting in the wrong list.');
+        $this->back((int)($_POST['academic_year_id'] ?? 0), (int)($_POST['class_id'] ?? 0), (string)($_POST['tab'] ?? ''));
+    }
+
     private function back(int $yearId, int $classId = 0, string $tab = ''): never {
         $this->redirect('/school/finance/billing?year=' . $yearId . ($classId ? '&class=' . $classId : '') . ($tab ? '&tab=' . $tab : ''));
     }
