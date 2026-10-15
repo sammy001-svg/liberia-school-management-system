@@ -23,7 +23,7 @@
 class Finance {
     public const CURRENCIES = ['LRD' => 'L$', 'USD' => 'US$'];
 
-    private const SCHEMA_VERSION = 3;
+    private const SCHEMA_VERSION = 4;
 
     public const DEFAULT_STUDENT_TYPES = [
         'Regular', 'Admin. Ward', 'Discount on Tuition', 'Full Scholarship', 'Partial Scholarship',
@@ -261,6 +261,12 @@ class Finance {
         // and rebuild those classes' bills, once, so no one has to find them by hand.
         self::repairBillLists($db);
 
+        // Students whose bills were built by an older version can be left holding a replaced
+        // set of bills — on their account but invisible to the rebuild, because no school year
+        // was stamped on them. Put every current-year student back in step with the billing
+        // setup, once. Bills with money on them, and written-off ones, are kept.
+        self::repairStudentBills($db);
+
         // The schools' two standing sponsorship schemes, for every school already set up.
         foreach ($db->fetchAll("SELECT id FROM tenants") as $t) {
             foreach (self::DEFAULT_SPONSORSHIP_SCHEMES as $name) {
@@ -479,7 +485,9 @@ class Finance {
         // Bills that no longer apply (and duplicates): drop unpaid copies, keep anything money
         // was received against — that money has to stay on the student's record.
         foreach (array_merge(array_values($existing), $extra) as $inv) {
-            if ((int)$inv['pay_count'] > 0) {
+            // Written-off bills stay: someone decided to waive them, the ledger already carries
+            // that credit, and removing them here would credit the student a second time.
+            if ((int)$inv['pay_count'] > 0 || $inv['status'] === 'waived') {
                 if ((int)$inv['enrollment_id'] !== $enrollmentId || $inv['academic_year_id'] === null) {
                     $db->execute("UPDATE invoices SET enrollment_id=?, academic_year_id=? WHERE id=?",
                         [$enrollmentId, $e['academic_year_id'], $inv['id']]);
@@ -503,6 +511,28 @@ class Finance {
             $n++;
         }
         return $n;
+    }
+
+    /**
+     * Rebuilds every enrolled student's bills for the school years still running, from the
+     * current billing setup. Used once on upgrade; safe to run again at any time.
+     */
+    public static function repairStudentBills(Database $db, int $onlyTenant = 0): array {
+        $out = ['students' => 0, 'created' => 0, 'updated' => 0, 'removed' => 0, 'kept' => 0];
+        $where = $onlyTenant ? ' AND e.tenant_id=' . $onlyTenant : '';
+        $rows = $db->fetchAll(
+            "SELECT e.id FROM enrollments e JOIN academic_years ay ON ay.id=e.academic_year_id
+             WHERE (ay.is_current=1 OR ay.end_date >= CURDATE()){$where}");
+        if (!$rows) { return $out; }
+        @set_time_limit(600);
+        foreach ($rows as $r) {
+            [$c, $u, $rm, $k] = self::syncEnrollment($db, (int)$r['id']);
+            $out['students']++; $out['created'] += $c; $out['updated'] += $u; $out['removed'] += $rm; $out['kept'] += $k;
+        }
+        if ($out['removed'] || $out['created'] || $out['updated']) {
+            error_log("Finance: rebuilt {$out['students']} student(s) — {$out['created']} bill(s) added, {$out['updated']} re-priced, {$out['removed']} left-over bill(s) removed, {$out['kept']} kept.");
+        }
+        return $out;
     }
 
     /**
