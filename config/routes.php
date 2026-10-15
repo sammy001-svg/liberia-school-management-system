@@ -79,6 +79,8 @@ $router->get('/school/attendance/report',   ['AttendanceController', 'report']);
 $router->get('/school/timetable',           ['TimetableController', 'index']);
 $router->get('/school/timetable/create',    ['TimetableController', 'create']);
 $router->post('/school/timetable/store',    ['TimetableController', 'store']);
+$router->get('/school/timetable/print',     ['TimetableController', 'printable']);
+$router->post('/school/timetable/{id}/update', ['TimetableController', 'update']);
 $router->post('/school/timetable/{id}/delete', ['TimetableController', 'deleteEntry']);
 
 $router->get('/school/grades',              ['GradeController', 'index']);
@@ -90,6 +92,7 @@ $router->post('/school/exams/store',        ['GradeController', 'storeExam']);
 // handled by the single-exam publish action instead.
 $router->get('/school/grades/marking-periods',       ['GradeController', 'markingPeriods']);
 $router->post('/school/grades/marking-periods/setup', ['GradeController', 'setupMarkingPeriods']);
+$router->post('/school/grades/marking-periods/names', ['GradeController', 'saveMarkingPeriods']);
 $router->get('/school/grades/report-cards/class/{classId}', ['GradeController', 'classReportCards']);
 $router->post('/school/grades/report-cards/publish',  ['GradeController', 'publishReportCards']);
 $router->post('/school/grades/submit-approval',  ['GradeController', 'submitForApproval']);

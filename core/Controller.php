@@ -82,6 +82,28 @@ abstract class Controller {
                 $this->db->execute("ALTER TABLE classes ADD COLUMN description TEXT DEFAULT NULL");
             }
 
+            // Timetable: lesson order within the day, and non-teaching slots (break, lunch).
+            $ttCols = array_column($this->db->fetchAll("SHOW COLUMNS FROM timetable"), 'Field');
+            if (!in_array('period_no', $ttCols, true)) {
+                $this->db->execute("ALTER TABLE timetable ADD COLUMN period_no TINYINT UNSIGNED DEFAULT NULL");
+            }
+            if (!in_array('entry_type', $ttCols, true)) {
+                $this->db->execute("ALTER TABLE timetable ADD COLUMN entry_type ENUM('lesson','break','lunch') NOT NULL DEFAULT 'lesson'");
+            }
+            if (!in_array('label', $ttCols, true)) {
+                $this->db->execute("ALTER TABLE timetable ADD COLUMN label VARCHAR(80) DEFAULT NULL");
+            }
+
+            // A school's own names for the eight marking periods, per academic year.
+            $this->db->execute("CREATE TABLE IF NOT EXISTS marking_periods (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, tenant_id INT UNSIGNED NOT NULL,
+                academic_year_id INT UNSIGNED DEFAULT NULL, slot VARCHAR(4) NOT NULL,
+                name VARCHAR(80) NOT NULL, short_name VARCHAR(40) DEFAULT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY uniq_marking_period (tenant_id, academic_year_id, slot),
+                FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
             // Financial system tables/columns (versioned: one lookup per request once current).
             require_once dirname(__DIR__) . '/app/Services/Finance.php';
             \Finance::ensureSchema($this->db);
@@ -818,6 +840,36 @@ abstract class Controller {
     // The eleven grid columns, in print order. 'store' => true marks the eight a
     // teacher actually enters; the three averages are always derived so that
     // correcting a period mark reflows the semester and yearly figures.
+    /** The eight marking periods a school records marks against, with their default names. */
+    public const MARKING_PERIODS = [
+        'p1' => '1st Pd.', 'p2' => '2nd Pd.', 'p3' => '3rd Pd.', 'e1' => '1st Semester Exam',
+        'p4' => '4th Pd.', 'p5' => '5th Pd.', 'p6' => '6th Pd.', 'e2' => '2nd Semester Exam',
+    ];
+
+    /** Short labels for the same slots, as they fit the report card's narrow columns. */
+    public const MARKING_PERIOD_SHORT = [
+        'p1' => '1st Pd.', 'p2' => '2nd Pd.', 'p3' => '3rd Pd.', 'e1' => 'Exam',
+        'p4' => '4th Pd.', 'p5' => '5th Pd.', 'p6' => '6th Pd.', 'e2' => 'Exam',
+    ];
+
+    /**
+     * What this school calls each marking period in a given year. A school that renames
+     * them (Marking Periods screen) sees its own names everywhere — grade entry, the
+     * report card and the printed columns.
+     */
+    protected function markingPeriodNames($yearId, bool $short = false): array {
+        $names = $short ? self::MARKING_PERIOD_SHORT : self::MARKING_PERIODS;
+        try {
+            foreach ($this->db->fetchAll(
+                "SELECT slot, name, short_name FROM marking_periods WHERE tenant_id=? AND academic_year_id <=> ?",
+                [$this->tenantId() ?? 0, $yearId]) as $r) {
+                $value = $short ? ($r['short_name'] ?: $r['name']) : $r['name'];
+                if (isset($names[$r['slot']]) && trim((string)$value) !== '') { $names[$r['slot']] = $value; }
+            }
+        } catch (\Throwable $e) {}
+        return $names;
+    }
+
     public const CELDI_COLUMNS = [
         ['key'=>'p1', 'label'=>'1st Pd.',  'store'=>true,  'sem'=>1],
         ['key'=>'p2', 'label'=>'2nd Pd.',  'store'=>true,  'sem'=>1],
@@ -1008,8 +1060,15 @@ abstract class Controller {
             "SELECT u.name FROM teachers t JOIN users u ON t.user_id=u.id WHERE t.id=?", [$class['class_teacher_id']]
         ) : null;
 
+        // The card's own column headings, renamed to whatever this school calls its periods.
+        $shortNames = $this->markingPeriodNames($yearId, true);
+        $columns = array_map(function ($c) use ($shortNames) {
+            if (isset($shortNames[$c['key']])) { $c['label'] = $shortNames[$c['key']]; }
+            return $c;
+        }, self::CELDI_COLUMNS);
+
         return [
-            'columns'      => self::CELDI_COLUMNS,
+            'columns'      => $columns,
             'scale'        => self::CELDI_SCALE,
             'subjects'     => $subjects,
             'rows'         => $mine['rows'],

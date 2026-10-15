@@ -301,10 +301,6 @@ class GradeController extends Controller {
     // Default names for the eight recordable slots. The card itself prints the
     // labels from Controller::CELDI_COLUMNS, so these only need to read well in
     // the exam list and the grade-entry dropdown — renaming one is harmless.
-    private const MARKING_PERIOD_NAMES = [
-        'p1' => '1st Pd.', 'p2' => '2nd Pd.', 'p3' => '3rd Pd.', 'e1' => '1st Semester Exam',
-        'p4' => '4th Pd.', 'p5' => '5th Pd.', 'p6' => '6th Pd.', 'e2' => '2nd Semester Exam',
-    ];
 
     /**
      * Switches a class between numeric marks and letter grades on the report card.
@@ -354,7 +350,9 @@ class GradeController extends Controller {
         $this->view('school/highschool/grades/marking_periods', [
             'pageTitle'=>'Marking Periods','panelType'=>'school','classes'=>$classes,
             'years'=>$years,'selectedYearId'=>$yearId,
-            'slotNames'=>self::MARKING_PERIOD_NAMES,'canApprove'=>$this->canApproveGrades(),
+            'slotNames'=>$this->markingPeriodNames($yearId),
+            'slotShort'=>$this->markingPeriodNames($yearId, true),
+            'canApprove'=>$this->canApproveGrades(),
             'flash'=>$this->getFlash(),
         ]);
     }
@@ -380,7 +378,7 @@ class GradeController extends Controller {
 
         $created = 0;
         foreach ($classIds as $classId) {
-            foreach (self::MARKING_PERIOD_NAMES as $slot => $name) {
+            foreach ($this->markingPeriodNames($yearId) as $slot => $name) {
                 $exists = $this->db->fetchOne(
                     "SELECT id FROM exams WHERE tenant_id=? AND class_id=? AND academic_year_id <=> ? AND report_column=?",
                     [$this->tid, $classId, $yearId, $slot]
@@ -398,6 +396,46 @@ class GradeController extends Controller {
             ? "Marking periods ready — {$created} slot(s) created. Enter marks against them from Enter Grades."
             : 'Marking periods were already set up for that selection.');
         $this->redirect('/school/grades/marking-periods?year_id=' . urlencode((string)$yearId));
+    }
+
+    /**
+     * Renames the marking periods for one academic year. The long name is what staff see
+     * when entering marks; the short one is the heading on the printed report card, where
+     * the columns are narrow. Existing slots are renamed too, so nothing is left behind.
+     */
+    public function saveMarkingPeriods(): void {
+        $this->requirePermission(['grades.manage']);
+        $yearId = $_POST['academic_year_id'] ?: null;
+        $back = '/school/grades/marking-periods' . ($yearId ? '?year_id=' . urlencode((string)$yearId) : '');
+        if (!$yearId) {
+            $this->flash('danger', 'Choose an academic year first.');
+            $this->redirect('/school/grades/marking-periods');
+        }
+        $names = (array)($_POST['name'] ?? []);
+        $shorts = (array)($_POST['short_name'] ?? []);
+        $saved = 0;
+        // Only the periods actually submitted are touched, so a partial form never
+        // quietly resets the rest.
+        foreach (self::MARKING_PERIODS as $slot => $default) {
+            if (!array_key_exists($slot, $names) && !array_key_exists($slot, $shorts)) { continue; }
+            $name = mb_substr(trim((string)($names[$slot] ?? '')), 0, 80);
+            $short = mb_substr(trim((string)($shorts[$slot] ?? '')), 0, 40);
+            if ($name === '') { $name = $default; }
+            if ($short === '') { $short = self::MARKING_PERIOD_SHORT[$slot]; }
+            $this->db->execute(
+                "INSERT INTO marking_periods (tenant_id, academic_year_id, slot, name, short_name) VALUES (?,?,?,?,?)
+                 ON DUPLICATE KEY UPDATE name=VALUES(name), short_name=VALUES(short_name)",
+                [$this->tid, $yearId, $slot, $name, $short]
+            );
+            // Keep the slots the teachers already see in step with the new name.
+            $this->db->execute(
+                "UPDATE exams SET name=? WHERE tenant_id=? AND academic_year_id <=> ? AND report_column=?",
+                [$name, $this->tid, $yearId, $slot]
+            );
+            $saved++;
+        }
+        $this->flash('success', "Marking period names saved — {$saved} updated for this year, on the grade screens and the report card.");
+        $this->redirect($back);
     }
 
     /**
@@ -850,20 +888,76 @@ class TimetableController extends Controller {
     private int $tid;
     public function __construct() { parent::__construct(); $this->tid = $this->tenantId() ?? 0; }
 
-    public function index(): void {
-        $this->requirePermission(['timetable.view','timetable.manage']);
-        $classId   = $_GET['class_id'] ?? '';
-        $classes   = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?", [$this->tid]);
-        $courses   = $this->db->fetchAll("SELECT id,name FROM courses WHERE tenant_id=?", [$this->tid]);
-        $teachers  = $this->db->fetchAll("SELECT t.id,u.name FROM teachers t JOIN users u ON t.user_id=u.id WHERE t.tenant_id=?", [$this->tid]);
-        $academicYears = $this->db->fetchAll("SELECT id,name FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]);
-        $terms     = $this->db->fetchAll("SELECT id,name FROM terms WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]);
-        $timetable = [];
-        if ($classId) {
-            $rows = $this->db->fetchAll("SELECT tt.*,c.name AS course_name,u.name AS teacher_name FROM timetable tt LEFT JOIN courses c ON tt.course_id=c.id LEFT JOIN teachers t ON tt.teacher_id=t.id LEFT JOIN users u ON t.user_id=u.id WHERE tt.tenant_id=? AND tt.class_id=? ORDER BY FIELD(tt.day_of_week,'monday','tuesday','wednesday','thursday','friday','saturday'),tt.start_time",[$this->tid,$classId]);
-            foreach ($rows as $r) { $timetable[$r['day_of_week']][] = $r; }
+    /** Days a school timetable can use, in reading order. */
+    public const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+    /** How many numbered lesson periods a day can hold. */
+    public const MAX_PERIODS = 12;
+
+    /** Everything on one class's timetable. */
+    private function entries(int $classId): array {
+        return $this->db->fetchAll(
+            "SELECT tt.*, c.name AS course_name, u.name AS teacher_name
+             FROM timetable tt
+             LEFT JOIN courses c ON tt.course_id=c.id
+             LEFT JOIN teachers t ON tt.teacher_id=t.id
+             LEFT JOIN users u ON t.user_id=u.id
+             WHERE tt.tenant_id=? AND tt.class_id=?
+             ORDER BY tt.start_time, FIELD(tt.day_of_week,'monday','tuesday','wednesday','thursday','friday','saturday')",
+            [$this->tid, $classId]
+        );
+    }
+
+    /**
+     * The week as a grid: one row per period (or break / lunch), one column per day.
+     * Rows are ordered by when they start, so the page reads like the school day.
+     */
+    private function grid(array $entries): array {
+        $rows = [];
+        foreach ($entries as $e) {
+            $type = $e['entry_type'] ?? 'lesson';
+            $hasNo = $e['period_no'] !== null && $e['period_no'] !== '';
+            // Lessons group by period number, so one row is "Period 3" right across the week.
+            // Breaks and lunch group by their name, since those rarely carry a number.
+            $key = $type === 'lesson'
+                ? 'P' . ($hasNo ? (int)$e['period_no'] : 't' . substr((string)$e['start_time'], 0, 5))
+                : $type . '|' . mb_strtolower(trim((string)($e['label'] ?: $type)));
+            if (!isset($rows[$key])) {
+                $rows[$key] = [
+                    'type'      => $type,
+                    'period_no' => $hasNo ? (int)$e['period_no'] : null,
+                    'label'     => $e['label'] ?: ($type === 'lesson' ? null : ucfirst($type)),
+                    'start'     => $e['start_time'],
+                    'end'       => $e['end_time'],
+                    'days'      => [],
+                ];
+            }
+            if ($e['start_time'] < $rows[$key]['start']) { $rows[$key]['start'] = $e['start_time']; }
+            if ($e['end_time'] > $rows[$key]['end'])     { $rows[$key]['end']   = $e['end_time']; }
+            $rows[$key]['days'][$e['day_of_week']][] = $e;
         }
-        $this->view('school/highschool/timetable/index', ['pageTitle'=>'Timetable','panelType'=>'school','classes'=>$classes,'courses'=>$courses,'teachers'=>$teachers,'academicYears'=>$academicYears,'terms'=>$terms,'timetable'=>$timetable,'classId'=>$classId,'flash'=>$this->getFlash()]);
+        uasort($rows, fn($a, $b) => [$a['start'], $a['period_no'] ?? 99] <=> [$b['start'], $b['period_no'] ?? 99]);
+        return $rows;
+    }
+
+    public function index(): void {
+        $this->requirePermission(['timetable.view', 'timetable.manage']);
+        $classId = (int)($_GET['class_id'] ?? 0);
+        $entries = $classId ? $this->entries($classId) : [];
+        $this->view('school/highschool/timetable/index', [
+            'pageTitle' => 'Timetable', 'panelType' => 'school',
+            'classes'   => $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]),
+            'courses'   => $this->db->fetchAll("SELECT id,name FROM courses WHERE tenant_id=? ORDER BY name", [$this->tid]),
+            'teachers'  => $this->db->fetchAll("SELECT t.id,u.name FROM teachers t JOIN users u ON t.user_id=u.id WHERE t.tenant_id=? ORDER BY u.name", [$this->tid]),
+            'academicYears' => $this->db->fetchAll("SELECT id,name FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]),
+            'terms'     => $this->db->fetchAll("SELECT id,name FROM terms WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]),
+            'entries'   => $entries,
+            'rows'      => $this->grid($entries),
+            'days'      => self::DAYS,
+            'maxPeriods' => self::MAX_PERIODS,
+            'classId'   => $classId,
+            'flash'     => $this->getFlash(),
+        ]);
     }
 
     public function create(): void {
@@ -871,34 +965,115 @@ class TimetableController extends Controller {
         $this->redirect('/school/timetable');
     }
 
+    /** Reads and checks one entry's fields; returns [data, errors]. */
+    private function entryData(): array {
+        $errors = [];
+        $type = in_array($_POST['entry_type'] ?? 'lesson', ['lesson', 'break', 'lunch'], true) ? $_POST['entry_type'] : 'lesson';
+        $classId = (int)($_POST['class_id'] ?? 0);
+        if (!$classId) { $errors['class_id'] = 'Choose the class.'; }
+        $start = (string)($_POST['start_time'] ?? '');
+        $end   = (string)($_POST['end_time'] ?? '');
+        if ($start === '') { $errors['start_time'] = 'Enter the time it starts.'; }
+        if ($end === '')   { $errors['end_time'] = 'Enter the time it ends.'; }
+        if ($start !== '' && $end !== '' && $end <= $start) { $errors['end_time'] = 'The end time has to be after the start time.'; }
+        $period = ($_POST['period_no'] ?? '') === '' ? null : max(1, min(self::MAX_PERIODS, (int)$_POST['period_no']));
+        if ($type === 'lesson' && $period === null) { $errors['period_no'] = 'Choose which period of the day this is.'; }
+        $label = mb_substr(trim((string)($_POST['label'] ?? '')), 0, 80);
+        if ($type !== 'lesson' && $label === '') { $label = $type === 'lunch' ? 'Lunch' : 'Break'; }
+        return [[
+            'class_id'   => $classId,
+            'course_id'  => $type === 'lesson' ? ((int)($_POST['course_id'] ?? 0) ?: null) : null,
+            'teacher_id' => $type === 'lesson' ? ((int)($_POST['teacher_id'] ?? 0) ?: null) : null,
+            'academic_year_id' => (int)($_POST['academic_year_id'] ?? 0) ?: null,
+            'term_id'    => (int)($_POST['term_id'] ?? 0) ?: null,
+            'start_time' => $start,
+            'end_time'   => $end,
+            'room'       => mb_substr(trim((string)($_POST['room'] ?? '')), 0, 80),
+            'period_no'  => $type === 'lesson' ? $period : null,
+            'entry_type' => $type,
+            'label'      => $type === 'lesson' ? null : $label,
+        ], $errors];
+    }
+
+    /** Adds the slot to every day ticked — one break can cover the whole week in one go. */
     public function store(): void {
         $this->requirePermission(['timetable.manage']);
-        $errors = $this->validate($_POST, [
-            'class_id'    => 'required',
-            'day_of_week' => 'required',
-            'start_time'  => 'required',
-            'end_time'    => 'required',
-        ]);
-        if ($errors) { $this->failValidation($errors, '/school/timetable?class_id='.($_POST['class_id'] ?? '')); }
-        $this->db->insert(
-            "INSERT INTO timetable (tenant_id,class_id,course_id,teacher_id,academic_year_id,term_id,day_of_week,start_time,end_time,room) VALUES (?,?,?,?,?,?,?,?,?,?)",
-            [
-                $this->tid,$_POST['class_id'],$_POST['course_id']?:null,$_POST['teacher_id']?:null,
-                $_POST['academic_year_id']?:null,$_POST['term_id']?:null,
-                $_POST['day_of_week'],$_POST['start_time'],$_POST['end_time'],$_POST['room']??'',
-            ]
+        [$d, $errors] = $this->entryData();
+        $days = array_values(array_intersect((array)($_POST['days'] ?? []), self::DAYS));
+        if (!$days) { $errors['days'] = 'Tick at least one day.'; }
+        if ($errors) { $this->failValidation($errors, '/school/timetable?class_id=' . $d['class_id']); }
+
+        $added = 0; $clashes = [];
+        foreach ($days as $day) {
+            $clash = $this->db->fetchOne(
+                "SELECT id FROM timetable WHERE tenant_id=? AND class_id=? AND day_of_week=? AND start_time < ? AND end_time > ?",
+                [$this->tid, $d['class_id'], $day, $d['end_time'], $d['start_time']]);
+            if ($clash) { $clashes[] = ucfirst($day); continue; }
+            $this->db->insert(
+                "INSERT INTO timetable (tenant_id,class_id,course_id,teacher_id,academic_year_id,term_id,day_of_week,start_time,end_time,room,period_no,entry_type,label)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                [$this->tid, $d['class_id'], $d['course_id'], $d['teacher_id'], $d['academic_year_id'], $d['term_id'],
+                 $day, $d['start_time'], $d['end_time'], $d['room'], $d['period_no'], $d['entry_type'], $d['label']]
+            );
+            $added++;
+        }
+        $msg = $added ? "{$added} slot(s) added." : '';
+        if ($clashes) { $msg .= ($msg ? ' ' : '') . 'Skipped ' . implode(', ', $clashes) . ' — that time is already taken.'; }
+        $this->flash($added ? 'success' : 'danger', $msg ?: 'Nothing was added.');
+        $this->redirect('/school/timetable?class_id=' . $d['class_id']);
+    }
+
+    /** Edits one slot. */
+    public function update(string $id): void {
+        $this->requirePermission(['timetable.manage']);
+        $entry = $this->db->fetchOne("SELECT * FROM timetable WHERE id=? AND tenant_id=?", [(int)$id, $this->tid]);
+        if (!$entry) { $this->redirect('/school/timetable'); }
+        [$d, $errors] = $this->entryData();
+        $day = in_array($_POST['day_of_week'] ?? '', self::DAYS, true) ? $_POST['day_of_week'] : $entry['day_of_week'];
+        if (!$errors) {
+            $clash = $this->db->fetchOne(
+                "SELECT id FROM timetable WHERE tenant_id=? AND class_id=? AND day_of_week=? AND id<>? AND start_time < ? AND end_time > ?",
+                [$this->tid, $d['class_id'], $day, (int)$id, $d['end_time'], $d['start_time']]);
+            if ($clash) { $errors['start_time'] = 'Another slot already covers that time on ' . ucfirst($day) . '.'; }
+        }
+        if ($errors) { $this->failValidation($errors, '/school/timetable?class_id=' . $d['class_id']); }
+        $this->db->execute(
+            "UPDATE timetable SET class_id=?, course_id=?, teacher_id=?, academic_year_id=?, term_id=?, day_of_week=?,
+                    start_time=?, end_time=?, room=?, period_no=?, entry_type=?, label=? WHERE id=? AND tenant_id=?",
+            [$d['class_id'], $d['course_id'], $d['teacher_id'], $d['academic_year_id'], $d['term_id'], $day,
+             $d['start_time'], $d['end_time'], $d['room'], $d['period_no'], $d['entry_type'], $d['label'], (int)$id, $this->tid]
         );
-        $this->flash('success','Timetable entry added.'); $this->redirect('/school/timetable?class_id='.$_POST['class_id']);
+        $this->flash('success', 'Timetable entry updated.');
+        $this->redirect('/school/timetable?class_id=' . $d['class_id']);
     }
 
     public function deleteEntry(string $id): void {
         $this->requirePermission(['timetable.manage']);
-        $entry = $this->db->fetchOne("SELECT class_id FROM timetable WHERE id=? AND tenant_id=?", [$id, $this->tid]);
-        if ($entry) {
-            $this->db->execute("DELETE FROM timetable WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        $entry = $this->db->fetchOne("SELECT class_id FROM timetable WHERE id=? AND tenant_id=?", [(int)$id, $this->tid]);
+        if ($entry) { $this->db->execute("DELETE FROM timetable WHERE id=? AND tenant_id=?", [(int)$id, $this->tid]); }
+        $this->flash('success', 'Timetable entry removed.');
+        $this->redirect('/school/timetable?class_id=' . ($entry['class_id'] ?? ''));
+    }
+
+    /** The printable timetable — one class, or every class in turn — on school letterhead. */
+    public function printable(): void {
+        $this->requirePermission(['timetable.view', 'timetable.manage']);
+        $classId = (int)($_GET['class_id'] ?? 0);
+        $classes = $classId
+            ? $this->db->fetchAll("SELECT id,name FROM classes WHERE id=? AND tenant_id=?", [$classId, $this->tid])
+            : $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
+        $sheets = [];
+        foreach ($classes as $c) {
+            $entries = $this->entries((int)$c['id']);
+            if (!$entries && !$classId) { continue; }
+            $sheets[] = ['class' => $c, 'rows' => $this->grid($entries)];
         }
-        $this->flash('success','Timetable entry removed.');
-        $this->redirect('/school/timetable?class_id='.($entry['class_id'] ?? ''));
+        $year = $this->db->fetchOne("SELECT name FROM academic_years WHERE tenant_id=? AND is_current=1", [$this->tid]);
+        $this->view('school/highschool/timetable/print', [
+            'pageTitle' => 'Timetable' . ($classId && $classes ? ' - ' . $classes[0]['name'] : ''),
+            'tenant'    => $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]),
+            'sheets'    => $sheets, 'days' => self::DAYS, 'yearName' => $year['name'] ?? null,
+        ]);
     }
 }
 

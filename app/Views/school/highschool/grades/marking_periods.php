@@ -175,20 +175,50 @@
 
 <div class="card mt-16">
   <div class="card-header"><div class="card-title">Report Card Columns</div></div>
-  <div class="card-body">
-    <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">
-      Teachers enter marks for the eight slots below. <strong>Sem. Ave.</strong> is
-      <em>(average of the three periods + the semester exam) &divide; 2</em>, and
-      <strong>Yearly Ave.</strong> is the mean of the two semester averages — both are computed, never typed.
-    </p>
-    <div style="display:flex;flex-wrap:wrap;gap:8px;">
-      <?php foreach($slotNames as $slot => $name): ?>
-        <span class="badge badge-info"><?= htmlspecialchars($name) ?></span>
-      <?php endforeach; ?>
-      <span class="badge badge-teal">Sem. Ave. — computed</span>
-      <span class="badge badge-teal">Yearly Ave. — computed</span>
+  <form method="POST" action="<?= $cfg['url'] ?>/school/grades/marking-periods/names">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+    <input type="hidden" name="academic_year_id" value="<?= htmlspecialchars($selectedYearId) ?>">
+    <div class="card-body">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">
+        Teachers enter marks for the eight periods below — rename them to suit the school and save.
+        The <strong>name</strong> is what staff see on the grade screens; the <strong>short name</strong> is the
+        heading printed on the report card, where the columns are narrow.
+        <strong>Sem. Ave.</strong> is <em>(average of the three periods + the semester exam) &divide; 2</em>, and
+        <strong>Yearly Ave.</strong> is the mean of the two semester averages — both are computed, never typed.
+      </p>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th style="width:120px;">Column</th><th>Name</th><th style="width:200px;">Short name (report card)</th></tr></thead>
+          <tbody>
+            <?php foreach($slotNames as $slot => $name): ?>
+            <tr>
+              <td><span class="badge badge-info"><?= htmlspecialchars(strtoupper($slot)) ?></span></td>
+              <td><input type="text" name="name[<?= $slot ?>]" class="form-control" maxlength="80"
+                         value="<?= htmlspecialchars($name) ?>" placeholder="<?= htmlspecialchars($name) ?>"></td>
+              <td><input type="text" name="short_name[<?= $slot ?>]" class="form-control" maxlength="40"
+                         value="<?= htmlspecialchars($slotShort[$slot] ?? '') ?>"></td>
+            </tr>
+            <?php endforeach; ?>
+            <tr>
+              <td><span class="badge badge-teal">S1 / S2</span></td>
+              <td colspan="2" style="color:var(--text-muted);font-size:12.5px;">Sem. Ave. — computed, cannot be renamed</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-teal">YR</span></td>
+              <td colspan="2" style="color:var(--text-muted);font-size:12.5px;">Yearly Ave. — computed, cannot be renamed</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
-  </div>
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:14px 16px;border-top:1px solid var(--border);">
+      <span style="font-size:12px;color:var(--text-muted);align-self:center;">
+        Applies to <?= htmlspecialchars((string)(array_column($years, 'name', 'id')[$selectedYearId] ?? 'this year')) ?> only — each year keeps its own names.
+        Leave a box empty to go back to the standard name.
+      </span>
+      <button type="submit" class="btn btn-primary">✓ Save Period Names</button>
+    </div>
+  </form>
 </div>
 <?php endif; ?>
 
