@@ -7,16 +7,25 @@ class AuthController extends Controller {
     // tenant" for single-school deployments (there's no way to know which school a bare,
     // shared login page belongs to otherwise). Returns the full row — callers needing only
     // branding fields can just ignore the rest — so login-mode columns come along for free.
+    /**
+     * Whose school this login page belongs to, so it shows the school's own name and logo.
+     * The address it was opened on wins; otherwise the school actually being used — which
+     * keeps a single-school install branded even when no domain was ever filled in.
+     */
     private function resolveTenant(): ?array {
         $host = $_SERVER['HTTP_HOST'] ?? '';
-        $tenant = $this->db->fetchOne("SELECT * FROM tenants WHERE domain = ? AND status = 'active' LIMIT 1", [$host]);
-        if (!$tenant) {
-            $activeTenants = $this->db->fetchAll("SELECT * FROM tenants WHERE status = 'active'");
-            if (count($activeTenants) === 1) {
-                $tenant = $activeTenants[0];
-            }
+        $bare = preg_replace('/^www\./i', '', $host);
+        try {
+            return $this->db->fetchOne(
+                "SELECT t.* FROM tenants t
+                 ORDER BY (t.domain IS NOT NULL AND t.domain <> '' AND (t.domain = ? OR t.domain = ?)) DESC,
+                          (t.status = 'active') DESC,
+                          (SELECT COUNT(*) FROM users u WHERE u.tenant_id = t.id) DESC,
+                          t.id
+                 LIMIT 1", [$host, $bare]) ?: null;
+        } catch (\Throwable $e) {
+            return $this->db->fetchOne("SELECT * FROM tenants ORDER BY id LIMIT 1") ?: null;
         }
-        return $tenant ?: null;
     }
 
     public function loginPage(): void {

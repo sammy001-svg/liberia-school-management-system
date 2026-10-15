@@ -130,9 +130,9 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
     <div class="login-box">
       <div class="login-logo">
         <?php if ($appLogo): ?>
-          <img src="<?= htmlspecialchars($appLogo) ?>" alt="Logo">
+          <img src="<?= htmlspecialchars($appLogo) ?>" alt="<?= htmlspecialchars($appName) ?> logo">
         <?php else: ?>
-          <div style="width:56px;height:56px;background:linear-gradient(135deg,var(--primary),var(--secondary));border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:26px;font-weight:900;color:#fff;">S</div>
+          <div class="login-logo-fallback"><?= htmlspecialchars(mb_strtoupper(mb_substr($appName, 0, 1))) ?></div>
         <?php endif; ?>
         <h1><?= htmlspecialchars($appName) ?></h1>
         <p>Sign in to your account</p>
@@ -237,7 +237,7 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
       </p>
       <?php endif; ?>
       <p style="text-align:center;margin-top:<?= !empty($websiteEnabled) ? '12' : '30' ?>px;font-size:12px;color:var(--text-muted);">
-        Powered by <?= htmlspecialchars($appName) ?> &copy; <?= date('Y') ?>
+        &copy; <?= date('Y') ?> <?= htmlspecialchars($appName) ?>
       </p>
     </div>
   </div>
