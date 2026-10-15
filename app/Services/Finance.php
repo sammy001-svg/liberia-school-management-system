@@ -23,7 +23,7 @@
 class Finance {
     public const CURRENCIES = ['LRD' => 'L$', 'USD' => 'US$'];
 
-    private const SCHEMA_VERSION = 4;
+    private const SCHEMA_VERSION = 5;
 
     public const DEFAULT_STUDENT_TYPES = [
         'Regular', 'Admin. Ward', 'Discount on Tuition', 'Full Scholarship', 'Partial Scholarship',
@@ -433,6 +433,18 @@ class Finance {
             if (isset($existing[$bid])) { $extra[] = $inv; continue; }
             $existing[$bid] = $inv;
         }
+        // Fees raised by the old Fee Structures module (before Billing Setup existed) are
+        // superseded by this class's bills — they are what leaves a student holding two sets.
+        // Only cleared when the class actually has a billing setup to replace them with.
+        if ($bills) {
+            foreach ($db->fetchAll(
+                "SELECT i.*, (SELECT COUNT(*) FROM payments p WHERE p.invoice_id=i.id AND p.status IN ('active','pending')) AS pay_count
+                 FROM invoices i WHERE i.tenant_id=? AND i.student_id=? AND i.fee_bill_id IS NULL AND i.fee_structure_id IS NOT NULL
+                   AND (i.academic_year_id=? OR (i.academic_year_id IS NULL AND DATE(i.created_at) BETWEEN ? AND ?))",
+                [$tid, $e['student_id'], $e['academic_year_id'], $yr['start_date'] ?? '1900-01-01', $yr['end_date'] ?? '2999-12-31']) as $inv) {
+                $extra[] = $inv;
+            }
+        }
         $created = $updated = $removed = $kept = 0;
         $billIds = array_flip(array_map('intval', array_column($bills, 'id')));
         foreach ($bills as $b) {
@@ -485,9 +497,7 @@ class Finance {
         // Bills that no longer apply (and duplicates): drop unpaid copies, keep anything money
         // was received against — that money has to stay on the student's record.
         foreach (array_merge(array_values($existing), $extra) as $inv) {
-            // Written-off bills stay: someone decided to waive them, the ledger already carries
-            // that credit, and removing them here would credit the student a second time.
-            if ((int)$inv['pay_count'] > 0 || $inv['status'] === 'waived') {
+            if ((int)$inv['pay_count'] > 0) {
                 if ((int)$inv['enrollment_id'] !== $enrollmentId || $inv['academic_year_id'] === null) {
                     $db->execute("UPDATE invoices SET enrollment_id=?, academic_year_id=? WHERE id=?",
                         [$enrollmentId, $e['academic_year_id'], $inv['id']]);
@@ -495,8 +505,14 @@ class Finance {
                 $kept++;
                 continue;
             }
-            self::ledger($db, $tid, (int)$e['student_id'], 'adjustment', "Bill removed: {$inv['description']}", -(float)$inv['amount_due'],
-                ['invoice_id' => $inv['id'], 'reference' => $inv['invoice_no'], 'academic_year_id' => $e['academic_year_id'], 'currency' => $inv['currency']]);
+            // A written-off bill was already credited back in the ledger, so removing it needs
+            // no second credit; anything else gives the charge back as it goes.
+            if ($inv['status'] !== 'waived') {
+                self::ledger($db, $tid, (int)$e['student_id'], 'adjustment', "Bill removed: {$inv['description']}", -(float)$inv['amount_due'],
+                    ['invoice_id' => $inv['id'], 'reference' => $inv['invoice_no'], 'academic_year_id' => $e['academic_year_id'], 'currency' => $inv['currency']]);
+            } else {
+                $db->execute("UPDATE student_ledger SET invoice_id=NULL WHERE invoice_id=?", [$inv['id']]);
+            }
             $db->execute("DELETE FROM invoices WHERE id=?", [$inv['id']]);
             $removed++;
         }
