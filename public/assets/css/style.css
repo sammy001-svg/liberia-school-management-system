@@ -52,11 +52,17 @@
   --pink:   #EC4899;  --pink-soft:   rgba(236,72,153,0.14);
   --orange: #F97316;  --orange-soft: rgba(249,115,22,0.14);
   --teal:   #14B8A6;  --teal-soft:   rgba(20,184,166,0.14);
+  /* Fixed accents used where a school's own brand colour could be too dark or too light
+     to read — the sidebar is dark in both themes, so these must stay legible on dark. */
+  --emerald: #34D399; --emerald-soft: rgba(52,211,153,0.16);
   --indigo: #6366F1;  --indigo-soft: rgba(99,102,241,0.14);
   --cyan:   #06B6D4;  --cyan-soft:   rgba(6,182,212,0.14);
   --rose:   #F43F5E;  --rose-soft:   rgba(244,63,94,0.14);
   --amber:  #F59E0B;  --amber-soft:  rgba(245,158,11,0.14);
   --primary-soft: rgba(16,185,129,0.14);
+  /* Brand colour in a shade that reads as text on dark surfaces; header.php replaces it
+     with a lightened version of the school's colour when one is set. */
+  --primary-ink: var(--primary-light);
 }
 
 /* ── LIGHT THEME ── */
@@ -96,7 +102,7 @@ body {
   min-height: 100vh;
 }
 a { color: var(--primary-light); text-decoration: none; transition: color var(--transition); }
-a:hover { color: var(--primary); }
+a:hover { color: var(--primary-ink); }
 img { max-width: 100%; display: block; }
 ul { list-style: none; }
 
@@ -148,7 +154,7 @@ ul { list-style: none; }
 .sidebar-brand img { width: 36px; height: 36px; border-radius: var(--radius-sm); object-fit: cover; }
 .sidebar-brand .brand-name {
   font-weight: 800; font-size: 15px;
-  background: linear-gradient(90deg, var(--primary), var(--purple), var(--pink));
+  background: linear-gradient(90deg, var(--primary-ink), var(--purple), var(--pink));
   -webkit-background-clip: text; background-clip: text;
   -webkit-text-fill-color: transparent; color: var(--text);
 }

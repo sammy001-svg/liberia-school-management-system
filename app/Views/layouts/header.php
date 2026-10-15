@@ -36,8 +36,27 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<?= rawurlencode($faviconSvg) ?>">
 <script>(function(){try{if(localStorage.getItem('theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
 <link rel="stylesheet" href="<?= $base ?>/assets/css/style.css">
-<?php if (!empty($branding['primary_color'])): ?>
-<style>:root{--primary:<?= $branding['primary_color'] ?>;--secondary:<?= $branding['secondary_color'] ?? '#7C3AED' ?>;}</style>
+<?php if (!empty($branding['primary_color'])):
+  // The school's colour fills buttons and bars, but as *text* it has to be readable on the
+  // dark surfaces too — a near-black or near-white brand colour would otherwise vanish.
+  if (!function_exists('ui_readable_ink')) {
+      function ui_readable_ink(string $hex, float $target = 0.42): string {
+          $h = ltrim(trim($hex), '#');
+          if (strlen($h) === 3) { $h = $h[0] . $h[0] . $h[1] . $h[1] . $h[2] . $h[2]; }
+          if (!preg_match('/^[0-9a-fA-F]{6}$/', $h)) { return '#34D399|52,211,153'; }
+          $r = hexdec(substr($h, 0, 2)); $g = hexdec(substr($h, 2, 2)); $b = hexdec(substr($h, 4, 2));
+          $lum = static fn($r, $g, $b) => (0.2126 * $r + 0.7152 * $g + 0.0722 * $b) / 255;
+          for ($i = 0; $i < 24 && $lum($r, $g, $b) < $target; $i++) {
+              $r = (int)round($r + (255 - $r) * 0.18);
+              $g = (int)round($g + (255 - $g) * 0.18);
+              $b = (int)round($b + (255 - $b) * 0.18);
+          }
+          return sprintf('#%02X%02X%02X|%d,%d,%d', $r, $g, $b, $r, $g, $b);
+      }
+  }
+  [$ink, $inkRgb] = explode('|', ui_readable_ink($branding['primary_color']));
+?>
+<style>:root{--primary:<?= $branding['primary_color'] ?>;--secondary:<?= $branding['secondary_color'] ?? '#7C3AED' ?>;--primary-ink:<?= $ink ?>;--primary-soft:rgba(<?= $inkRgb ?>,0.16);}</style>
 <?php endif; ?>
 </head>
 <body>
