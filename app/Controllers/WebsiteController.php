@@ -66,8 +66,48 @@ class WebsiteController extends Controller {
               ORDER BY published_on DESC, id DESC LIMIT " . (int)$limit, [(int)$this->tenant['id']]);
     }
 
+    /**
+     * The impact counters. A school can type its own figure for any of the three;
+     * anything left blank is counted from the system, so the page is never stale.
+     */
+    private function impact(array $content): array {
+        $tid = isset($this->tenant['id']) ? (int)$this->tenant['id'] : null;
+        $count = function (string $sql) use ($tid): int {
+            if (!$tid) { return 0; }
+            try { return (int)(WebsiteContent::rows($this->db, $sql, [$tid])[0]['n'] ?? 0); }
+            catch (\Throwable $e) { return 0; }
+        };
+        $live = [
+            'students' => $count("SELECT COUNT(*) n FROM students WHERE tenant_id=? AND status='active'"),
+            'parents'  => $count("SELECT COUNT(*) n FROM parents WHERE tenant_id=?"),
+            'staff'    => $count("SELECT COUNT(*) n FROM users u JOIN roles r ON r.id=u.role_id
+                                  WHERE u.tenant_id=? AND u.status='active' AND r.name NOT IN ('Student','Parent')"),
+        ];
+        $out = [];
+        foreach ([['students', 'Students served'], ['parents', 'Parents served'], ['staff', 'Faculty & staff']] as [$key, $fallback]) {
+            $typed = trim((string)($content['home.impact_' . $key . '_value'] ?? ''));
+            $value = $typed !== '' ? $typed : (string)$live[$key];
+            // "1,240" or "1200+" still animate: the digits drive the count, the rest is kept.
+            $digits = (int)preg_replace('/[^0-9]/', '', $value);
+            $out[] = [
+                'label'  => trim((string)($content['home.impact_' . $key . '_label'] ?? '')) ?: $fallback,
+                'value'  => $value,
+                'number' => $digits,
+                'suffix' => $digits > 0 ? trim(preg_replace('/^[0-9,\s]*/', '', $value)) : '',
+            ];
+        }
+        return $out;
+    }
+
     public function home(): void {
-        $this->page('home', 'Home', 'CELDI Academy is a K-12 school in Ben Town, Margibi County, Liberia, changing Liberia one child at a time through Christ-centered, technological and vocational education.', 'home', ['posts' => $this->posts(3)]);
+        $tid = isset($this->tenant['id']) ? (int)$this->tenant['id'] : null;
+        $content = WebsiteContent::load($this->db, $tid);
+        $this->page('home', 'Home', 'CELDI Academy is a K-12 school in Ben Town, Margibi County, Liberia, changing Liberia one child at a time through Christ-centered, technological and vocational education.', 'home', [
+            'posts'  => $this->posts(3),
+            'impact' => $this->impact($content),
+            'awards' => $tid ? WebsiteContent::rows($this->db,
+                "SELECT * FROM website_awards WHERE tenant_id=? AND is_active=1 ORDER BY sort_order, id LIMIT 3", [$tid]) : [],
+        ]);
     }
 
     public function about(): void {
@@ -75,9 +115,18 @@ class WebsiteController extends Controller {
     }
 
     public function leadership(): void {
+        $rows = empty($this->tenant['id']) ? [] : WebsiteContent::rows($this->db,
+            "SELECT * FROM website_leaders WHERE tenant_id=? AND is_active=1 ORDER BY sort_order, id", [(int)$this->tenant['id']]);
+        // Board, faculty and PTA each get their own section; anything unlabelled is administration.
+        $groups = ['leadership' => [], 'board' => [], 'faculty' => [], 'pta' => []];
+        foreach ($rows as $r) {
+            $key = $r['group_key'] ?? 'leadership';
+            if (!isset($groups[$key])) { $key = 'leadership'; }
+            $groups[$key][] = $r;
+        }
         $this->page('leadership', 'Our Leadership', 'How CELDI Academy is led: board, administration, faculty and parents working together.', 'about', [
-            'leaders' => empty($this->tenant['id']) ? [] : WebsiteContent::rows($this->db,
-                "SELECT * FROM website_leaders WHERE tenant_id=? AND is_active=1 ORDER BY sort_order, id", [(int)$this->tenant['id']]),
+            'leaders' => $groups['leadership'],
+            'groups'  => $groups,
         ]);
     }
 
@@ -110,7 +159,44 @@ class WebsiteController extends Controller {
     }
 
     public function news(): void {
-        $this->page('news', 'News & Events', 'The CELDI Academy academic calendar, events and highlights from campus.', 'news', ['posts' => $this->posts(24)]);
+        $tid = isset($this->tenant['id']) ? (int)$this->tenant['id'] : null;
+        $all = $this->posts(60);
+        $today = date('Y-m-d');
+        $upcoming = $projects = $news = [];
+        foreach ($all as $post) {
+            $cat = $post['category'] ?? 'news';
+            if ($cat === 'event') {
+                // An event with no date, or one still to come, belongs under Upcoming.
+                if (empty($post['event_date']) || $post['event_date'] >= $today) { $upcoming[] = $post; }
+                else { $news[] = $post; }
+            } elseif ($cat === 'project') {
+                // A project runs until its end date; once past, it reads as news.
+                if (empty($post['end_date']) || $post['end_date'] >= $today) { $projects[] = $post; }
+                else { $news[] = $post; }
+            } else {
+                $news[] = $post;
+            }
+        }
+        usort($upcoming, fn($a, $b) => ($a['event_date'] ?? '9999') <=> ($b['event_date'] ?? '9999'));
+        $this->page('news', 'News & Events', 'The CELDI Academy academic calendar, events and highlights from campus.', 'news', [
+            'posts' => $news, 'upcoming' => $upcoming, 'projects' => $projects,
+        ]);
+    }
+
+    /** The honour board: best students and teachers of each period, semester and year. */
+    public function recognition(): void {
+        $tid = isset($this->tenant['id']) ? (int)$this->tenant['id'] : null;
+        $rows = $tid ? WebsiteContent::rows($this->db,
+            "SELECT * FROM website_awards WHERE tenant_id=? AND is_active=1 ORDER BY sort_order, id", [$tid]) : [];
+        $groups = ['academic' => [], 'leadership' => [], 'behaviour' => []];
+        foreach ($rows as $r) {
+            $key = $r['award_group'] ?? 'academic';
+            if (!isset($groups[$key])) { $key = 'academic'; }
+            $groups[$key][] = $r;
+        }
+        $this->page('recognition', 'Academic Recognition', 'Best students and teachers of the period, semester and year at CELDI Academy.', 'news', [
+            'awardGroups' => $groups,
+        ]);
     }
 
     public function newsPost(string $id): void {

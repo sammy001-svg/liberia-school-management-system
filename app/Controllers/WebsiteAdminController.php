@@ -192,15 +192,16 @@ class WebsiteAdminController extends Controller {
 
     private function postData(array &$errors): array {
         $errors = array_merge($errors, $this->validate($_POST, [
-            'title' => 'required|max:200', 'excerpt' => 'max:400', 'category' => 'in:news,event',
-            'published_on' => 'date', 'event_date' => 'date', 'event_location' => 'max:200',
+            'title' => 'required|max:200', 'excerpt' => 'max:400', 'category' => 'in:news,event,project',
+            'published_on' => 'date', 'event_date' => 'date', 'end_date' => 'date', 'event_location' => 'max:200',
         ]));
         return [
-            'category' => ($_POST['category'] ?? 'news') === 'event' ? 'event' : 'news',
+            'category' => in_array($_POST['category'] ?? 'news', ['news', 'event', 'project'], true) ? $_POST['category'] : 'news',
             'title' => trim($_POST['title'] ?? ''),
             'excerpt' => trim($_POST['excerpt'] ?? '') ?: null,
             'body' => trim(str_replace("\r\n", "\n", $_POST['body'] ?? '')) ?: null,
             'event_date' => ($_POST['event_date'] ?? '') ?: null,
+            'end_date' => ($_POST['end_date'] ?? '') ?: null,
             'event_location' => trim($_POST['event_location'] ?? '') ?: null,
             'published_on' => ($_POST['published_on'] ?? '') ?: date('Y-m-d'),
             'is_published' => isset($_POST['is_published']) ? 1 : 0,
@@ -213,9 +214,9 @@ class WebsiteAdminController extends Controller {
         $image = $this->handleImageUpload('image', 'website', $errors, self::IMAGE_MAX);
         if ($errors) { $this->failValidation($errors, '/school/website/news'); }
         $this->db->insert(
-            "INSERT INTO website_posts (tenant_id,category,title,excerpt,body,image_url,event_date,event_location,published_on,is_published,created_by)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-            [$this->tid, $d['category'], $d['title'], $d['excerpt'], $d['body'], $image, $d['event_date'], $d['event_location'],
+            "INSERT INTO website_posts (tenant_id,category,title,excerpt,body,image_url,event_date,end_date,event_location,published_on,is_published,created_by)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            [$this->tid, $d['category'], $d['title'], $d['excerpt'], $d['body'], $image, $d['event_date'], $d['end_date'], $d['event_location'],
              $d['published_on'], $d['is_published'], $_SESSION['user_id'] ?? null]
         );
         $this->flash('success', $d['is_published'] ? "\"{$d['title']}\" is published on the website." : "\"{$d['title']}\" saved as a draft.");
@@ -231,9 +232,9 @@ class WebsiteAdminController extends Controller {
         if ($errors) { $this->failValidation($errors, '/school/website/news'); }
         $image = $image ?? (!empty($_POST['remove_image']) ? null : $post['image_url']);
         $this->db->execute(
-            "UPDATE website_posts SET category=?,title=?,excerpt=?,body=?,image_url=?,event_date=?,event_location=?,published_on=?,is_published=?
+            "UPDATE website_posts SET category=?,title=?,excerpt=?,body=?,image_url=?,event_date=?,end_date=?,event_location=?,published_on=?,is_published=?
               WHERE id=? AND tenant_id=?",
-            [$d['category'], $d['title'], $d['excerpt'], $d['body'], $image, $d['event_date'], $d['event_location'],
+            [$d['category'], $d['title'], $d['excerpt'], $d['body'], $image, $d['event_date'], $d['end_date'], $d['event_location'],
              $d['published_on'], $d['is_published'], $id, $this->tid]
         );
         $this->flash('success', 'Post updated.');
@@ -282,10 +283,23 @@ class WebsiteAdminController extends Controller {
 
     // ── Leadership team ─────────────────────────────────────────
 
+    /** The groups a profile can belong to on the public Leadership page. */
+    public const LEADER_GROUPS = [
+        'leadership' => 'Administration',
+        'board'      => 'Board Members',
+        'faculty'    => 'Faculty',
+        'pta'        => 'PTA Leadership',
+    ];
+
+    public static function leaderGroup(string $key): string {
+        return isset(self::LEADER_GROUPS[$key]) ? $key : 'leadership';
+    }
+
     public function leaders(): void {
         $this->view('school/website/leaders', [
             'pageTitle' => 'Website Leadership Team', 'panelType' => 'school',
-            'leaders' => $this->db->fetchAll("SELECT * FROM website_leaders WHERE tenant_id=? ORDER BY sort_order, id", [$this->tid]),
+            'leaders' => $this->db->fetchAll("SELECT * FROM website_leaders WHERE tenant_id=? ORDER BY FIELD(group_key,'leadership','board','faculty','pta'), sort_order, id", [$this->tid]),
+            'groups'  => self::LEADER_GROUPS,
             'flash' => $this->getFlash(),
         ]);
     }
@@ -295,8 +309,8 @@ class WebsiteAdminController extends Controller {
         $photo = $this->handleImageUpload('photo', 'website', $errors, self::IMAGE_MAX);
         if ($errors) { $this->failValidation($errors, '/school/website/leaders'); }
         $next = (int)($this->db->fetchOne("SELECT COALESCE(MAX(sort_order),0)+1 AS n FROM website_leaders WHERE tenant_id=?", [$this->tid])['n'] ?? 1);
-        $this->db->insert("INSERT INTO website_leaders (tenant_id,name,position,bio,photo_url,sort_order,is_active) VALUES (?,?,?,?,?,?,?)",
-            [$this->tid, trim($_POST['name']), trim($_POST['position']), trim($_POST['bio'] ?? '') ?: null, $photo, $next, isset($_POST['is_active']) ? 1 : 0]);
+        $this->db->insert("INSERT INTO website_leaders (tenant_id,name,position,bio,photo_url,sort_order,is_active,group_key) VALUES (?,?,?,?,?,?,?,?)",
+            [$this->tid, trim($_POST['name']), trim($_POST['position']), trim($_POST['bio'] ?? '') ?: null, $photo, $next, isset($_POST['is_active']) ? 1 : 0, self::leaderGroup($_POST['group_key'] ?? '')]);
         $this->flash('success', trim($_POST['name']) . ' added to the leadership team.');
         $this->redirect('/school/website/leaders');
     }
@@ -308,10 +322,81 @@ class WebsiteAdminController extends Controller {
         $photo = $this->handleImageUpload('photo', 'website', $errors, self::IMAGE_MAX);
         if ($errors) { $this->failValidation($errors, '/school/website/leaders'); }
         $photo = $photo ?? (!empty($_POST['remove_image']) ? null : $leader['photo_url']);
-        $this->db->execute("UPDATE website_leaders SET name=?,position=?,bio=?,photo_url=?,is_active=? WHERE id=? AND tenant_id=?",
-            [trim($_POST['name']), trim($_POST['position']), trim($_POST['bio'] ?? '') ?: null, $photo, isset($_POST['is_active']) ? 1 : 0, $id, $this->tid]);
+        $this->db->execute("UPDATE website_leaders SET name=?,position=?,bio=?,photo_url=?,is_active=?,group_key=? WHERE id=? AND tenant_id=?",
+            [trim($_POST['name']), trim($_POST['position']), trim($_POST['bio'] ?? '') ?: null, $photo, isset($_POST['is_active']) ? 1 : 0, self::leaderGroup($_POST['group_key'] ?? ''), $id, $this->tid]);
         $this->flash('success', 'Profile updated.');
         $this->redirect('/school/website/leaders');
+    }
+
+    // ── Academic recognition ────────────────────────────────────
+
+    /** The award boards the public page is grouped into. */
+    public const AWARD_GROUPS = [
+        'academic'   => 'Academic Recognition',
+        'leadership' => 'Good Leadership',
+        'behaviour'  => 'Excellence in Behaviour',
+    ];
+
+    public function awards(): void {
+        $this->view('school/website/awards', [
+            'pageTitle' => 'Website Academic Recognition', 'panelType' => 'school',
+            'awards' => $this->db->fetchAll("SELECT * FROM website_awards WHERE tenant_id=? ORDER BY FIELD(award_group,'academic','leadership','behaviour'), sort_order, id", [$this->tid]),
+            'groups' => self::AWARD_GROUPS,
+            'flash' => $this->getFlash(),
+        ]);
+    }
+
+    private function awardData(array &$errors): array {
+        $errors = array_merge($errors, $this->validate($_POST, [
+            'title' => 'required|max:150', 'recipient_name' => 'required|max:150',
+            'period_label' => 'max:80', 'citation' => 'max:600', 'awarded_on' => 'date',
+        ]));
+        $group = $_POST['award_group'] ?? 'academic';
+        return [
+            'award_group' => isset(self::AWARD_GROUPS[$group]) ? $group : 'academic',
+            'title' => trim($_POST['title'] ?? ''),
+            'period_label' => trim($_POST['period_label'] ?? '') ?: null,
+            'recipient_name' => trim($_POST['recipient_name'] ?? ''),
+            'recipient_role' => in_array($_POST['recipient_role'] ?? '', ['student', 'teacher', 'staff'], true) ? $_POST['recipient_role'] : 'student',
+            'class_name' => trim($_POST['class_name'] ?? '') ?: null,
+            'citation' => trim($_POST['citation'] ?? '') ?: null,
+            'awarded_on' => ($_POST['awarded_on'] ?? '') ?: null,
+            'is_active' => isset($_POST['is_active']) ? 1 : 0,
+        ];
+    }
+
+    public function storeAward(): void {
+        $errors = [];
+        $d = $this->awardData($errors);
+        $photo = $this->handleImageUpload('photo', 'website', $errors, self::IMAGE_MAX);
+        if ($errors) { $this->failValidation($errors, '/school/website/awards'); }
+        $next = (int)($this->db->fetchOne("SELECT COALESCE(MAX(sort_order),0)+1 AS n FROM website_awards WHERE tenant_id=?", [$this->tid])['n'] ?? 1);
+        $this->db->insert(
+            "INSERT INTO website_awards (tenant_id,award_group,title,period_label,recipient_name,recipient_role,class_name,citation,photo_url,awarded_on,sort_order,is_active)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            [$this->tid, $d['award_group'], $d['title'], $d['period_label'], $d['recipient_name'], $d['recipient_role'],
+             $d['class_name'], $d['citation'], $photo, $d['awarded_on'], $next, $d['is_active']]
+        );
+        $this->flash('success', $d['recipient_name'] . ' added to the recognition board.');
+        $this->redirect('/school/website/awards');
+    }
+
+    public function updateAward(string $id): void {
+        $award = $this->db->fetchOne("SELECT * FROM website_awards WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        if (!$award) { $this->redirect('/school/website/awards'); }
+        $errors = [];
+        $d = $this->awardData($errors);
+        $photo = $this->handleImageUpload('photo', 'website', $errors, self::IMAGE_MAX);
+        if ($errors) { $this->failValidation($errors, '/school/website/awards'); }
+        $photo = $photo ?? (!empty($_POST['remove_image']) ? null : $award['photo_url']);
+        $this->db->execute(
+            "UPDATE website_awards SET award_group=?,title=?,period_label=?,recipient_name=?,recipient_role=?,class_name=?,citation=?,photo_url=?,awarded_on=?,is_active=?
+              WHERE id=? AND tenant_id=?",
+            [$d['award_group'], $d['title'], $d['period_label'], $d['recipient_name'], $d['recipient_role'],
+             $d['class_name'], $d['citation'], $photo, $d['awarded_on'], $d['is_active'], $id, $this->tid]
+        );
+        $this->flash('success', 'Award updated.');
+        $this->redirect('/school/website/awards');
     }
 
     // ── Shared: delete / show-hide / reorder for posts, gallery and leaders ──
@@ -321,6 +406,7 @@ class WebsiteAdminController extends Controller {
         'news'    => ['website_posts',   'is_published', '/school/website/news',    'Post'],
         'gallery' => ['website_gallery', 'is_active',    '/school/website/gallery', 'Photo'],
         'leaders' => ['website_leaders', 'is_active',    '/school/website/leaders', 'Profile'],
+        'awards'  => ['website_awards',  'is_active',    '/school/website/awards',  'Award'],
     ];
 
     private function itemTable(string $type): array {

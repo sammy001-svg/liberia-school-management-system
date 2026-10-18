@@ -66,7 +66,10 @@ $nav = [
         ['label' => 'Senior High', 'href' => $url('senior-high'), 'desc' => 'Grades 10 – 12'],
     ]],
     ['key' => 'admissions', 'label' => 'Admissions', 'href' => $url('admissions')],
-    ['key' => 'news', 'label' => 'News & Events', 'href' => $url('academy-news')],
+    ['key' => 'news', 'label' => 'News & Events', 'href' => $url('academy-news'), 'children' => [
+        ['label' => 'News & Events', 'href' => $url('academy-news'), 'desc' => 'Campus news, events and the calendar'],
+        ['label' => 'Academic Recognition', 'href' => $url('recognition'), 'desc' => 'Best students and teachers of the period'],
+    ]],
 ];
 $assetVer = '5';
 ?>

@@ -195,6 +195,70 @@ class ParentPortalController extends Controller {
         ]);
     }
 
+    /** The wording a parent agrees to. Kept with each signed record, word for word. */
+    public const CONSENT_STATEMENT =
+        "I give the school permission to take photographs and video of my child during school activities, "
+        . "and to use them for the purposes I have ticked below. I understand that my child will never be "
+        . "named alongside a photograph without my separate written permission, that images will not be "
+        . "given to anyone outside the school for commercial use, and that I may withdraw this permission "
+        . "at any time by writing to the school office.";
+
+    /** Photo and video consent for each of this parent's children. */
+    public function consent(): void {
+        $children = $this->children();
+        $consents = [];
+        foreach ($children as $c) {
+            $consents[(int)$c['id']] = $this->db->fetchOne(
+                "SELECT * FROM media_consents WHERE tenant_id=? AND student_id=?", [$this->tid, (int)$c['id']]) ?: null;
+        }
+        $this->view('school/portals/parent/consent', [
+            'pageTitle' => 'Photo & Video Consent',
+            'panelType' => 'parent',
+            'children'  => $children,
+            'consents'  => $consents,
+            'statement' => self::CONSENT_STATEMENT,
+        ]);
+    }
+
+    /** Records (or changes) the consent for one child. */
+    public function saveConsent(): void {
+        $sid = (int)($_POST['student_id'] ?? 0);
+        if (!$this->ownsStudent($sid)) {
+            $this->flash('error', 'That is not one of your children.');
+            $this->redirect('/parent/consent');
+        }
+        $scopes = ['website', 'social', 'print', 'media', 'internal'];
+        $on = [];
+        foreach ($scopes as $k) { $on[$k] = !empty($_POST['allow_' . $k]) ? 1 : 0; }
+        $status = 'declined';
+        if (array_sum($on) === count($scopes)) { $status = 'granted'; }
+        elseif (array_sum($on) > 0) { $status = 'limited'; }
+        $name = mb_substr(trim((string)($_POST['parent_name'] ?? '')), 0, 150);
+        if ($name === '') {
+            $this->flash('error', 'Type your full name to sign the form.');
+            $this->redirect('/parent/consent');
+        }
+        $this->db->execute(
+            "INSERT INTO media_consents (tenant_id,student_id,status,allow_website,allow_social,allow_print,allow_media,allow_internal,
+                                         parent_name,relationship,parent_phone,notes,statement_text,signed_on,signed_by_user,source)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,CURDATE(),?, 'portal')
+             ON DUPLICATE KEY UPDATE status=VALUES(status), allow_website=VALUES(allow_website), allow_social=VALUES(allow_social),
+                                     allow_print=VALUES(allow_print), allow_media=VALUES(allow_media), allow_internal=VALUES(allow_internal),
+                                     parent_name=VALUES(parent_name), relationship=VALUES(relationship), parent_phone=VALUES(parent_phone),
+                                     notes=VALUES(notes), statement_text=VALUES(statement_text), signed_on=VALUES(signed_on),
+                                     signed_by_user=VALUES(signed_by_user), source=VALUES(source)",
+            [$this->tid, $sid, $status, $on['website'], $on['social'], $on['print'], $on['media'], $on['internal'],
+             $name, mb_substr(trim((string)($_POST['relationship'] ?? '')), 0, 60) ?: null,
+             mb_substr(trim((string)($_POST['parent_phone'] ?? '')), 0, 40) ?: null,
+             mb_substr(trim((string)($_POST['notes'] ?? '')), 0, 500) ?: null,
+             self::CONSENT_STATEMENT, $_SESSION['user_id'] ?? null]
+        );
+        $this->flash('success', $status === 'declined'
+            ? 'Recorded — the school will not use your child\'s photographs or video.'
+            : 'Thank you. Your permission has been recorded and the school can see it straight away.');
+        $this->redirect('/parent/consent');
+    }
+
     /** One receipt, only for a payment on one of this parent's children. */
     public function receipt(string $id): void {
         $rows = Finance::receiptRows($this->db, $this->tid, 'p.id=? AND EXISTS (SELECT 1 FROM parent_students ps WHERE ps.parent_id=? AND ps.student_id=i.student_id)', [(int)$id, $this->pid]);

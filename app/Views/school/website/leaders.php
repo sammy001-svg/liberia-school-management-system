@@ -32,6 +32,7 @@
           <td>
             <div class="fw-600"><?= htmlspecialchars($l['name']) ?></div>
             <div style="font-size:12px;color:var(--text-muted);"><?= htmlspecialchars($l['position']) ?></div>
+            <span class="badge badge-info" style="margin-top:4px;"><?= htmlspecialchars($groups[$l['group_key'] ?? 'leadership'] ?? 'Administration') ?></span>
           </td>
           <td>
             <form method="POST" action="<?= $cfg['url'] ?>/school/website/leaders/<?= $l['id'] ?>/toggle">
@@ -91,6 +92,13 @@
           <input type="text" name="name" id="l_name" class="form-control" required maxlength="150">
         </div>
         <div class="form-group">
+          <label class="form-label">Section of the page *</label>
+          <select name="group_key" id="l_group" class="form-control">
+            <?php foreach ($groups as $k => $label): ?><option value="<?= $k ?>"><?= htmlspecialchars($label) ?></option><?php endforeach; ?>
+          </select>
+          <div class="form-hint">Board members, faculty and the PTA each appear in their own section on the website.</div>
+        </div>
+        <div class="form-group">
           <label class="form-label">Position *</label>
           <input type="text" name="position" id="l_position" class="form-control" required maxlength="150" placeholder="e.g. Principal, Board Chair, Head of Elementary">
         </div>
@@ -126,6 +134,7 @@
 <script>
 const LEADER_BASE = '<?= $cfg['url'] ?>/school/website/leaders';
 function openLeaderModal(l) {
+  if (l && document.getElementById('l_group')) { document.getElementById('l_group').value = l.group_key || 'leadership'; }
   const form = document.getElementById('leaderForm');
   const wrap = document.getElementById('leaderImageWrap');
   form.reset();

@@ -179,6 +179,87 @@ $heroSlides = [
 </section>
 <?php endif; ?>
 
+<?php if (!empty($impact)): ?>
+<section class="section section--tight impact-section">
+  <div class="container">
+    <div class="section-head section-head--center" data-reveal>
+      <span class="eyebrow eyebrow--center">Our Impact</span>
+      <h2 class="display"><?= $h('home.impact_title') ?></h2>
+      <?= $paras('home.impact_lead', 'lead') ?>
+    </div>
+    <div class="impact-grid">
+      <?php foreach ($impact as $i => $c): ?>
+        <div class="impact-card" data-reveal data-reveal-delay="<?= $i % 3 ?>">
+          <span class="impact-value" data-count-to="<?= (int)$c['number'] ?>" data-count-suffix="<?= htmlspecialchars($c['suffix']) ?>">
+            <?= htmlspecialchars($c['value']) ?>
+          </span>
+          <span class="impact-label"><?= htmlspecialchars($c['label']) ?></span>
+        </div>
+      <?php endforeach; ?>
+    </div>
+    <?php if ($raw('home.impact_note') !== ''): ?>
+      <p class="impact-note" data-reveal><?= $h('home.impact_note') ?></p>
+    <?php endif; ?>
+  </div>
+</section>
+<?php endif; ?>
+
+<?php if ($raw('home.sponsor_url') !== '' || $raw('home.sponsor_body') !== ''): ?>
+<section class="section section--cream">
+  <div class="container">
+    <div class="sponsor-band" data-reveal>
+      <div class="sponsor-media">
+        <img src="<?= $img($raw('home.sponsor_image') ?: 'students-lineup.jpg') ?>" alt="" loading="lazy">
+      </div>
+      <div class="sponsor-copy">
+        <span class="eyebrow">Student Sponsorship</span>
+        <h2 class="display"><?= $h('home.sponsor_title') ?></h2>
+        <?= $paras('home.sponsor_body', 'lead') ?>
+        <?php if ($raw('home.sponsor_url') !== ''): ?>
+          <a class="btn btn-accent btn-lg" href="<?= htmlspecialchars($raw('home.sponsor_url')) ?>" target="_blank" rel="noopener">
+            <?= htmlspecialchars($raw('home.sponsor_button') ?: 'Sponsor a student') ?> <?= wicon('arrow-right') ?>
+          </a>
+          <p class="sponsor-note">Sponsorship is handled on our partner's secure site.</p>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+</section>
+<?php endif; ?>
+
+<?php if (!empty($awards)): ?>
+<section class="section">
+  <div class="container">
+    <div class="section-head-row" data-reveal>
+      <div class="section-head">
+        <span class="eyebrow">Academic Recognition</span>
+        <h2 class="display">Students and teachers <em>of the moment</em></h2>
+      </div>
+      <a href="<?= $url('recognition') ?>" class="btn btn-outline-dark">See the honour board</a>
+    </div>
+    <div class="award-grid">
+      <?php foreach ($awards as $i => $a): ?>
+        <article class="award-card" data-reveal data-reveal-delay="<?= $i % 3 ?>">
+          <div class="award-photo">
+            <?php if (!empty($a['photo_url'])): ?>
+              <img src="<?= htmlspecialchars($a['photo_url']) ?>" alt="<?= htmlspecialchars($a['recipient_name']) ?>" loading="lazy">
+            <?php else: ?>
+              <span class="award-initials"><?= htmlspecialchars(mb_strtoupper(mb_substr($a['recipient_name'], 0, 1))) ?></span>
+            <?php endif; ?>
+            <span class="award-ribbon"><?= htmlspecialchars($a['recipient_role'] === 'teacher' ? 'Teacher' : ($a['recipient_role'] === 'staff' ? 'Staff' : 'Student')) ?></span>
+          </div>
+          <div class="award-body">
+            <span class="award-title"><?= htmlspecialchars($a['title']) ?></span>
+            <h3><?= htmlspecialchars($a['recipient_name']) ?></h3>
+            <span class="award-meta"><?= htmlspecialchars(trim(($a['class_name'] ?? '') . (!empty($a['class_name']) && !empty($a['period_label']) ? ' · ' : '') . ($a['period_label'] ?? ''))) ?></span>
+          </div>
+        </article>
+      <?php endforeach; ?>
+    </div>
+  </div>
+</section>
+<?php endif; ?>
+
 <?php require __DIR__ . '/partials/cta.php'; ?>
 
 <?php require __DIR__ . '/partials/footer.php'; ?>

@@ -70,6 +70,46 @@
 
 <?php require __DIR__ . '/partials/values.php'; ?>
 
+<?php
+// Board members, faculty and PTA each get their own section below the administration.
+$extraGroups = [
+    'board'   => ['Board Members', 'The trustees who set the direction of the school.', 'section--cream'],
+    'faculty' => ['Our Faculty', 'The teachers in front of our classes every day.', ''],
+    'pta'     => ['PTA Leadership', 'Parents who give their time to the whole school community.', 'section--lilac'],
+];
+?>
+<?php foreach ($extraGroups as $gkey => [$gTitle, $gLead, $gTone]): $people = $groups[$gkey] ?? []; ?>
+  <?php if ($people): ?>
+  <section class="section <?= $gTone ?>">
+    <div class="container">
+      <div class="section-head section-head--center" data-reveal>
+        <span class="eyebrow eyebrow--center"><?= htmlspecialchars($gTitle) ?></span>
+        <h2 class="display"><?= htmlspecialchars($gTitle) ?></h2>
+        <p class="lead"><?= htmlspecialchars($gLead) ?></p>
+      </div>
+      <div class="team-grid">
+        <?php foreach ($people as $i => $leader): ?>
+          <article class="team-card" data-reveal data-reveal-delay="<?= $i % 4 ?>">
+            <div class="team-photo">
+              <?php if (!empty($leader['photo_url'])): ?>
+                <img src="<?= htmlspecialchars($leader['photo_url']) ?>" alt="<?= htmlspecialchars($leader['name']) ?>" loading="lazy">
+              <?php else: ?>
+                <span class="team-initials"><?= htmlspecialchars(implode('', array_map(fn($w) => mb_substr($w, 0, 1), array_slice(preg_split('/\s+/', trim($leader['name'])), 0, 2)))) ?></span>
+              <?php endif; ?>
+            </div>
+            <div class="team-body">
+              <h3><?= htmlspecialchars($leader['name']) ?></h3>
+              <span class="team-role"><?= htmlspecialchars($leader['position']) ?></span>
+              <?php if (!empty($leader['bio'])): ?><p><?= nl2br(htmlspecialchars($leader['bio']), false) ?></p><?php endif; ?>
+            </div>
+          </article>
+        <?php endforeach; ?>
+      </div>
+    </div>
+  </section>
+  <?php endif; ?>
+<?php endforeach; ?>
+
 <?php require __DIR__ . '/partials/cta.php'; ?>
 
 <?php require __DIR__ . '/partials/footer.php'; ?>

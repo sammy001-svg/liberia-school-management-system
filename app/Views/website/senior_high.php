@@ -19,6 +19,30 @@ require __DIR__ . '/partials/page_hero.php';
   </div>
 </section>
 
+<?php if ($raw('senior.collegeprep_body') !== ''): ?>
+<section class="section section--cream">
+  <div class="container">
+    <div class="split">
+      <div class="split-copy" data-reveal>
+        <span class="eyebrow">College-Prep Program</span>
+        <h2 class="display"><?= $h('senior.collegeprep_title') ?></h2>
+        <?= $paras('senior.collegeprep_body', 'lead') ?>
+        <?php if ($items = $list('senior.collegeprep')): ?>
+          <ul class="check-list">
+            <?php foreach ($items as [$title, $text]): ?>
+              <li><strong><?= $fmt($title) ?>.</strong> <?= $fmt($text) ?></li>
+            <?php endforeach; ?>
+          </ul>
+        <?php endif; ?>
+      </div>
+      <div class="photo-frame" data-reveal data-reveal-delay="1">
+        <img src="<?= $img($raw('senior.collegeprep_image') ?: 'computer-lab.jpg') ?>" alt="College-prep class at CELDI Academy" loading="lazy">
+      </div>
+    </div>
+  </div>
+</section>
+<?php endif; ?>
+
 <section class="section section--plum">
   <div class="container">
     <div class="section-head section-head--center" data-reveal>

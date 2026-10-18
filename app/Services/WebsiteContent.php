@@ -107,6 +107,24 @@ class WebsiteContent {
                         'home.about_image2' => ['image', 'Small photo', 'students-lineup.jpg'],
                         'home.about_badge'  => ['list', 'Badge (Title | Text)', 'Est. 2022 | Serving Margibi County'],
                     ],
+                    'Our Impact' => [
+                        'home.impact_title' => ['title', 'Heading', 'Our *impact*, in numbers'],
+                        'home.impact_lead'  => ['textarea', 'Text', 'Every figure here is a family that trusted us with a child’s future.'],
+                        'home.impact_students_label' => ['text', 'First counter label', 'Students served'],
+                        'home.impact_students_value' => ['text', 'First counter number (leave empty to count automatically)', ''],
+                        'home.impact_parents_label'  => ['text', 'Second counter label', 'Parents served'],
+                        'home.impact_parents_value'  => ['text', 'Second counter number (leave empty to count automatically)', ''],
+                        'home.impact_staff_label'    => ['text', 'Third counter label', 'Faculty & staff'],
+                        'home.impact_staff_value'    => ['text', 'Third counter number (leave empty to count automatically)', ''],
+                        'home.impact_note'  => ['text', 'Small note under the counters', 'Figures update as the school grows.'],
+                    ],
+                    'Student Sponsorship' => [
+                        'home.sponsor_title'  => ['title', 'Heading', 'Sponsor a *child* through school'],
+                        'home.sponsor_body'   => ['textarea', 'Text', 'A sponsorship carries a child through the school year — tuition, books and uniform — and keeps a seat filled in a classroom that would otherwise stand empty.'],
+                        'home.sponsor_button' => ['text', 'Button label', 'Sponsor a student'],
+                        'home.sponsor_url'    => ['text', 'Button link (the sponsorship site)', ''],
+                        'home.sponsor_image'  => ['image', 'Photo', 'students-lineup.jpg'],
+                    ],
                     'Divisions' => [
                         'home.divisions_title' => ['title', 'Heading', 'One journey, *four* divisions'],
                         'home.divisions_lead'  => ['textarea', 'Text', 'From a child’s very first day in daycare to graduation from senior high, every stage is designed to build both competence and character.'],
@@ -217,6 +235,23 @@ class WebsiteContent {
                             'Patriotism & Heritage | We instill pride in Liberian heritage, culture, and civic responsibility in every student.',
                         ])],
                     ],
+                    'Clubs & Sports' => [
+                        'student_life.clubs_title' => ['title', 'Heading', 'Clubs and *sporting activities*'],
+                        'student_life.clubs_lead'  => ['textarea', 'Text', 'Every student is encouraged to join at least one club and one sport. Clubs meet after school; teams train through the week and play against other schools in the county.'],
+                        'student_life.clubs' => ['list', 'Clubs (Name | Description)', implode("\n", [
+                            'Press | Students write, photograph and report the news of the school, and produce the school bulletin.',
+                            'Reading | A reading circle that builds fluency, comprehension and a habit of reading for pleasure.',
+                            'Spelling Bee | Weekly drills and school rounds, leading to inter-school spelling competitions.',
+                            'Quizzing | General-knowledge quizzing across subjects, with teams representing the school.',
+                            'Debate | Public speaking, argument and rebuttal — training students to think and speak on their feet.',
+                        ])],
+                        'student_life.sports' => ['list', 'Sports (Name | Description)', implode("\n", [
+                            'Volleyball | Boys\' and girls\' teams training through the week, with inter-class and inter-school matches.',
+                            'Football | The school football team, with regular fixtures against neighbouring schools.',
+                            'Kickball | A favourite of our girls\' teams, played inter-class and against other schools.',
+                        ])],
+                        'student_life.clubs_image' => ['image', 'Photo', 'students-walk.jpg'],
+                    ],
                     'Gallery & Calendar' => [
                         'student_life.gallery_title'  => ['title', 'Gallery heading', 'Life at *CELDI*'],
                         'student_life.calendar_title' => ['title', 'Calendar heading', 'The rhythm of the *school year*'],
@@ -231,6 +266,17 @@ class WebsiteContent {
                     'Four divisions. *One* journey of growth.',
                     'CELDI Academy is arranged into four sections, each building on the last, from a child’s first steps in daycare to graduation from senior high.',
                     "Early Childhood\nElementary\nJunior High\nSenior High"), [
+                    'Make-up Classes' => [
+                        'divisions.makeup_title' => ['title', 'Heading', '*Make-up* classes'],
+                        'divisions.makeup_body'  => ['textarea', 'Text', "A student who misses lessons through illness, travel or a missed examination does not fall behind. Make-up classes run outside normal hours so the work, and the marks, can be recovered.\n\nSpeak to the class teacher or the registrar to arrange a place; the school confirms the dates with the parent in writing."],
+                        'divisions.makeup' => ['list', 'How it works (Title | Description)', implode("\n", [
+                            'Who it is for | Students who missed lessons or an examination, and any student a teacher recommends for extra support.',
+                            'When they run | After school and on Saturdays, by arrangement with the teacher and the registrar.',
+                            'Missed examinations | A make-up examination is scheduled once the absence is accounted for, and the mark counts in the normal way.',
+                            'How to arrange one | Ask the class teacher or the registrar; the school writes to the parent with the dates.',
+                        ])],
+                        'divisions.makeup_image' => ['image', 'Photo', 'geography.jpg'],
+                    ],
                     'Closing' => [
                         'divisions.statement' => ['textarea', 'Quote', 'Every student graduates with a *Leadership Development Certificate*, ready to lead organizations at their level and serve their communities with distinction.'],
                     ],
@@ -334,11 +380,11 @@ class WebsiteContent {
                 'label' => 'Junior High', 'url' => '/junior-high', 'icon' => '🔬',
                 'sections' => array_merge(self::division('junior', 'Grades 7 – 9', 'Junior High', 'junior-high.jpg',
                     'Advanced critical thinking, specialized skills and the journey from student to servant-leader.',
-                    "At the Junior High level, CELDI Academy transitions students from foundational learning to advanced critical thinking and specialized skill acquisition, bridging the gap between childhood curiosity and the focused ambition required for Senior High School and beyond.\n\nOur program centers on the transition from being a student to becoming a servant-leader, with a rigorous college-preparatory curriculum and personalized guidance."),
+                    "At the Junior High level, CELDI Academy transitions students from foundational learning to advanced critical thinking and specialized skill acquisition, bridging the gap between childhood curiosity and the focused ambition required for Senior High School and beyond.\n\nOur program centers on the transition from being a student to becoming a servant-leader, with specialized skill acquisition and personalized guidance."),
                     self::hero('junior', 'junior-high.jpg', 'Junior High · Grades 7–9',
                     'From student to *servant-leader*.',
                     'Advanced critical thinking, specialized skill acquisition and personalized guidance on the road to Senior High and beyond.',
-                    "College-preparatory\nComputer & software\nPersonalized guidance"), [
+                    "Critical thinking\nComputer & software\nPersonalized guidance"), [
                     'The Program' => [
                         'junior.intro_title' => ['title', 'Heading', 'Bridging curiosity and *focused ambition*'],
                         'junior.intro_body'  => ['textarea', 'Text', "At the Junior High level (Grades 7–9), CELDI Academy transitions students from foundational learning to advanced critical thinking and specialized skill acquisition. This stage is designed to bridge the gap between childhood curiosity and the focused ambition required for Senior High School and beyond.\n\nOur program centers on the transition from being a student to becoming a servant-leader, ensuring that as academic rigor increases, so does the commitment to the CELDI pillars: Excellence, Integrity, Respect, Service, Innovation, Leadership, Discipline, and Patriotism."],
@@ -347,7 +393,7 @@ class WebsiteContent {
                     'What Defines Junior High' => [
                         'junior.features_title' => ['title', 'Heading', 'Rigor, skills, and *character*'],
                         'junior.features' => ['list', 'Features (Title | Description)', implode("\n", [
-                            'College-Preparatory Curriculum | A rigorous curriculum with personalized guidance that prepares every student for the demands of Senior High School and beyond.',
+                            'Specialized Skill Acquisition | Focused study and personalized guidance that prepare every student for the demands of Senior High School.',
                             'Technical & Digital Skills | Through CELDI’s signature computer and software curriculum, students build the digital proficiency the modern world requires.',
                             'Leadership Development | Our “chapters” model continues in Junior High, preparing students to lead organizations at their level and serve their communities.',
                         ])],
@@ -373,6 +419,17 @@ class WebsiteContent {
                         'senior.intro_title' => ['title', 'Heading', 'The culmination of our *educational journey*'],
                         'senior.intro_body'  => ['textarea', 'Text', "The Senior High School program (Grades 10–12) at CELDI Academy is the culmination of our educational journey. At this stage, students transition from academic learners to emerging professionals and community architects.\n\nOur curriculum is designed to refine their specialized interests, ensuring they graduate not only with a diploma but with a clear sense of purpose and the technical proficiency to excel in higher education or the global workforce.\n\nCore academic subjects are enhanced with arts, technology, and critical thinking for grades 10–12."],
                         'senior.intro_image' => ['image', 'Photo', 'junior-high.jpg'],
+                    ],
+                    'College-Prep Program' => [
+                        'senior.collegeprep_title' => ['title', 'Heading', 'The *College-Prep* Program'],
+                        'senior.collegeprep_body'  => ['textarea', 'Text', "Senior High carries a rigorous college-preparatory curriculum with personalized guidance, so every student leaves ready for the entrance examinations and the first year of university.\n\nStudents work with their teachers on course selection, examination preparation, applications and interview practice, and sit practice papers through the year."],
+                        'senior.collegeprep'       => ['list', 'What it covers (Title | Description)', implode("\n", [
+                            'University entrance preparation | Structured drilling for entrance examinations, with practice papers through Grades 11 and 12.',
+                            'Personalized guidance | A teacher walks each student through course choices, applications, essays and interviews.',
+                            'Study and research skills | Note-taking, research, academic writing and time management for first-year university work.',
+                            'Careers and scholarships | Guidance on courses, careers and the scholarships our graduates can apply for.',
+                        ])],
+                        'senior.collegeprep_image' => ['image', 'Photo', 'computer-lab.jpg'],
                     ],
                     'Graduate Outcomes' => [
                         'senior.outcomes_title' => ['title', 'Heading', 'Ready to lead, ready to *serve*'],
@@ -431,6 +488,21 @@ class WebsiteContent {
                 ]),
             ],
 
+            'recognition' => [
+                'label' => 'Academic Recognition', 'url' => '/recognition', 'icon' => '🏅',
+                'desc'  => 'The honour board: best students and teachers of each period, semester and year.',
+                'sections' => [
+                    'Page Banner' => [
+                        'recognition.hero_title' => ['title', 'Heading', 'Academic *Recognition*'],
+                        'recognition.hero_lead'  => ['textarea', 'Text', 'Honouring the students and teachers whose work, leadership and conduct set the standard for the rest of us.'],
+                        'recognition.hero_image' => ['image', 'Banner photo', 'assembly-courtyard.jpg'],
+                    ],
+                    'Introduction' => [
+                        'recognition.intro_title' => ['title', 'Heading', 'Merit, leadership and *character*'],
+                        'recognition.intro_body'  => ['textarea', 'Text', "Awards are decided each period, semester and year. Students, teachers and administrators all take part in the vote, and every award is announced at assembly before it appears here."],
+                    ],
+                ],
+            ],
             'news' => [
                 'label' => 'News & Events Page', 'url' => '/academy-news', 'icon' => '📰',
                 'desc'  => 'Page text. Post stories and events under Website → News & Events.',

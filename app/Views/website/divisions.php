@@ -28,6 +28,34 @@ require __DIR__ . '/partials/page_hero.php';
 </section>
 
 <?php if ($raw('divisions.statement') !== ''): ?>
+<?php if ($raw('divisions.makeup_body') !== ''): ?>
+<section class="section section--cream">
+  <div class="container">
+    <div class="split split--reverse">
+      <div class="split-copy" data-reveal>
+        <span class="eyebrow">Academic Support</span>
+        <h2 class="display"><?= $h('divisions.makeup_title') ?></h2>
+        <?= $paras('divisions.makeup_body', 'lead') ?>
+      </div>
+      <div class="photo-frame" data-reveal data-reveal-delay="1">
+        <img src="<?= $img($raw('divisions.makeup_image') ?: 'geography.jpg') ?>" alt="A make-up class in progress" loading="lazy">
+      </div>
+    </div>
+    <?php if ($items = $list('divisions.makeup')): ?>
+      <div class="card-grid-3" style="margin-top:40px;">
+        <?php foreach ($items as $i => [$title, $text]): ?>
+          <article class="info-card" data-reveal data-reveal-delay="<?= $i % 3 ?>">
+            <span class="icon-badge <?= ['', 'icon-badge--green', 'icon-badge--accent'][$i % 3] ?>"><?= wicon(['calendar','clipboard','users','check'][$i % 4]) ?></span>
+            <h3><?= $fmt($title) ?></h3>
+            <p><?= $fmt($text) ?></p>
+          </article>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
+  </div>
+</section>
+<?php endif; ?>
+
 <section class="section section--tight section--lilac">
   <div class="container">
     <div class="statement" data-reveal>

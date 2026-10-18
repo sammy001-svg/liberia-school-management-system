@@ -130,6 +130,33 @@
     }
   }
 
+  // Impact counters: count up once, the first time they are seen. Without
+  // IntersectionObserver the figure simply stands as rendered by the server.
+  var counters = document.querySelectorAll('[data-count-to]');
+  if (counters.length && 'IntersectionObserver' in window) {
+    var countIo = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) { return; }
+        var el = entry.target;
+        countIo.unobserve(el);
+        var target = parseInt(el.getAttribute('data-count-to'), 10) || 0;
+        var suffix = el.getAttribute('data-count-suffix') || '';
+        if (target <= 0 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) { return; }
+        var started = null, dur = 1400;
+        var step = function (now) {
+          if (started === null) { started = now; }
+          var p = Math.min((now - started) / dur, 1);
+          var eased = 1 - Math.pow(1 - p, 3);
+          el.textContent = Math.round(target * eased).toLocaleString() + suffix;
+          if (p < 1) { requestAnimationFrame(step); }
+        };
+        el.textContent = '0' + suffix;
+        requestAnimationFrame(step);
+      });
+    }, { threshold: 0.4 });
+    counters.forEach(function (el) { countIo.observe(el); });
+  }
+
   // Reveal-on-scroll; everything is simply shown if IntersectionObserver is missing
   var revealEls = document.querySelectorAll('[data-reveal]');
   if (!('IntersectionObserver' in window)) {

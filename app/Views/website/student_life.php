@@ -57,6 +57,46 @@ require __DIR__ . '/partials/page_hero.php';
   </div>
 </section>
 
+<?php $clubs = $list('student_life.clubs'); $sports = $list('student_life.sports'); ?>
+<?php if ($clubs || $sports): ?>
+<section class="section section--cream">
+  <div class="container">
+    <div class="section-head section-head--center" data-reveal>
+      <span class="eyebrow eyebrow--center">Clubs &amp; Sports</span>
+      <h2 class="display"><?= $h('student_life.clubs_title') ?></h2>
+      <?= $paras('student_life.clubs_lead', 'lead') ?>
+    </div>
+
+    <?php if ($clubs): ?>
+      <h3 class="club-heading" data-reveal>Clubs</h3>
+      <div class="club-grid">
+        <?php $clubIcons = ['book', 'book', 'sparkles', 'lightbulb', 'users', 'star']; ?>
+        <?php foreach ($clubs as $i => [$name, $text]): ?>
+          <article class="club-card" data-reveal data-reveal-delay="<?= $i % 3 ?>">
+            <span class="icon-badge <?= $i % 2 ? 'icon-badge--green' : '' ?>"><?= wicon($clubIcons[$i % count($clubIcons)]) ?></span>
+            <h4><?= $fmt($name) ?></h4>
+            <?php if (trim((string)$text) !== ''): ?><p><?= $fmt($text) ?></p><?php endif; ?>
+          </article>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
+
+    <?php if ($sports): ?>
+      <h3 class="club-heading" data-reveal>Sporting activities</h3>
+      <div class="club-grid">
+        <?php foreach ($sports as $i => [$name, $text]): ?>
+          <article class="club-card club-card--sport" data-reveal data-reveal-delay="<?= $i % 3 ?>">
+            <span class="icon-badge icon-badge--accent"><?= wicon('target') ?></span>
+            <h4><?= $fmt($name) ?></h4>
+            <?php if (trim((string)$text) !== ''): ?><p><?= $fmt($text) ?></p><?php endif; ?>
+          </article>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
+  </div>
+</section>
+<?php endif; ?>
+
 <section class="section section--plum">
   <div class="container">
     <div class="section-head" data-reveal>

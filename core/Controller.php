@@ -82,6 +82,84 @@ abstract class Controller {
                 $this->db->execute("ALTER TABLE classes ADD COLUMN description TEXT DEFAULT NULL");
             }
 
+            // Award voting: one poll per award and period, its candidates, and one
+            // vote per person.
+            $this->db->execute("CREATE TABLE IF NOT EXISTS award_polls (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, tenant_id INT UNSIGNED NOT NULL,
+                title VARCHAR(150) NOT NULL, category VARCHAR(40) NOT NULL,
+                period_label VARCHAR(80) DEFAULT NULL, academic_year_id INT UNSIGNED DEFAULT NULL,
+                voter_groups VARCHAR(60) NOT NULL DEFAULT 'students,teachers,admins',
+                status ENUM('draft','open','closed') NOT NULL DEFAULT 'draft',
+                opens_on DATE DEFAULT NULL, closes_on DATE DEFAULT NULL,
+                published_at DATETIME DEFAULT NULL, created_by INT UNSIGNED DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                KEY idx_award_polls (tenant_id, status),
+                FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            $this->db->execute("CREATE TABLE IF NOT EXISTS award_poll_candidates (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, poll_id INT UNSIGNED NOT NULL,
+                kind ENUM('student','staff') NOT NULL DEFAULT 'student', ref_id INT UNSIGNED NOT NULL,
+                name VARCHAR(150) NOT NULL, class_name VARCHAR(80) DEFAULT NULL,
+                UNIQUE KEY uniq_poll_candidate (poll_id, kind, ref_id),
+                FOREIGN KEY (poll_id) REFERENCES award_polls(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            $this->db->execute("CREATE TABLE IF NOT EXISTS award_votes (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, poll_id INT UNSIGNED NOT NULL,
+                candidate_id INT UNSIGNED NOT NULL, voter_user_id INT UNSIGNED NOT NULL,
+                voter_group VARCHAR(20) DEFAULT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY uniq_one_vote (poll_id, voter_user_id),
+                FOREIGN KEY (poll_id) REFERENCES award_polls(id) ON DELETE CASCADE,
+                FOREIGN KEY (candidate_id) REFERENCES award_poll_candidates(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+            // Parent consent for a child's photographs and video — one standing record
+            // per child, with the exact wording that was agreed kept alongside it.
+            $this->db->execute("CREATE TABLE IF NOT EXISTS media_consents (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, tenant_id INT UNSIGNED NOT NULL,
+                student_id INT UNSIGNED NOT NULL,
+                status ENUM('granted','limited','declined') NOT NULL DEFAULT 'granted',
+                allow_website TINYINT(1) NOT NULL DEFAULT 0, allow_social TINYINT(1) NOT NULL DEFAULT 0,
+                allow_print TINYINT(1) NOT NULL DEFAULT 0, allow_media TINYINT(1) NOT NULL DEFAULT 0,
+                allow_internal TINYINT(1) NOT NULL DEFAULT 1,
+                parent_name VARCHAR(150) DEFAULT NULL, relationship VARCHAR(60) DEFAULT NULL,
+                parent_phone VARCHAR(40) DEFAULT NULL, notes VARCHAR(500) DEFAULT NULL,
+                statement_text TEXT, signed_on DATE DEFAULT NULL, signed_by_user INT UNSIGNED DEFAULT NULL,
+                recorded_by INT UNSIGNED DEFAULT NULL, source VARCHAR(20) NOT NULL DEFAULT 'portal',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY uniq_media_consent (tenant_id, student_id),
+                FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+                FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+            // Website: leadership groups, projects alongside news/events, and the
+            // academic recognition board.
+            try {
+                $wl = array_column($this->db->fetchAll("SHOW COLUMNS FROM website_leaders"), 'Field');
+                if ($wl && !in_array('group_key', $wl, true)) {
+                    $this->db->execute("ALTER TABLE website_leaders ADD COLUMN group_key VARCHAR(20) NOT NULL DEFAULT 'leadership'");
+                }
+                $wp = array_column($this->db->fetchAll("SHOW COLUMNS FROM website_posts"), 'Field');
+                if ($wp) {
+                    $this->db->execute("ALTER TABLE website_posts MODIFY COLUMN category ENUM('news','event','project') NOT NULL DEFAULT 'news'");
+                    if (!in_array('end_date', $wp, true)) {
+                        $this->db->execute("ALTER TABLE website_posts ADD COLUMN end_date DATE DEFAULT NULL");
+                    }
+                }
+                $this->db->execute("CREATE TABLE IF NOT EXISTS website_awards (
+                    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, tenant_id INT UNSIGNED NOT NULL,
+                    award_group VARCHAR(30) NOT NULL DEFAULT 'academic',
+                    title VARCHAR(150) NOT NULL, period_label VARCHAR(80) DEFAULT NULL,
+                    recipient_name VARCHAR(150) NOT NULL, recipient_role VARCHAR(40) DEFAULT NULL,
+                    class_name VARCHAR(80) DEFAULT NULL, citation VARCHAR(600) DEFAULT NULL,
+                    photo_url VARCHAR(255) DEFAULT NULL, awarded_on DATE DEFAULT NULL,
+                    sort_order SMALLINT NOT NULL DEFAULT 0, is_active TINYINT(1) NOT NULL DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    KEY idx_website_awards (tenant_id, is_active, sort_order),
+                    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            } catch (\Throwable $e) {}
+
             // Timetable: lesson order within the day, and non-teaching slots (break, lunch).
             $ttCols = array_column($this->db->fetchAll("SHOW COLUMNS FROM timetable"), 'Field');
             if (!in_array('period_no', $ttCols, true)) {

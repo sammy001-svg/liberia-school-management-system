@@ -34,9 +34,12 @@
             <?php if (!empty($p['excerpt'])): ?><div style="font-size:12px;color:var(--text-muted);max-width:420px;margin-top:3px;"><?= htmlspecialchars($p['excerpt']) ?></div><?php endif; ?>
           </td>
           <td>
-            <span class="badge <?= $p['category'] === 'event' ? 'badge-warning' : 'badge-info' ?>"><?= $p['category'] === 'event' ? 'Event' : 'News' ?></span>
-            <?php if ($p['category'] === 'event' && !empty($p['event_date'])): ?>
-              <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;"><?= date('d M Y', strtotime($p['event_date'])) ?></div>
+            <?php $catBadge = ['event' => ['badge-warning', 'Event'], 'project' => ['badge-teal', 'Project']][$p['category']] ?? ['badge-info', 'News']; ?>
+            <span class="badge <?= $catBadge[0] ?>"><?= $catBadge[1] ?></span>
+            <?php if (in_array($p['category'], ['event','project'], true) && !empty($p['event_date'])): ?>
+              <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">
+                <?= date('d M Y', strtotime($p['event_date'])) ?><?= !empty($p['end_date']) ? ' – ' . date('d M Y', strtotime($p['end_date'])) : '' ?>
+              </div>
             <?php endif; ?>
           </td>
           <td style="font-size:12.5px;"><?= date('d M Y', strtotime($p['published_on'])) ?></td>
@@ -92,6 +95,7 @@
             <select name="category" id="p_category" class="form-control" onchange="toggleEventFields()">
               <option value="news">News story</option>
               <option value="event">Upcoming event</option>
+              <option value="project">Ongoing project</option>
             </select>
           </div>
           <div class="form-group">
@@ -106,10 +110,16 @@
         </div>
         <div class="form-row" id="eventFields" style="display:none;">
           <div class="form-group">
-            <label class="form-label">Event Date</label>
+            <label class="form-label" id="p_dateLabel">Event Date</label>
             <input type="date" name="event_date" id="p_event_date" class="form-control">
+            <div class="form-hint" id="p_dateHint">Events still to come are listed under Upcoming Events.</div>
           </div>
-          <div class="form-group">
+          <div class="form-group" id="endDateWrap" style="display:none;">
+            <label class="form-label">Runs until</label>
+            <input type="date" name="end_date" id="p_end_date" class="form-control">
+            <div class="form-hint">Leave empty while the project is open-ended.</div>
+          </div>
+          <div class="form-group" id="locationWrap">
             <label class="form-label">Location</label>
             <input type="text" name="event_location" id="p_event_location" class="form-control" maxlength="200" placeholder="e.g. School courtyard, Ben Town">
           </div>
@@ -150,7 +160,14 @@
 <script>
 const POST_BASE = '<?= $cfg['url'] ?>/school/website/news';
 function toggleEventFields() {
-  document.getElementById('eventFields').style.display = document.getElementById('p_category').value === 'event' ? '' : 'none';
+  var cat = document.getElementById('p_category').value;
+  document.getElementById('eventFields').style.display = cat === 'news' ? 'none' : '';
+  document.getElementById('endDateWrap').style.display = cat === 'project' ? '' : 'none';
+  document.getElementById('locationWrap').style.display = cat === 'project' ? 'none' : '';
+  document.getElementById('p_dateLabel').textContent = cat === 'project' ? 'Started on' : 'Event Date';
+  document.getElementById('p_dateHint').textContent = cat === 'project'
+    ? 'Projects still running are listed under Ongoing Projects.'
+    : 'Events still to come are listed under Upcoming Events.';
 }
 function openPostModal(post) {
   const form = document.getElementById('postForm');
@@ -159,7 +176,7 @@ function openPostModal(post) {
   if (post) {
     document.getElementById('postModalTitle').textContent = 'Edit Post';
     form.action = POST_BASE + '/' + post.id + '/update';
-    ['category', 'title', 'excerpt', 'body', 'published_on', 'event_date', 'event_location'].forEach(function (f) {
+    ['category', 'title', 'excerpt', 'body', 'published_on', 'event_date', 'end_date', 'event_location'].forEach(function (f) {
       document.getElementById('p_' + f).value = post[f] || '';
     });
     document.getElementById('p_is_published').checked = String(post.is_published) === '1';
