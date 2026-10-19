@@ -1,0 +1,23 @@
+---
+# cPanel Git deployment
+# In cPanel -> Git Version Control -> Manage -> Pull or Deploy:
+#   1. "Update from Remote"   (pulls the latest code from GitHub)
+#   2. "Deploy HEAD Commit"   (runs the tasks below to publish it to the live site)
+#
+# DEPLOYPATH must be the folder the domain serves (cPanel -> Domains -> Document Root),
+# or the project folder that contains public/ if the document root points at public/.
+# Change it here if your site lives somewhere else (e.g. $HOME/public_html/).
+#
+# Files that are not in git (config/database.php, uploaded photos in uploads/) are
+# never touched: cp only copies files from the repository and never deletes.
+deployment:
+  tasks:
+    - export DEPLOYPATH=$HOME/celdi.ledasystems.site/
+    - mkdir -p $DEPLOYPATH
+    - /bin/cp -R app $DEPLOYPATH
+    - /bin/cp -R core $DEPLOYPATH
+    - /bin/cp -R public $DEPLOYPATH
+    - /bin/cp -R sql $DEPLOYPATH
+    - /bin/cp -R config $DEPLOYPATH
+    - /bin/mkdir -p ${DEPLOYPATH}uploads
+    - /bin/cp .htaccess $DEPLOYPATH
