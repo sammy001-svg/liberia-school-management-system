@@ -42,40 +42,12 @@
 </section>
 <?php endif; ?>
 
-<section class="section<?= !empty($leaders) ? ' section--cream' : '' ?>">
-  <div class="container">
-    <?php foreach ([
-      ['board', 'building', '', 'Governance'],
-      ['admin', 'compass', 'icon-badge--green', 'Administration'],
-      ['staff', 'users', 'icon-badge--accent', 'Faculty & Staff'],
-      ['pta', 'heart', '', 'Parents'],
-    ] as [$key, $icon, $cls, $kicker]): ?>
-      <?php if ($raw("leadership.{$key}_title") === '' && $raw("leadership.{$key}_body") === '') continue; ?>
-      <div class="tier" data-reveal>
-        <div class="tier-head">
-          <span class="icon-badge <?= $cls ?>"><?= wicon($icon) ?></span>
-          <span class="tier-kicker"><?= $kicker ?></span>
-          <h3><?= $t("leadership.{$key}_title") ?></h3>
-        </div>
-        <div class="tier-body">
-          <?php $tierParas = preg_split('/\R\s*\R/', trim($raw("leadership.{$key}_body"))); ?>
-          <?php foreach ($tierParas as $n => $para): ?>
-            <p<?= $n === 0 ? ' class="lead" style="margin-top:0;"' : '' ?>><?= nl2br($fmt(trim($para)), false) ?></p>
-          <?php endforeach; ?>
-        </div>
-      </div>
-    <?php endforeach; ?>
-  </div>
-</section>
-
-<?php require __DIR__ . '/partials/values.php'; ?>
-
 <?php
-// Board members, faculty and PTA each get their own section below the administration.
+// Board members, faculty and PTA follow the administration, in that order.
 $extraGroups = [
     'board'   => ['Board Members', 'The trustees who set the direction of the school.', 'section--cream'],
-    'faculty' => ['Our Faculty', 'The teachers in front of our classes every day.', ''],
-    'pta'     => ['PTA Leadership', 'Parents who give their time to the whole school community.', 'section--lilac'],
+    'pta'     => ['PTA Leadership', 'Parents who give their time to the whole school community.', ''],
+    'faculty' => ['Our Faculty', 'The teachers in front of our classes every day.', 'section--lilac'],
 ];
 ?>
 <?php foreach ($extraGroups as $gkey => [$gTitle, $gLead, $gTone]): $people = $groups[$gkey] ?? []; ?>
@@ -109,6 +81,35 @@ $extraGroups = [
   </section>
   <?php endif; ?>
 <?php endforeach; ?>
+
+
+<section class="section<?= !empty($leaders) ? ' section--cream' : '' ?>">
+  <div class="container">
+    <?php foreach ([
+      ['board', 'building', '', 'Governance'],
+      ['admin', 'compass', 'icon-badge--green', 'Administration'],
+      ['staff', 'users', 'icon-badge--accent', 'Faculty & Staff'],
+      ['pta', 'heart', '', 'Parents'],
+    ] as [$key, $icon, $cls, $kicker]): ?>
+      <?php if ($raw("leadership.{$key}_title") === '' && $raw("leadership.{$key}_body") === '') continue; ?>
+      <div class="tier" data-reveal>
+        <div class="tier-head">
+          <span class="icon-badge <?= $cls ?>"><?= wicon($icon) ?></span>
+          <span class="tier-kicker"><?= $kicker ?></span>
+          <h3><?= $t("leadership.{$key}_title") ?></h3>
+        </div>
+        <div class="tier-body">
+          <?php $tierParas = preg_split('/\R\s*\R/', trim($raw("leadership.{$key}_body"))); ?>
+          <?php foreach ($tierParas as $n => $para): ?>
+            <p<?= $n === 0 ? ' class="lead" style="margin-top:0;"' : '' ?>><?= nl2br($fmt(trim($para)), false) ?></p>
+          <?php endforeach; ?>
+        </div>
+      </div>
+    <?php endforeach; ?>
+  </div>
+</section>
+
+<?php require __DIR__ . '/partials/values.php'; ?>
 
 <?php require __DIR__ . '/partials/cta.php'; ?>
 
