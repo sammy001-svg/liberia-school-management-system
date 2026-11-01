@@ -68,6 +68,31 @@ $heroSlides = [
   </div>
 </section>
 
+<?php if (!empty($impact)): ?>
+<section class="section section--tight impact-section">
+  <div class="container">
+    <div class="section-head section-head--center" data-reveal>
+      <span class="eyebrow eyebrow--center">Our Impact</span>
+      <h2 class="display"><?= $h('home.impact_title') ?></h2>
+      <?= $paras('home.impact_lead', 'lead') ?>
+    </div>
+    <div class="impact-grid">
+      <?php foreach ($impact as $i => $c): ?>
+        <div class="impact-card" data-reveal data-reveal-delay="<?= $i % 3 ?>">
+          <span class="impact-value" data-count-to="<?= (int)$c['number'] ?>" data-count-suffix="<?= htmlspecialchars($c['suffix']) ?>">
+            <?= htmlspecialchars($c['value']) ?>
+          </span>
+          <span class="impact-label"><?= htmlspecialchars($c['label']) ?></span>
+        </div>
+      <?php endforeach; ?>
+    </div>
+    <?php if ($raw('home.impact_note') !== ''): ?>
+      <p class="impact-note" data-reveal><?= $h('home.impact_note') ?></p>
+    <?php endif; ?>
+  </div>
+</section>
+<?php endif; ?>
+
 <section class="section section--cream">
   <div class="container">
     <div class="section-head section-head--center" data-reveal>
@@ -175,31 +200,6 @@ $heroSlides = [
       <span class="statement-mark" aria-hidden="true">“</span>
       <?= $h('home.statement') ?>
     </div>
-  </div>
-</section>
-<?php endif; ?>
-
-<?php if (!empty($impact)): ?>
-<section class="section section--tight impact-section">
-  <div class="container">
-    <div class="section-head section-head--center" data-reveal>
-      <span class="eyebrow eyebrow--center">Our Impact</span>
-      <h2 class="display"><?= $h('home.impact_title') ?></h2>
-      <?= $paras('home.impact_lead', 'lead') ?>
-    </div>
-    <div class="impact-grid">
-      <?php foreach ($impact as $i => $c): ?>
-        <div class="impact-card" data-reveal data-reveal-delay="<?= $i % 3 ?>">
-          <span class="impact-value" data-count-to="<?= (int)$c['number'] ?>" data-count-suffix="<?= htmlspecialchars($c['suffix']) ?>">
-            <?= htmlspecialchars($c['value']) ?>
-          </span>
-          <span class="impact-label"><?= htmlspecialchars($c['label']) ?></span>
-        </div>
-      <?php endforeach; ?>
-    </div>
-    <?php if ($raw('home.impact_note') !== ''): ?>
-      <p class="impact-note" data-reveal><?= $h('home.impact_note') ?></p>
-    <?php endif; ?>
   </div>
 </section>
 <?php endif; ?>
