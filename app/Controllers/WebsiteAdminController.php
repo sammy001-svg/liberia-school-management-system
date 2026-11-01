@@ -357,7 +357,7 @@ class WebsiteAdminController extends Controller {
             'title' => trim($_POST['title'] ?? ''),
             'period_label' => trim($_POST['period_label'] ?? '') ?: null,
             'recipient_name' => trim($_POST['recipient_name'] ?? ''),
-            'recipient_role' => in_array($_POST['recipient_role'] ?? '', ['student', 'teacher', 'staff'], true) ? $_POST['recipient_role'] : 'student',
+            'recipient_role' => in_array($_POST['recipient_role'] ?? '', ['student', 'teacher', 'staff', 'parent'], true) ? $_POST['recipient_role'] : 'student',
             'class_name' => trim($_POST['class_name'] ?? '') ?: null,
             'citation' => trim($_POST['citation'] ?? '') ?: null,
             'awarded_on' => ($_POST['awarded_on'] ?? '') ?: null,

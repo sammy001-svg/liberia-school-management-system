@@ -104,6 +104,11 @@
               <option value="Best Student of the Year"></option>
               <option value="Best Teacher of the Semester"></option>
               <option value="Best Teacher of the Year"></option>
+              <option value="Best Administrator of the Year"></option>
+              <option value="Best Parents of the Year"></option>
+              <option value="Most Supportive Parent of the Year"></option>
+              <option value="Most Supportive Teacher of the Year"></option>
+              <option value="Most Supportive Staff of the Year"></option>
             </datalist></div>
         </div>
         <div class="form-row">
@@ -118,7 +123,8 @@
             <input type="text" name="recipient_name" id="a_name" class="form-control" required maxlength="150"></div>
           <div class="form-group"><label class="form-label">They are a</label>
             <select name="recipient_role" id="a_role" class="form-control">
-              <option value="student">Student</option><option value="teacher">Teacher</option><option value="staff">Staff member</option>
+              <option value="student">Student</option><option value="teacher">Teacher</option>
+              <option value="staff">Staff member</option><option value="parent">Parent</option>
             </select></div>
         </div>
         <div class="form-group"><label class="form-label">Class / department</label>

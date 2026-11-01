@@ -43,7 +43,7 @@
                 <input type="radio" name="candidate_id" value="<?= (int)$c['id'] ?>" <?= $chosen ? 'checked' : '' ?> required>
                 <span>
                   <b><?= htmlspecialchars($c['name']) ?></b>
-                  <span><?= htmlspecialchars($c['class_name'] ?: ($c['kind'] === 'staff' ? 'Staff' : 'Student')) ?></span>
+                  <span><?= htmlspecialchars($c['class_name'] ?: ['staff' => 'Staff', 'parent' => 'Parent'][$c['kind']] ?? 'Student') ?></span>
                 </span>
               </label>
             <?php endforeach; ?>

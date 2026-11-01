@@ -42,7 +42,7 @@ foreach ($awardGroups as $rows) { if ($rows) { $anyAward = true; } }
               <?php else: ?>
                 <span class="award-initials"><?= htmlspecialchars(mb_strtoupper(mb_substr($a['recipient_name'], 0, 1))) ?></span>
               <?php endif; ?>
-              <span class="award-ribbon"><?= htmlspecialchars($a['recipient_role'] === 'teacher' ? 'Teacher' : ($a['recipient_role'] === 'staff' ? 'Staff' : 'Student')) ?></span>
+              <span class="award-ribbon"><?= htmlspecialchars(['teacher' => 'Teacher', 'staff' => 'Staff', 'parent' => 'Parent'][$a['recipient_role']] ?? 'Student') ?></span>
             </div>
             <div class="award-body">
               <span class="award-title"><?= htmlspecialchars($a['title']) ?></span>

@@ -82,6 +82,11 @@ abstract class Controller {
                 $this->db->execute("ALTER TABLE classes ADD COLUMN description TEXT DEFAULT NULL");
             }
 
+            // Parents can stand for an award too, not only students and staff.
+            try {
+                $this->db->execute("ALTER TABLE award_poll_candidates MODIFY COLUMN kind ENUM('student','staff','parent') NOT NULL DEFAULT 'student'");
+            } catch (\Throwable $e) {}
+
             // Whether a sponsored child may be shown on the public sponsorship page.
             try {
                 $sp = array_column($this->db->fetchAll("SHOW COLUMNS FROM sponsorships"), 'Field');

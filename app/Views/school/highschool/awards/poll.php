@@ -53,7 +53,7 @@ $statusBadge = ['draft' => ['badge-muted', 'Draft'], 'open' => ['badge-success',
     <div class="card-header"><div class="card-title"><?= $poll['status'] === 'closed' ? 'Result' : 'Standing' ?></div></div>
     <div class="table-wrapper">
       <table>
-        <thead><tr><th>Candidate</th><th><?= $kind === 'staff' ? 'Role' : 'Class' ?></th><th style="width:46%;">Votes</th><th></th></tr></thead>
+        <thead><tr><th>Candidate</th><th><?= $kind === 'staff' ? 'Role' : ($kind === 'parent' ? 'Children' : 'Class') ?></th><th style="width:46%;">Votes</th><th></th></tr></thead>
         <tbody>
           <?php foreach ($results as $i => $r): $pct = $total > 0 ? round((int)$r['votes'] / $total * 100) : 0; ?>
           <tr>
@@ -94,7 +94,7 @@ $statusBadge = ['draft' => ['badge-muted', 'Draft'], 'open' => ['badge-success',
       <input type="hidden" name="csrf_token" value="<?= $csrf ?>">
       <div class="card-body">
         <div class="form-group">
-          <label class="form-label"><?= $kind === 'staff' ? 'Teacher or staff member' : 'Student' ?></label>
+          <label class="form-label"><?= htmlspecialchars(AwardPollController::KIND_LABELS[$kind] ?? 'Candidate') ?></label>
           <select name="ref_id" class="form-control" required>
             <option value="">Choose…</option>
             <?php foreach ($people as $pers): ?>

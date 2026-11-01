@@ -21,19 +21,29 @@ class AwardPollController extends Controller {
     private function guard(): void { $this->requirePermission(['grades.manage', 'settings.manage']); }
 
     public const CATEGORIES = [
-        'best_student_period'   => 'Best Student of the Period',
-        'best_student_semester' => 'Best Student of the Semester',
-        'best_student_year'     => 'Best Student of the Year',
-        'best_teacher_semester' => 'Best Teacher of the Semester',
-        'best_teacher_year'     => 'Best Teacher of the Year',
+        'best_student_period'      => 'Best Student of the Period',
+        'best_student_semester'    => 'Best Student of the Semester',
+        'best_student_year'        => 'Best Student of the Year',
+        'best_teacher_semester'    => 'Best Teacher of the Semester',
+        'best_teacher_year'        => 'Best Teacher of the Year',
+        'best_administrator_year'  => 'Best Administrator of the Year',
+        'best_parents_year'        => 'Best Parents of the Year',
+        'supportive_parent_year'   => 'Most Supportive Parent of the Year',
+        'supportive_teacher_year'  => 'Most Supportive Teacher of the Year',
+        'supportive_staff_year'    => 'Most Supportive Staff of the Year',
     ];
 
     public const VOTERS = ['students' => 'Students', 'teachers' => 'Teachers', 'admins' => 'Administrators'];
 
-    /** Teacher awards take staff as candidates; the rest take students. */
+    /** Who can stand for each award: a parent, a member of staff, or a student. */
     public static function candidateKind(string $category): string {
-        return str_contains($category, 'teacher') ? 'staff' : 'student';
+        if (str_contains($category, 'parent')) { return 'parent'; }
+        if (str_contains($category, 'teacher') || str_contains($category, 'administrator') || str_contains($category, 'staff')) { return 'staff'; }
+        return 'student';
     }
+
+    /** What a candidate of each kind is called on screen. */
+    public const KIND_LABELS = ['student' => 'Student', 'staff' => 'Teacher or staff member', 'parent' => 'Parent'];
 
     // ── Admin ───────────────────────────────────────────────────────
 
@@ -85,13 +95,29 @@ class AwardPollController extends Controller {
             'kind' => $kind,
             'results' => $this->results((int)$id),
             'turnout' => $this->turnout($poll),
-            'people' => $kind === 'student'
-                ? $this->db->fetchAll("SELECT s.id, u.name, c.name AS class_name FROM students s JOIN users u ON u.id=s.user_id
-                                       LEFT JOIN classes c ON c.id=s.class_id WHERE s.tenant_id=? AND s.status='active' ORDER BY u.name", [$this->tid])
-                : $this->db->fetchAll("SELECT u.id, u.name, r.name AS class_name FROM users u JOIN roles r ON r.id=u.role_id
-                                       WHERE u.tenant_id=? AND u.status='active' AND r.name NOT IN ('Student','Parent') ORDER BY u.name", [$this->tid]),
+            'people' => $this->candidatePool($kind),
             'flash' => $this->getFlash(),
         ]);
+    }
+
+    /** Everyone who may be put on the ballot for this kind of award. */
+    private function candidatePool(string $kind): array {
+        if ($kind === 'student') {
+            return $this->db->fetchAll(
+                "SELECT s.id, u.name, c.name AS class_name FROM students s JOIN users u ON u.id=s.user_id
+                 LEFT JOIN classes c ON c.id=s.class_id WHERE s.tenant_id=? AND s.status='active' ORDER BY u.name", [$this->tid]);
+        }
+        if ($kind === 'parent') {
+            return $this->db->fetchAll(
+                "SELECT p.id, u.name,
+                        (SELECT GROUP_CONCAT(cu.name SEPARATOR ', ') FROM parent_students ps
+                          JOIN students cs ON cs.id=ps.student_id JOIN users cu ON cu.id=cs.user_id
+                         WHERE ps.parent_id=p.id) AS class_name
+                 FROM parents p JOIN users u ON u.id=p.user_id WHERE p.tenant_id=? ORDER BY u.name", [$this->tid]);
+        }
+        return $this->db->fetchAll(
+            "SELECT u.id, u.name, r.name AS class_name FROM users u JOIN roles r ON r.id=u.role_id
+             WHERE u.tenant_id=? AND u.status='active' AND r.name NOT IN ('Student','Parent') ORDER BY u.name", [$this->tid]);
     }
 
     /** Candidates with their vote counts, highest first. */
@@ -122,11 +148,10 @@ class AwardPollController extends Controller {
         if (!$poll) { $this->redirect('/school/awards/polls'); }
         $kind = self::candidateKind($poll['category']);
         $refId = (int)($_POST['ref_id'] ?? 0);
-        $row = $kind === 'student'
-            ? $this->db->fetchOne("SELECT s.id, u.name, c.name AS class_name FROM students s JOIN users u ON u.id=s.user_id
-                                   LEFT JOIN classes c ON c.id=s.class_id WHERE s.id=? AND s.tenant_id=?", [$refId, $this->tid])
-            : $this->db->fetchOne("SELECT u.id, u.name, r.name AS class_name FROM users u JOIN roles r ON r.id=u.role_id
-                                   WHERE u.id=? AND u.tenant_id=?", [$refId, $this->tid]);
+        $row = null;
+        foreach ($this->candidatePool($kind) as $candidate) {
+            if ((int)$candidate['id'] === $refId) { $row = $candidate; break; }
+        }
         if (!$row) { $this->flash('danger', 'Choose someone to add.'); $this->redirect('/school/awards/polls/' . (int)$id); }
         $dup = $this->db->fetchOne("SELECT id FROM award_poll_candidates WHERE poll_id=? AND kind=? AND ref_id=?", [(int)$id, $kind, $refId]);
         if ($dup) { $this->flash('warning', $row['name'] . ' is already on the list.'); $this->redirect('/school/awards/polls/' . (int)$id); }
@@ -190,7 +215,7 @@ class AwardPollController extends Controller {
             "INSERT INTO website_awards (tenant_id,award_group,title,period_label,recipient_name,recipient_role,class_name,citation,awarded_on,sort_order,is_active)
              VALUES (?,'academic',?,?,?,?,?,?,CURDATE(),?,1)",
             [$this->tid, $poll['title'], $poll['period_label'], $winner['name'],
-             $winner['kind'] === 'staff' ? 'teacher' : 'student', $winner['class_name'],
+             ['staff' => 'teacher', 'parent' => 'parent'][$winner['kind']] ?? 'student', $winner['class_name'],
              'Chosen by ' . (int)$winner['votes'] . ' vote(s) of the school community.', $next]
         );
         $this->db->execute("UPDATE award_polls SET published_at=NOW() WHERE id=?", [(int)$id]);
