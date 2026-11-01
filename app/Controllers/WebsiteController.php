@@ -102,8 +102,21 @@ class WebsiteController extends Controller {
     public function home(): void {
         $tid = isset($this->tenant['id']) ? (int)$this->tenant['id'] : null;
         $content = WebsiteContent::load($this->db, $tid);
+        // News and events on the home page; projects get a section of their own so the
+        // two are never mixed.
+        $recent = $this->posts(12);
+        $today = date('Y-m-d');
+        $homeNews = $homeProjects = [];
+        foreach ($recent as $post) {
+            if (($post['category'] ?? 'news') === 'project') {
+                if (empty($post['end_date']) || $post['end_date'] >= $today) { $homeProjects[] = $post; }
+            } else {
+                $homeNews[] = $post;
+            }
+        }
         $this->page('home', 'Home', 'CELDI Academy is a K-12 school in Ben Town, Margibi County, Liberia, changing Liberia one child at a time through Christ-centered, technological and vocational education.', 'home', [
-            'posts'  => $this->posts(3),
+            'posts'  => array_slice($homeNews, 0, 3),
+            'projects' => array_slice($homeProjects, 0, 3),
             'impact' => $this->impact($content),
             'awards' => $tid ? WebsiteContent::rows($this->db,
                 "SELECT * FROM website_awards WHERE tenant_id=? AND is_active=1 ORDER BY sort_order, id LIMIT 3", [$tid]) : [],
@@ -179,7 +192,7 @@ class WebsiteController extends Controller {
         }
         usort($upcoming, fn($a, $b) => ($a['event_date'] ?? '9999') <=> ($b['event_date'] ?? '9999'));
         $this->page('news', 'News & Events', 'The CELDI Academy academic calendar, events and highlights from campus.', 'news', [
-            'posts' => $news, 'upcoming' => $upcoming, 'projects' => $projects,
+            'posts' => $news, 'newsPosts' => $news, 'upcoming' => $upcoming, 'projects' => $projects,
         ]);
     }
 

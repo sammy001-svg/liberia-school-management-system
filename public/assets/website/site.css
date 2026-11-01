@@ -618,6 +618,7 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 .post-tag--news { background: #fff; color: var(--plum-800); }
 .post-tag--event { background: var(--accent-400); color: var(--plum-950); }
+.post-tag--project { background: var(--plum-600); color: #fff; }
 .post-body { padding: 24px 26px 28px; display: flex; flex-direction: column; flex: 1; }
 .post-date { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 10px; }
 .post-date .wi { width: 15px; height: 15px; color: var(--green-600); }

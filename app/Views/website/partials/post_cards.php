@@ -7,13 +7,19 @@ $postFallbacks = ['assembly-courtyard.jpg', 'students-walk.jpg', 'students-lineu
     <a class="post-card" href="<?= $url('academy-news/' . (int)$post['id']) ?>" data-reveal data-reveal-delay="<?= $i % 3 ?>">
       <div class="post-media">
         <img src="<?= !empty($post['image_url']) ? htmlspecialchars($post['image_url']) : $img($postFallbacks[$i % count($postFallbacks)]) ?>" alt="" loading="lazy">
-        <span class="post-tag post-tag--<?= $post['category'] === 'event' ? 'event' : 'news' ?>"><?= $post['category'] === 'event' ? 'Event' : 'News' ?></span>
+        <?php $cat = $post['category'] ?? 'news'; ?>
+        <span class="post-tag post-tag--<?= $cat === 'event' ? 'event' : ($cat === 'project' ? 'project' : 'news') ?>">
+          <?= $cat === 'event' ? 'Event' : ($cat === 'project' ? 'Project' : 'News') ?>
+        </span>
       </div>
       <div class="post-body">
         <span class="post-date">
           <?= wicon('calendar') ?>
-          <?php if ($post['category'] === 'event' && !empty($post['event_date'])): ?>
+          <?php if ($cat === 'event' && !empty($post['event_date'])): ?>
             <?= date('D, j M Y', strtotime($post['event_date'])) ?>
+          <?php elseif ($cat === 'project'): ?>
+            <?= !empty($post['event_date']) ? date('j M Y', strtotime($post['event_date'])) : 'Started' ?>
+            <?= !empty($post['end_date']) ? ' – ' . date('j M Y', strtotime($post['end_date'])) : ' – ongoing' ?>
           <?php else: ?>
             <?= date('j M Y', strtotime($post['published_on'])) ?>
           <?php endif; ?>

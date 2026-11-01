@@ -173,6 +173,21 @@ $heroSlides = [
 </section>
 <?php endif; ?>
 
+<?php if (!empty($projects)): ?>
+<section class="section">
+  <div class="container">
+    <div class="section-head-row" data-reveal>
+      <div>
+        <span class="eyebrow">In Progress</span>
+        <h2 class="display">Ongoing <em>projects</em></h2>
+      </div>
+      <a href="<?= $url('academy-news') ?>" class="text-link">All projects <?= wicon('arrow-right') ?></a>
+    </div>
+    <?php $posts = $projects; require __DIR__ . '/partials/post_cards.php'; ?>
+  </div>
+</section>
+<?php endif; ?>
+
 <section class="section section--cream">
   <div class="container">
     <div class="section-head" data-reveal>
