@@ -64,9 +64,11 @@ class StudentPortalController extends Controller {
              JOIN online_exams e ON e.id=m.exam_id
              LEFT JOIN online_exam_attempts a ON a.exam_id=e.id AND a.student_id=m.student_id
              WHERE m.student_id=? AND m.tenant_id=? AND e.status='published'
-               AND e.ends_at >= NOW() AND (a.status IS NULL OR a.status='in_progress')
+               AND e.ends_at >= ? AND (a.status IS NULL OR a.status='in_progress')
              ORDER BY e.starts_at",
-            [$this->sid, $this->tid]
+            // the app's own clock, so this agrees with the open/closed state
+            // shown everywhere else even when the database runs on another timezone
+            [$this->sid, $this->tid, date('Y-m-d H:i:s')]
         );
 
         $this->view('school/portals/student/dashboard', [
