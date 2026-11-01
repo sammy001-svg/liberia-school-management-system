@@ -185,6 +185,35 @@ abstract class Controller {
                 $this->db->execute("ALTER TABLE timetable ADD COLUMN label VARCHAR(80) DEFAULT NULL");
             }
 
+            // Make-up exams: an online exam sat only by the named students who missed
+            // the original sitting, so the rest of the class never sees it.
+            try {
+                $oeCols = array_column($this->db->fetchAll("SHOW COLUMNS FROM online_exams"), 'Field');
+                if ($oeCols) {
+                    if (!in_array('exam_type', $oeCols, true)) {
+                        $this->db->execute("ALTER TABLE online_exams ADD COLUMN exam_type ENUM('standard','makeup') NOT NULL DEFAULT 'standard'");
+                    }
+                    if (!in_array('missed_label', $oeCols, true)) {
+                        $this->db->execute("ALTER TABLE online_exams ADD COLUMN missed_label VARCHAR(160) DEFAULT NULL");
+                    }
+                    if (!in_array('missed_on', $oeCols, true)) {
+                        $this->db->execute("ALTER TABLE online_exams ADD COLUMN missed_on DATE DEFAULT NULL");
+                    }
+                }
+            } catch (\Throwable $e) {}
+            $this->db->execute("CREATE TABLE IF NOT EXISTS makeup_exam_students (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, tenant_id INT UNSIGNED NOT NULL,
+                exam_id INT UNSIGNED NOT NULL, student_id INT UNSIGNED NOT NULL,
+                reason VARCHAR(30) NOT NULL DEFAULT 'absent', note VARCHAR(300) DEFAULT NULL,
+                approved_by INT UNSIGNED DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY uniq_makeup_sitting (exam_id, student_id),
+                KEY idx_makeup_student (tenant_id, student_id),
+                FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+                FOREIGN KEY (exam_id) REFERENCES online_exams(id) ON DELETE CASCADE,
+                FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
             // A school's own names for the eight marking periods, per academic year.
             $this->db->execute("CREATE TABLE IF NOT EXISTS marking_periods (
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, tenant_id INT UNSIGNED NOT NULL,

@@ -3,7 +3,14 @@ $pct = $attempt['total_marks'] > 0 ? round($attempt['score'] / $attempt['total_m
 $grade = $pct>=90?'A+':($pct>=80?'A':($pct>=70?'B':($pct>=60?'C':($pct>=50?'D':'F'))));
 require ROOT_DIR . '/app/Views/layouts/header.php';
 ?>
-<div class="page-header"><div class="page-header-title">Result — <?= htmlspecialchars($exam['title']) ?></div></div>
+<?php $backUrl = $backUrl ?? '/student/exams'; $isMakeup = ($exam['exam_type'] ?? 'standard') === 'makeup'; ?>
+<div class="page-header">
+  <div>
+    <div class="page-header-title">Result — <?= htmlspecialchars($exam['title']) ?></div>
+    <?php if ($isMakeup): ?><div class="text-muted" style="font-size:13px;">Make-up exam<?= !empty($exam['missed_label']) ? ' for ' . htmlspecialchars($exam['missed_label']) : '' ?></div><?php endif; ?>
+  </div>
+  <a href="<?= $cfg['url'] . $backUrl ?>" class="btn btn-outline">&larr; Back<?= $isMakeup ? ' to Make-up Exams' : ' to Exams' ?></a>
+</div>
 
 <div class="card" style="margin-bottom:20px;">
   <div class="card-body" style="display:flex;align-items:center;gap:28px;flex-wrap:wrap;">

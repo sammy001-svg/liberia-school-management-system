@@ -23,7 +23,7 @@ class OnlineExamController extends Controller {
              LEFT JOIN courses co ON e.course_id=co.id
              LEFT JOIN teachers t ON e.teacher_id=t.id
              LEFT JOIN users u ON t.user_id=u.id
-             WHERE e.tenant_id=? ORDER BY e.starts_at DESC",
+             WHERE e.tenant_id=? AND e.exam_type='standard' ORDER BY e.starts_at DESC",
             [$this->tid]
         );
         $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
@@ -67,14 +67,14 @@ class OnlineExamController extends Controller {
 
     public function delete(string $id): void {
         $this->requirePermission(['online_exam.manage']);
-        $this->db->execute("DELETE FROM online_exams WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        $this->db->execute("DELETE FROM online_exams WHERE id=? AND tenant_id=? AND exam_type='standard'", [$id, $this->tid]);
         $this->flash('success', 'Exam removed.');
         $this->redirect('/school/online-exams');
     }
 
     public function publish(string $id): void {
         $this->requirePermission(['online_exam.manage']);
-        $exam = $this->db->fetchOne("SELECT * FROM online_exams WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        $exam = $this->db->fetchOne("SELECT * FROM online_exams WHERE id=? AND tenant_id=? AND exam_type='standard'", [$id, $this->tid]);
         if (!$exam) { $this->redirect('/school/online-exams'); }
         if ($exam['status'] === 'draft') {
             $qCount = $this->db->fetchOne("SELECT COUNT(*) c FROM online_exam_questions WHERE exam_id=?", [$id])['c'];
@@ -94,7 +94,7 @@ class OnlineExamController extends Controller {
     public function questions(string $id): void {
         $this->requirePermission(['online_exam.manage']);
         $exam = $this->db->fetchOne(
-            "SELECT e.*, c.name AS class_name FROM online_exams e LEFT JOIN classes c ON e.class_id=c.id WHERE e.id=? AND e.tenant_id=?",
+            "SELECT e.*, c.name AS class_name FROM online_exams e LEFT JOIN classes c ON e.class_id=c.id WHERE e.id=? AND e.tenant_id=? AND e.exam_type='standard'",
             [$id, $this->tid]
         );
         if (!$exam) { $this->redirect('/school/online-exams'); }
@@ -107,7 +107,7 @@ class OnlineExamController extends Controller {
 
     public function storeQuestion(string $id): void {
         $this->requirePermission(['online_exam.manage']);
-        $exam = $this->db->fetchOne("SELECT id FROM online_exams WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        $exam = $this->db->fetchOne("SELECT id FROM online_exams WHERE id=? AND tenant_id=? AND exam_type='standard'", [$id, $this->tid]);
         if (!$exam) { $this->redirect('/school/online-exams'); }
         $errors = $this->validate($_POST, [
             'question_text'  => 'required',
@@ -141,7 +141,7 @@ class OnlineExamController extends Controller {
     public function results(string $id): void {
         $this->requirePermission(['online_exam.manage']);
         $exam = $this->db->fetchOne(
-            "SELECT e.*, c.name AS class_name FROM online_exams e LEFT JOIN classes c ON e.class_id=c.id WHERE e.id=? AND e.tenant_id=?",
+            "SELECT e.*, c.name AS class_name FROM online_exams e LEFT JOIN classes c ON e.class_id=c.id WHERE e.id=? AND e.tenant_id=? AND e.exam_type='standard'",
             [$id, $this->tid]
         );
         if (!$exam) { $this->redirect('/school/online-exams'); }

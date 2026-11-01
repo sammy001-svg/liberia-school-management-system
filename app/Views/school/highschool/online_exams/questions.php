@@ -1,5 +1,13 @@
 <?php require ROOT_DIR . '/app/Views/layouts/header.php'; ?>
-<div class="breadcrumb"><a href="<?= $cfg['url'] ?>/school/online-exams">Online Exams</a><span>/</span><span><?= htmlspecialchars($exam['title']) ?></span></div>
+<?php
+// Shared by Online Exams and Make-up Exams: $examBase decides which module's
+// URLs the form posts to and where "back" goes.
+$examBase  = $examBase  ?? '/school/online-exams';
+$examLabel = $examLabel ?? 'Online Exams';
+$backUrl   = $backUrl   ?? $examBase;
+$isMakeup  = ($exam['exam_type'] ?? 'standard') === 'makeup';
+?>
+<div class="breadcrumb"><a href="<?= $cfg['url'] . $examBase ?>"><?= htmlspecialchars($examLabel) ?></a><span>/</span><span><?= htmlspecialchars($exam['title']) ?></span></div>
 
 <div class="page-header">
   <div>
@@ -7,15 +15,15 @@
     <div class="page-header-sub"><?= htmlspecialchars($exam['class_name'] ?? '—') ?> · <?= count($questions) ?> question(s) · <?= number_format(array_sum(array_column($questions,'marks')),0) ?> total marks</div>
   </div>
   <div style="display:flex;gap:10px;">
-    <a href="<?= $cfg['url'] ?>/school/online-exams" class="btn btn-outline">&larr; Back to Exams</a>
+    <a href="<?= $cfg['url'] . $backUrl ?>" class="btn btn-outline">&larr; Back<?= $isMakeup ? ' to Sitting List' : ' to Exams' ?></a>
     <button type="button" class="btn btn-primary" onclick="document.getElementById('addQuestionModal').classList.add('open')">+ Add Question</button>
   </div>
 </div>
 
 <?php if($exam['status']==='draft'): ?>
-<div class="alert alert-info" style="margin-bottom:20px;">This exam is still a <strong>draft</strong> — students won't see it until you publish it from the Online Exams list.</div>
+<div class="alert alert-info" style="margin-bottom:20px;">This exam is still a <strong>draft</strong> — <?= $isMakeup ? 'the students on its sitting list' : 'students' ?> won't see it until you publish it from the <?= htmlspecialchars($isMakeup ? 'sitting list' : 'Online Exams list') ?>.</div>
 <?php else: ?>
-<div class="alert alert-success" style="margin-bottom:20px;">This exam is <strong>published</strong> and visible to students in the scheduled window.</div>
+<div class="alert alert-success" style="margin-bottom:20px;">This exam is <strong>published</strong> and visible to <?= $isMakeup ? 'the students on its sitting list' : 'students' ?> in the scheduled window.</div>
 <?php endif; ?>
 
 <div class="card">
@@ -36,7 +44,7 @@
             <?php endforeach; ?>
           </div>
         </div>
-        <form method="POST" action="<?= $cfg['url'] ?>/school/online-exams/<?= $exam['id'] ?>/questions/<?= $q['id'] ?>/delete" data-confirm="Remove this question?" data-confirm-title="Remove Question" data-confirm-label="Remove">
+        <form method="POST" action="<?= $cfg['url'] . $examBase ?>/<?= $exam['id'] ?>/questions/<?= $q['id'] ?>/delete" data-confirm="Remove this question?" data-confirm-title="Remove Question" data-confirm-label="Remove">
           <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
           <button type="submit" class="btn btn-sm btn-danger">Del</button>
         </form>
@@ -59,7 +67,7 @@
       <div class="modal-title">Add Question</div>
       <button class="modal-close" onclick="document.getElementById('addQuestionModal').classList.remove('open')">&times;</button>
     </div>
-    <form method="POST" action="<?= $cfg['url'] ?>/school/online-exams/<?= $exam['id'] ?>/questions/store">
+    <form method="POST" action="<?= $cfg['url'] . $examBase ?>/<?= $exam['id'] ?>/questions/store">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
       <div class="modal-body">
         <div class="form-group">

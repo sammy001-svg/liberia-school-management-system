@@ -56,9 +56,23 @@ class StudentPortalController extends Controller {
             [$classId, strtolower(date('l'))]
         ) : [];
 
+        // Any make-up exam still waiting to be sat, so a student who missed a test
+        // is told on the first screen they see.
+        $pendingMakeups = $this->db->fetchAll(
+            "SELECT e.id, e.title, e.starts_at, e.ends_at
+             FROM makeup_exam_students m
+             JOIN online_exams e ON e.id=m.exam_id
+             LEFT JOIN online_exam_attempts a ON a.exam_id=e.id AND a.student_id=m.student_id
+             WHERE m.student_id=? AND m.tenant_id=? AND e.status='published'
+               AND e.ends_at >= NOW() AND (a.status IS NULL OR a.status='in_progress')
+             ORDER BY e.starts_at",
+            [$this->sid, $this->tid]
+        );
+
         $this->view('school/portals/student/dashboard', [
             'pageTitle' => 'Student Dashboard',
             'panelType' => 'student',
+            'pendingMakeups' => $pendingMakeups,
             'student' => $student,
             'attendance' => $attendance,
             'recentGrades' => $recentGrades,
@@ -193,7 +207,7 @@ class StudentPortalController extends Controller {
              FROM online_exams e
              LEFT JOIN courses co ON e.course_id=co.id
              LEFT JOIN online_exam_attempts a ON a.exam_id=e.id AND a.student_id=?
-             WHERE e.tenant_id=? AND e.class_id=? AND e.status='published'
+             WHERE e.tenant_id=? AND e.class_id=? AND e.status='published' AND e.exam_type='standard'
              ORDER BY e.starts_at DESC",
             [$this->sid, $this->tid, $classId]
         );
@@ -210,16 +224,67 @@ class StudentPortalController extends Controller {
         ]);
     }
 
-    public function takeExam(string $id): void {
+    /**
+     * The exam this student is allowed to open, or null. A make-up exam is only
+     * ever theirs if the school put them on its sitting list.
+     */
+    private function myExam(string $id, bool $publishedOnly = true): ?array {
         $exam = $this->db->fetchOne(
-            "SELECT * FROM online_exams WHERE id=? AND tenant_id=? AND class_id=? AND status='published'",
+            "SELECT * FROM online_exams WHERE id=? AND tenant_id=? AND class_id=?"
+            . ($publishedOnly ? " AND status='published'" : ''),
             [$id, $this->tid, $_SESSION['class_id'] ?? 0]
         );
+        if (!$exam) { return null; }
+        if (($exam['exam_type'] ?? 'standard') === 'makeup') {
+            $listed = $this->db->fetchOne(
+                "SELECT id FROM makeup_exam_students WHERE exam_id=? AND student_id=?",
+                [$exam['id'], $this->sid]
+            );
+            if (!$listed) { return null; }
+        }
+        return $exam;
+    }
+
+    /** Where this exam's own list lives, so every redirect lands on the right page. */
+    private function examListUrl(?array $exam): string {
+        return ($exam && ($exam['exam_type'] ?? 'standard') === 'makeup') ? '/student/makeup-exams' : '/student/exams';
+    }
+
+    /** The make-up exams this student has been asked to sit, and nobody else's. */
+    public function makeupExams(): void {
+        $exams = $this->db->fetchAll(
+            "SELECT e.*, co.name AS course_name, m.reason, m.note,
+                    a.status AS attempt_status, a.score, a.total_marks
+             FROM makeup_exam_students m
+             JOIN online_exams e ON e.id=m.exam_id
+             LEFT JOIN courses co ON e.course_id=co.id
+             LEFT JOIN online_exam_attempts a ON a.exam_id=e.id AND a.student_id=m.student_id
+             WHERE m.student_id=? AND m.tenant_id=? AND e.status='published'
+             ORDER BY e.starts_at DESC",
+            [$this->sid, $this->tid]
+        );
+        $now = time();
+        foreach ($exams as &$e) {
+            if ($e['attempt_status'] === 'submitted') { $e['state'] = 'completed'; }
+            elseif ($now < strtotime($e['starts_at'])) { $e['state'] = 'upcoming'; }
+            elseif ($now > strtotime($e['ends_at'])) { $e['state'] = 'closed'; }
+            else { $e['state'] = 'open'; }
+        }
+        unset($e);
+        require_once ROOT_DIR . '/app/Controllers/MakeupExamController.php';
+        $this->view('school/portals/student/makeup_exams', [
+            'pageTitle' => 'Make-up Exams', 'panelType' => 'student', 'exams' => $exams,
+            'reasons' => MakeupExamController::REASONS, 'flash' => $this->getFlash(),
+        ]);
+    }
+
+    public function takeExam(string $id): void {
+        $exam = $this->myExam($id);
         if (!$exam) { $this->redirect('/student/exams'); }
         $now = time();
         if ($now < strtotime($exam['starts_at']) || $now > strtotime($exam['ends_at'])) {
             $this->flash('danger', 'This exam is not currently open.');
-            $this->redirect('/student/exams');
+            $this->redirect($this->examListUrl($exam));
         }
         $attempt = $this->db->fetchOne("SELECT * FROM online_exam_attempts WHERE exam_id=? AND student_id=?", [$id, $this->sid]);
         if ($attempt && $attempt['status'] === 'submitted') {
@@ -245,7 +310,7 @@ class StudentPortalController extends Controller {
     }
 
     public function submitExam(string $id): void {
-        $exam = $this->db->fetchOne("SELECT * FROM online_exams WHERE id=? AND tenant_id=? AND class_id=?", [$id, $this->tid, $_SESSION['class_id'] ?? 0]);
+        $exam = $this->myExam($id, false);
         if (!$exam) { $this->redirect('/student/exams'); }
         $attempt = $this->db->fetchOne("SELECT * FROM online_exam_attempts WHERE exam_id=? AND student_id=? AND status='in_progress'", [$id, $this->sid]);
         if (!$attempt) { $this->redirect('/student/exams/'.$id.'/result'); }
@@ -271,10 +336,10 @@ class StudentPortalController extends Controller {
     }
 
     public function examResult(string $id): void {
-        $exam = $this->db->fetchOne("SELECT * FROM online_exams WHERE id=? AND tenant_id=? AND class_id=?", [$id, $this->tid, $_SESSION['class_id'] ?? 0]);
+        $exam = $this->myExam($id, false);
         if (!$exam) { $this->redirect('/student/exams'); }
         $attempt = $this->db->fetchOne("SELECT * FROM online_exam_attempts WHERE exam_id=? AND student_id=? AND status='submitted'", [$id, $this->sid]);
-        if (!$attempt) { $this->redirect('/student/exams'); }
+        if (!$attempt) { $this->redirect($this->examListUrl($exam)); }
         $breakdown = $this->db->fetchAll(
             "SELECT q.question_text,q.option_a,q.option_b,q.option_c,q.option_d,q.correct_option,q.marks,
                     ans.selected_option,ans.is_correct
@@ -286,6 +351,7 @@ class StudentPortalController extends Controller {
         $this->view('school/portals/student/exam_result', [
             'pageTitle' => 'Result — '.$exam['title'], 'panelType' => 'student',
             'exam' => $exam, 'attempt' => $attempt, 'breakdown' => $breakdown,
+            'backUrl' => $this->examListUrl($exam),
         ]);
     }
 

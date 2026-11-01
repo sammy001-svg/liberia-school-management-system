@@ -413,8 +413,10 @@ class StudentController extends Controller {
              LEFT JOIN courses co ON e.course_id=co.id
              LEFT JOIN online_exam_attempts a ON a.exam_id=e.id AND a.student_id=?
              WHERE e.tenant_id=? AND e.class_id=?
+               AND (e.exam_type='standard'
+                    OR EXISTS (SELECT 1 FROM makeup_exam_students m WHERE m.exam_id=e.id AND m.student_id=?))
              ORDER BY e.starts_at DESC LIMIT 10",
-            [$id, $this->tid, $student['class_id']]
+            [$id, $this->tid, $student['class_id'], $id]
         ) : [];
 
         $attendanceStats = $this->db->fetchOne(

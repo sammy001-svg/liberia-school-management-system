@@ -364,6 +364,20 @@ $router->post('/school/online-exams/{id}/questions/store',     ['OnlineExamContr
 $router->post('/school/online-exams/{id}/questions/{qid}/delete', ['OnlineExamController', 'deleteQuestion']);
 $router->get('/school/online-exams/{id}/results',              ['OnlineExamController', 'results']);
 
+// -- MAKE-UP EXAMS (an online exam sat only by the students who missed the original)
+$router->get('/school/makeup-exams',                              ['MakeupExamController', 'index']);
+$router->post('/school/makeup-exams/store',                       ['MakeupExamController', 'store']);
+$router->get('/school/makeup-exams/{id}/questions',               ['MakeupExamController', 'questions']);
+$router->post('/school/makeup-exams/{id}/questions/store',        ['MakeupExamController', 'storeQuestion']);
+$router->post('/school/makeup-exams/{id}/questions/{qid}/delete', ['MakeupExamController', 'deleteQuestion']);
+$router->post('/school/makeup-exams/{id}/students/add',           ['MakeupExamController', 'addStudent']);
+$router->post('/school/makeup-exams/{id}/students/{sid}/remove',  ['MakeupExamController', 'removeStudent']);
+$router->post('/school/makeup-exams/{id}/students/{sid}/reset',   ['MakeupExamController', 'resetAttempt']);
+$router->post('/school/makeup-exams/{id}/publish',                ['MakeupExamController', 'publish']);
+$router->post('/school/makeup-exams/{id}/update',                 ['MakeupExamController', 'update']);
+$router->post('/school/makeup-exams/{id}/delete',                 ['MakeupExamController', 'delete']);
+$router->get('/school/makeup-exams/{id}',                         ['MakeupExamController', 'show']);
+
 // ── STUDENT PORTAL ──────────────────────────────────────────────
 $router->get('/student/dashboard',          ['StudentPortalController', 'dashboard']);
 $router->get('/student/timetable',          ['StudentPortalController', 'timetable']);
@@ -376,6 +390,7 @@ $router->get('/student/exams',              ['StudentPortalController', 'exams']
 $router->get('/student/exams/{id}/take',    ['StudentPortalController', 'takeExam']);
 $router->post('/student/exams/{id}/submit', ['StudentPortalController', 'submitExam']);
 $router->get('/student/exams/{id}/result',  ['StudentPortalController', 'examResult']);
+$router->get('/student/makeup-exams',       ['StudentPortalController', 'makeupExams']);
 $router->get('/student/fees',               ['StudentPortalController', 'fees']);
 $router->get('/student/receipts',           ['StudentPortalController', 'receipts']);
 $router->get('/student/receipts/{id}',      ['StudentPortalController', 'receipt']);

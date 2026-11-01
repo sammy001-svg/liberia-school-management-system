@@ -718,11 +718,33 @@ CREATE TABLE IF NOT EXISTS online_exams (
     starts_at DATETIME NOT NULL,
     ends_at DATETIME NOT NULL,
     status ENUM('draft','published') DEFAULT 'draft',
+    -- A 'makeup' exam is sat only by the students listed in makeup_exam_students;
+    -- a 'standard' one is open to the whole class.
+    exam_type ENUM('standard','makeup') NOT NULL DEFAULT 'standard',
+    missed_label VARCHAR(160) DEFAULT NULL,
+    missed_on DATE DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
     FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
     FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE SET NULL,
     FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL
+);
+
+-- Who may sit a make-up exam, and why they missed the original sitting.
+CREATE TABLE IF NOT EXISTS makeup_exam_students (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT UNSIGNED NOT NULL,
+    exam_id INT UNSIGNED NOT NULL,
+    student_id INT UNSIGNED NOT NULL,
+    reason VARCHAR(30) NOT NULL DEFAULT 'absent',
+    note VARCHAR(300) DEFAULT NULL,
+    approved_by INT UNSIGNED DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_makeup_sitting (exam_id, student_id),
+    KEY idx_makeup_student (tenant_id, student_id),
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+    FOREIGN KEY (exam_id) REFERENCES online_exams(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS online_exam_questions (

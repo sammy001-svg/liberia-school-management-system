@@ -4,6 +4,16 @@
     <div class="text-muted">Class: <?= htmlspecialchars($student['class_name'] ?? 'Not Assigned') ?></div>
 </div>
 
+<?php foreach (($pendingMakeups ?? []) as $mu): $open = strtotime($mu['starts_at']) <= time(); ?>
+<div class="card" style="padding:12px 16px;margin-bottom:14px;border-left:3px solid var(--amber);display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">
+  <div style="font-size:13px;">
+    <strong>Make-up exam:</strong> <?= htmlspecialchars($mu['title']) ?> —
+    <?= $open ? 'open until ' . date('M d, Y H:i', strtotime($mu['ends_at'])) : 'opens ' . date('M d, Y H:i', strtotime($mu['starts_at'])) ?>.
+  </div>
+  <a href="<?= $cfg['url'] ?>/student/<?= $open ? 'exams/' . (int)$mu['id'] . '/take' : 'makeup-exams' ?>" class="btn btn-sm btn-primary"><?= $open ? 'Sit it now' : 'View details' ?></a>
+</div>
+<?php endforeach; ?>
+
 <div class="stat-grid">
     <div class="stat-card">
         <div class="stat-label">Attendance Rate</div>
