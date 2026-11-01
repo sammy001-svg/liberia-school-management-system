@@ -4,8 +4,11 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <?php
-$cur   = htmlspecialchars($tenant['currency'] ?? '$');
-$money = fn($v) => $cur . ' ' . number_format((float)$v, 2);
+// Money is printed the way the finance module prints it (L$ / US$), not with whatever
+// text sits in the school's currency field.
+require_once ROOT_DIR . '/app/Services/Finance.php';
+$cur   = $finance['currency'] ?? (is_string($tenant['currency'] ?? null) && strlen((string)$tenant['currency']) === 3 ? $tenant['currency'] : 'LRD');
+$money = fn($v, $c = null) => Finance::money($v, $c ?: $cur);
 $hasFinance = !empty($finance);
 $totalStudents = $people['female'] + $people['male'] + $people['other'];
 // Breakdown dots cycle through the theme's accent palette.
@@ -166,11 +169,21 @@ $kpis = [
       <a href="<?= $cfg['url'] ?>/school/finance/fees-payment" class="btn btn-sm btn-success">Go to Fees Payment</a>
     </div>
     <div class="fig-grid">
-      <div class="fig" style="--fig:var(--success);" title="Fees <?= $money($finance['fee_income']) ?> + other income <?= $money($finance['other_income']) ?>">
-        <div class="fig-label">Total Income</div><div class="fig-value"><?= $money($finance['income']) ?></div></div>
-      <div class="fig" style="--fig:var(--danger);"><div class="fig-label">Expenses</div><div class="fig-value"><?= $money($finance['expenses']) ?></div></div>
+      <?php foreach (($finance['per_currency'] ?? [$cur => $finance]) as $fc => $f): $multi = count($finance['per_currency'] ?? []) > 1; ?>
+      <div class="fig" style="--fig:var(--success);" title="Fees <?= $money($f['fee_income'], $fc) ?> + other income <?= $money($f['other_income'], $fc) ?>">
+        <div class="fig-label">Total Income<?= $multi ? ' (' . htmlspecialchars($fc) . ')' : '' ?></div>
+        <div class="fig-value"><?= $money($f['income'], $fc) ?></div></div>
+      <div class="fig" style="--fig:var(--danger);"><div class="fig-label">Expenses<?= $multi ? ' (' . htmlspecialchars($fc) . ')' : '' ?></div>
+        <div class="fig-value"><?= $money($f['expenses'], $fc) ?></div></div>
+      <?php if ($multi): ?>
+        <div class="fig fig-wide" style="--fig:#3B82F6;"><div class="fig-label">Balance (<?= htmlspecialchars($fc) ?>)</div>
+          <div class="fig-value" style="<?= $f['balance'] < 0 ? 'color:var(--danger);' : '' ?>"><?= $money($f['balance'], $fc) ?></div></div>
+      <?php endif; ?>
+      <?php endforeach; ?>
+      <?php if (count($finance['per_currency'] ?? []) <= 1): ?>
       <div class="fig fig-wide" style="--fig:#3B82F6;"><div class="fig-label">Current Balance</div>
         <div class="fig-value" style="<?= $finance['balance'] < 0 ? 'color:var(--danger);' : '' ?>"><?= $money($finance['balance']) ?></div></div>
+      <?php endif; ?>
     </div>
     <div style="position:relative;flex:1;min-height:170px;margin-top:16px;"><canvas id="financeChart"></canvas></div>
   </div>

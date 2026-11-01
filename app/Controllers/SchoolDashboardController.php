@@ -170,11 +170,44 @@ class SchoolDashboardController extends Controller {
             try { return $this->db->fetchAll($sql, $p); } catch (\Throwable $e) { error_log($e->getMessage()); return []; }
         };
 
-        $feeIncome   = (float)($safeOne("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE tenant_id=? AND status='active' AND COALESCE(payment_date, DATE(paid_at)) BETWEEN ? AND ?", [$tid, $from, $to])['t'] ?? 0);
-        $otherIncome = (float)($safeOne("SELECT COALESCE(SUM(amount),0) t FROM incomes WHERE tenant_id=? AND status='active' AND income_date BETWEEN ? AND ?", [$tid, $from, $to])['t'] ?? 0);
-        $expenseRows = $safeAll("SELECT category, SUM(amount) total FROM expenses WHERE tenant_id=? AND status='active' AND expense_date BETWEEN ? AND ? GROUP BY category ORDER BY category", [$tid, $from, $to]);
-        $incomeRows  = $safeAll("SELECT category, SUM(amount) total FROM incomes WHERE tenant_id=? AND status='active' AND income_date BETWEEN ? AND ? GROUP BY category ORDER BY category", [$tid, $from, $to]);
-        $expenses = array_sum(array_map(fn($r) => (float)$r['total'], $expenseRows));
+        // A school can work in two currencies, so nothing is added across them: each
+        // currency carries its own income, expenses and balance.
+        require_once ROOT_DIR . '/app/Services/Finance.php';
+        $def = Finance::settings($this->db, (int)$tid)['default_currency'] ?: 'LRD';
+        $perCurrency = [];
+        $bucket = function (string $cur) use (&$perCurrency, $def): string {
+            $cur = $cur ?: $def;
+            $perCurrency[$cur] ??= ['fee_income' => 0.0, 'other_income' => 0.0, 'income' => 0.0, 'expenses' => 0.0, 'balance' => 0.0];
+            return $cur;
+        };
+        $bucket($def);
+        foreach ($safeAll("SELECT COALESCE(currency, ?) cur, COALESCE(SUM(amount),0) t FROM payments
+                           WHERE tenant_id=? AND status='active' AND COALESCE(payment_date, DATE(paid_at)) BETWEEN ? AND ? GROUP BY cur",
+                          [$def, $tid, $from, $to]) as $r) {
+            $perCurrency[$bucket($r['cur'])]['fee_income'] += (float)$r['t'];
+        }
+        foreach ($safeAll("SELECT COALESCE(currency, ?) cur, COALESCE(SUM(amount),0) t FROM incomes
+                           WHERE tenant_id=? AND status='active' AND income_date BETWEEN ? AND ? GROUP BY cur",
+                          [$def, $tid, $from, $to]) as $r) {
+            $perCurrency[$bucket($r['cur'])]['other_income'] += (float)$r['t'];
+        }
+        foreach ($safeAll("SELECT COALESCE(currency, ?) cur, COALESCE(SUM(amount),0) t FROM expenses
+                           WHERE tenant_id=? AND status='active' AND expense_date BETWEEN ? AND ? GROUP BY cur",
+                          [$def, $tid, $from, $to]) as $r) {
+            $perCurrency[$bucket($r['cur'])]['expenses'] += (float)$r['t'];
+        }
+        foreach ($perCurrency as $cur => $v) {
+            $perCurrency[$cur]['income']  = $v['fee_income'] + $v['other_income'];
+            $perCurrency[$cur]['balance'] = $v['fee_income'] + $v['other_income'] - $v['expenses'];
+        }
+        uksort($perCurrency, fn($a, $b) => ($a === $def ? -1 : 0) - ($b === $def ? -1 : 0));
+
+        // The breakdown cards below the figures stay in the school's main currency.
+        $feeIncome   = $perCurrency[$def]['fee_income'] ?? 0.0;
+        $otherIncome = $perCurrency[$def]['other_income'] ?? 0.0;
+        $expenseRows = $safeAll("SELECT category, SUM(amount) total FROM expenses WHERE tenant_id=? AND status='active' AND COALESCE(currency, ?)=? AND expense_date BETWEEN ? AND ? GROUP BY category ORDER BY category", [$tid, $def, $def, $from, $to]);
+        $incomeRows  = $safeAll("SELECT category, SUM(amount) total FROM incomes WHERE tenant_id=? AND status='active' AND COALESCE(currency, ?)=? AND income_date BETWEEN ? AND ? GROUP BY category ORDER BY category", [$tid, $def, $def, $from, $to]);
+        $expenses = $perCurrency[$def]['expenses'] ?? 0.0;
 
         // What families still owe: each active student's positive ledger balance.
         $owing = $safeOne(
@@ -188,6 +221,8 @@ class SchoolDashboardController extends Controller {
 
         return [
             'label'        => $label,
+            'currency'     => $def,
+            'per_currency' => $perCurrency,
             'fee_income'   => $feeIncome,
             'other_income' => $otherIncome,
             'income'       => $feeIncome + $otherIncome,
