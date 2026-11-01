@@ -165,8 +165,27 @@ $kpis = [
   <?php if ($hasFinance): ?>
   <div class="dash-card">
     <div class="dash-card-header">
-      <div><div class="dash-card-title">Finances</div><div class="dash-card-sub"><?= htmlspecialchars($finance['label']) ?></div></div>
-      <a href="<?= $cfg['url'] ?>/school/finance/fees-payment" class="btn btn-sm btn-success">Go to Fees Payment</a>
+      <div><div class="dash-card-title">Finances</div>
+        <div class="dash-card-sub">
+          <?= htmlspecialchars($finance['label']) ?>
+          <?php if (!empty($finance['from'])): ?>
+            · <?= date('d M Y', strtotime($finance['from'])) ?> to <?= date('d M Y', strtotime($finance['to'])) ?>
+          <?php endif; ?>
+        </div></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <?php if (count($finance['years'] ?? []) > 1): ?>
+        <form method="GET" action="<?= $cfg['url'] ?>/school/dashboard">
+          <select name="finyear" class="form-control" style="height:32px;padding:2px 8px;font-size:12.5px;" onchange="this.form.submit()" title="Which year's money to show">
+            <?php foreach ($finance['years'] as $y): ?>
+              <option value="<?= (int)$y['id'] ?>" <?= (int)$finance['year_id'] === (int)$y['id'] ? 'selected' : '' ?>>
+                <?= htmlspecialchars($y['name']) ?><?= (int)$y['is_current'] === 1 ? ' (current)' : '' ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+        </form>
+        <?php endif; ?>
+        <a href="<?= $cfg['url'] ?>/school/finance/fees-payment" class="btn btn-sm btn-success">Go to Fees Payment</a>
+      </div>
     </div>
     <div class="fig-grid">
       <?php foreach (($finance['per_currency'] ?? [$cur => $finance]) as $fc => $f): $multi = count($finance['per_currency'] ?? []) > 1; ?>
@@ -185,6 +204,28 @@ $kpis = [
         <div class="fig-value" style="<?= $finance['balance'] < 0 ? 'color:var(--danger);' : '' ?>"><?= $money($finance['balance']) ?></div></div>
       <?php endif; ?>
     </div>
+    <?php if (!empty($finance['elsewhere']['years']) || !empty($finance['elsewhere']['outside_any_year'])): ?>
+    <div style="margin-top:14px;padding:11px 13px;border-radius:8px;border-left:3px solid var(--warning);background:var(--surface-1);font-size:12.5px;line-height:1.7;">
+      Nothing was recorded inside <strong><?= htmlspecialchars($finance['label']) ?></strong>
+      (<?= date('d M Y', strtotime($finance['from'])) ?> to <?= date('d M Y', strtotime($finance['to'])) ?>), but the books are not empty:
+      <?php foreach (($finance['elsewhere']['years'] ?? []) as $ey): ?>
+        <br>· <strong><?= $money((float)$ey['total']) ?></strong> falls in
+        <a href="<?= $cfg['url'] ?>/school/dashboard?finyear=<?= (int)$ey['id'] ?>"><?= htmlspecialchars($ey['name']) ?></a>
+      <?php endforeach; ?>
+      <?php if (!empty($finance['elsewhere']['outside_any_year'])): ?>
+        <br>· <strong><?= $money((float)$finance['elsewhere']['outside_any_year']) ?></strong> is dated outside every academic year you have set up —
+        check the start and end dates under <a href="<?= $cfg['url'] ?>/school/academic-years">Academic Years</a>.
+      <?php endif; ?>
+    </div>
+    <?php endif; ?>
+    <?php if (!empty($finance['pending']['payments']) || !empty($finance['pending']['expenses'])): ?>
+    <div style="margin-top:12px;padding:11px 13px;border-radius:8px;border-left:3px solid var(--info);background:var(--surface-1);font-size:12.5px;line-height:1.7;">
+      Waiting for approval, so not counted above:
+      <?php if (!empty($finance['pending']['payments'])): ?><strong><?= (int)$finance['pending']['payments'] ?></strong> payment(s)<?php endif; ?>
+      <?= !empty($finance['pending']['payments']) && !empty($finance['pending']['expenses']) ? ' and ' : '' ?>
+      <?php if (!empty($finance['pending']['expenses'])): ?><strong><?= (int)$finance['pending']['expenses'] ?></strong> expense(s)<?php endif; ?>.
+    </div>
+    <?php endif; ?>
     <div style="position:relative;flex:1;min-height:170px;margin-top:16px;"><canvas id="financeChart"></canvas></div>
   </div>
 
@@ -217,9 +258,9 @@ $kpis = [
 <div class="dash-grid dash-three">
   <?php if ($hasFinance): ?>
     <?php foreach ([
-      ['School Fees', 'What has been collected, by bill', $finance['fee_rows'] ?? [], $finance['fee_income'], '/school/finance/fees-payment', 'Take a Payment', 'No fee payments recorded for this year yet.'],
-      ['Expenses', 'Expense breakdown', $finance['expense_rows'], $finance['expenses'], '/school/finance/expenses', 'Manage Expenses', 'No expenses recorded for this year yet.'],
-      ['Extra Collections', 'Other income (uniforms, cafeteria, books…)', $finance['income_rows'], $finance['other_income'], '/school/finance/collections', 'Manage Collections', 'No other income recorded for this year yet.'],
+      ['School Fees', 'What has been collected, by bill', $finance['fee_rows'] ?? [], $finance['fee_income'], '/school/finance/fees-payment', 'Take a Payment', 'No fee payments recorded for ' . $finance['label'] . '.'],
+      ['Expenses', 'Expense breakdown', $finance['expense_rows'], $finance['expenses'], '/school/finance/expenses', 'Manage Expenses', 'No expenses recorded for ' . $finance['label'] . '.'],
+      ['Extra Collections', 'Other income (uniforms, cafeteria, books…)', $finance['income_rows'], $finance['other_income'], '/school/finance/collections', 'Manage Collections', 'No other income recorded for ' . $finance['label'] . '.'],
     ] as $bi => [$title, $sub, $rows, $total, $link, $btn, $empty]): ?>
       <div class="dash-card">
         <div class="dash-card-header">
@@ -240,7 +281,12 @@ $kpis = [
             <?php endforeach; ?>
           </div>
         <?php else: ?>
-          <div class="empty-note"><?= $empty ?></div>
+          <div class="empty-note">
+            <?= $empty ?>
+            <?php if (!empty($finance['elsewhere']['years'])): ?>
+              <br><span style="font-size:11.5px;">There are entries under another year — use the year picker in the Finances card above.</span>
+            <?php endif; ?>
+          </div>
         <?php endif; ?>
       </div>
     <?php endforeach; ?>

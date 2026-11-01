@@ -157,7 +157,17 @@ class SchoolDashboardController extends Controller {
      * fee payments live only in `payments` (the ledger mirrors them), so nothing is counted twice.
      */
     private function financeSummary(?int $tid): array {
-        $year = $this->db->fetchOne("SELECT name, start_date, end_date FROM academic_years WHERE tenant_id=? AND is_current=1 LIMIT 1", [$tid]);
+        // Which year's money to show. The current year by default, but the school can
+        // look at any other from the picker - money recorded against an earlier year
+        // would otherwise simply be invisible here.
+        $years = $this->db->fetchAll(
+            "SELECT id, name, start_date, end_date, is_current FROM academic_years
+             WHERE tenant_id=? ORDER BY start_date DESC, id DESC", [$tid]);
+        $wanted = (int)($_GET['finyear'] ?? 0);
+        $year = null;
+        foreach ($years as $y) { if ($wanted && (int)$y['id'] === $wanted) { $year = $y; break; } }
+        if (!$year) { foreach ($years as $y) { if ((int)$y['is_current'] === 1) { $year = $y; break; } } }
+        if (!$year && $years) { $year = $years[0]; }
         [$from, $to, $label] = $year
             ? [$year['start_date'], $year['end_date'], $year['name']]
             : [date('Y-01-01'), date('Y-12-31'), date('Y')];
@@ -229,8 +239,54 @@ class SchoolDashboardController extends Controller {
             "SELECT COALESCE(SUM(amount_due - amount_paid - COALESCE(discount,0)),0) t FROM invoices
              WHERE tenant_id=? AND status IN ('unpaid','partial','overdue') AND due_date < CURDATE()", [$tid]);
 
+        // Nothing showing for this year does not mean nothing was entered. Look at the
+        // books as a whole so the dashboard can say where the money actually sits
+        // instead of leaving a blank card that reads like lost data.
+        $shown = ($perCurrency[$def]['fee_income'] ?? 0) + ($perCurrency[$def]['other_income'] ?? 0) + ($perCurrency[$def]['expenses'] ?? 0);
+        $elsewhere = [];
+        if ($shown <= 0.009) {
+            $allTime = $safeOne(
+                "SELECT
+                   (SELECT COALESCE(SUM(amount),0) FROM payments WHERE tenant_id=? AND status='active') AS fees,
+                   (SELECT COALESCE(SUM(amount),0) FROM incomes  WHERE tenant_id=? AND status='active') AS other,
+                   (SELECT COALESCE(SUM(amount),0) FROM expenses WHERE tenant_id=? AND status='active') AS spent",
+                [$tid, $tid, $tid]);
+            if (((float)($allTime['fees'] ?? 0) + (float)($allTime['other'] ?? 0) + (float)($allTime['spent'] ?? 0)) > 0.009) {
+                // Which years those entries fall into, by their own dates.
+                $elsewhere['years'] = $safeAll(
+                    "SELECT y.id, y.name, SUM(t.amt) AS total FROM academic_years y
+                     JOIN (
+                       SELECT COALESCE(payment_date, DATE(paid_at)) d, amount amt, tenant_id FROM payments WHERE status='active'
+                       UNION ALL SELECT income_date, amount, tenant_id FROM incomes WHERE status='active'
+                       UNION ALL SELECT expense_date, amount, tenant_id FROM expenses WHERE status='active'
+                     ) t ON t.tenant_id=y.tenant_id AND t.d BETWEEN y.start_date AND y.end_date
+                     WHERE y.tenant_id=? GROUP BY y.id, y.name HAVING total > 0 ORDER BY total DESC", [$tid]);
+                // Entries whose date falls in no academic year at all.
+                $orphan = $safeOne(
+                    "SELECT COALESCE(SUM(t.amt),0) total FROM (
+                       SELECT COALESCE(payment_date, DATE(paid_at)) d, amount amt, tenant_id FROM payments WHERE status='active'
+                       UNION ALL SELECT income_date, amount, tenant_id FROM incomes WHERE status='active'
+                       UNION ALL SELECT expense_date, amount, tenant_id FROM expenses WHERE status='active'
+                     ) t WHERE t.tenant_id=? AND NOT EXISTS (
+                       SELECT 1 FROM academic_years y WHERE y.tenant_id=t.tenant_id AND t.d BETWEEN y.start_date AND y.end_date)", [$tid]);
+                $elsewhere['outside_any_year'] = (float)($orphan['total'] ?? 0);
+            }
+        }
+        // Money entered but not yet approved never counts, and that is easy to miss.
+        $waiting = $safeOne(
+            "SELECT
+               (SELECT COUNT(*) FROM payments WHERE tenant_id=? AND status='pending') AS payments,
+               (SELECT COUNT(*) FROM expenses WHERE tenant_id=? AND status='pending') AS expenses",
+            [$tid, $tid]);
+
         return [
             'label'        => $label,
+            'year_id'      => (int)($year['id'] ?? 0),
+            'years'        => $years,
+            'from'         => $from,
+            'to'           => $to,
+            'elsewhere'    => $elsewhere,
+            'pending'      => ['payments' => (int)($waiting['payments'] ?? 0), 'expenses' => (int)($waiting['expenses'] ?? 0)],
             'currency'     => $def,
             'per_currency' => $perCurrency,
             'fee_income'   => $feeIncome,
