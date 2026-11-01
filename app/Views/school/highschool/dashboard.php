@@ -217,6 +217,7 @@ $kpis = [
 <div class="dash-grid dash-three">
   <?php if ($hasFinance): ?>
     <?php foreach ([
+      ['School Fees', 'What has been collected, by bill', $finance['fee_rows'] ?? [], $finance['fee_income'], '/school/finance/fees-payment', 'Take a Payment', 'No fee payments recorded for this year yet.'],
       ['Expenses', 'Expense breakdown', $finance['expense_rows'], $finance['expenses'], '/school/finance/expenses', 'Manage Expenses', 'No expenses recorded for this year yet.'],
       ['Extra Collections', 'Other income (uniforms, cafeteria, books…)', $finance['income_rows'], $finance['other_income'], '/school/finance/collections', 'Manage Collections', 'No other income recorded for this year yet.'],
     ] as $bi => [$title, $sub, $rows, $total, $link, $btn, $empty]): ?>
@@ -252,7 +253,10 @@ $kpis = [
       <?php require __DIR__ . '/partials/dashboard_announcements.php'; ?>
     </div>
   <?php endif; ?>
+</div>
 
+<!-- ROW 4: CALENDAR -->
+<div class="dash-grid dash-three">
   <div class="dash-card">
     <div class="dash-card-header">
       <div><div class="dash-card-title">Event Calendar</div><div class="dash-card-sub">Exams and announcements</div></div>

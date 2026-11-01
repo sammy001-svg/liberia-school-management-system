@@ -209,6 +209,16 @@ class SchoolDashboardController extends Controller {
         $incomeRows  = $safeAll("SELECT category, SUM(amount) total FROM incomes WHERE tenant_id=? AND status='active' AND COALESCE(currency, ?)=? AND income_date BETWEEN ? AND ? GROUP BY category ORDER BY category", [$tid, $def, $def, $from, $to]);
         $expenses = $perCurrency[$def]['expenses'] ?? 0.0;
 
+        // School fees broken down by bill, so the dashboard itemises the money the
+        // school actually collects instead of only showing expenses and other income.
+        $feeRows = $safeAll(
+            "SELECT COALESCE(i.description, fs.name, i.notes, i.invoice_no) AS category, SUM(p.amount) AS total
+             FROM payments p JOIN invoices i ON i.id=p.invoice_id
+             LEFT JOIN fee_structures fs ON fs.id=i.fee_structure_id
+             WHERE p.tenant_id=? AND p.status='active' AND COALESCE(p.currency, i.currency, ?)=?
+               AND COALESCE(p.payment_date, DATE(p.paid_at)) BETWEEN ? AND ?
+             GROUP BY category ORDER BY total DESC", [$tid, $def, $def, $from, $to]);
+
         // What families still owe: each active student's positive ledger balance.
         $owing = $safeOne(
             "SELECT COALESCE(SUM(b.balance),0) total, COUNT(*) students FROM (
@@ -229,6 +239,7 @@ class SchoolDashboardController extends Controller {
             'expenses'     => $expenses,
             'balance'      => $feeIncome + $otherIncome - $expenses,
             'expense_rows' => $expenseRows,
+            'fee_rows'     => $feeRows,
             'income_rows'  => $incomeRows,
             'owing'        => (float)($owing['total'] ?? 0),
             'owing_count'  => (int)($owing['students'] ?? 0),
