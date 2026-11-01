@@ -644,6 +644,22 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 .article-foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 44px; padding-top: 28px; border-top: 1px solid var(--line); }
 
+/* ── Sponsored students ────────────────────────────────────── */
+.sponsored-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 20px; }
+.sponsored-card { background: #fff; border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; text-align: center; transition: transform .35s var(--ease), box-shadow .35s; }
+.sponsored-card:hover { transform: translateY(-5px); box-shadow: var(--shadow); }
+.sponsored-photo { aspect-ratio: 1 / 1; background: linear-gradient(135deg, var(--plum-800), var(--plum-600)); display: flex; align-items: center; justify-content: center; }
+.sponsored-photo img { width: 100%; height: 100%; object-fit: cover; }
+.sponsored-initials { font-family: var(--font-display); font-size: 2.6rem; color: rgba(255,255,255,.9); }
+.sponsored-body { padding: 16px 16px 20px; }
+.sponsored-body h3 { font-family: var(--font-display); font-size: 1.1rem; margin: 0 0 4px; }
+.sponsored-class { display: block; font-size: 12.5px; color: var(--muted); }
+.sponsored-scheme { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--green-600); }
+.sponsored-scheme .wi { width: 14px; height: 14px; }
+.sponsored-note { margin-top: 26px; text-align: center; font-size: 13px; color: var(--muted); }
+.sponsored-empty { text-align: center; max-width: 620px; margin: 0 auto; }
+.scheme-strip { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; margin-top: 34px; font-size: 13px; color: var(--muted); }
+
 /* ── Clubs & sports ────────────────────────────────────────── */
 .club-heading { font-family: var(--font-display); font-size: 1.5rem; margin: 30px 0 16px; color: var(--plum-800); }
 .club-heading:first-of-type { margin-top: 8px; }

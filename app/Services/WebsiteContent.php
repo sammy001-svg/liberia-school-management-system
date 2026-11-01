@@ -488,6 +488,33 @@ class WebsiteContent {
                 ]),
             ],
 
+            'sponsorship' => [
+                'label' => 'Sponsorship', 'url' => '/sponsorship', 'icon' => '🤝',
+                'desc'  => 'The sponsorship page: how it works, and the children currently sponsored.',
+                'sections' => [
+                    'Page Banner' => [
+                        'sponsorship.hero_title' => ['title', 'Heading', 'Student *Sponsorship*'],
+                        'sponsorship.hero_lead'  => ['textarea', 'Text', 'A sponsorship carries a child through the school year — tuition, books and uniform — and keeps a seat filled in a classroom that would otherwise stand empty.'],
+                        'sponsorship.hero_image' => ['image', 'Banner photo', 'students-lineup.jpg'],
+                    ],
+                    'How It Works' => [
+                        'sponsorship.intro_title' => ['title', 'Heading', 'How a *sponsorship* works'],
+                        'sponsorship.intro_body'  => ['textarea', 'Text', "A sponsor meets all or part of a child's fees for the school year. The school bills the child as usual, records every payment the sponsor makes, and reports back on how the child is doing.\n\nSponsorships are arranged through our partner's secure site; the school never handles a sponsor's card details."],
+                        'sponsorship.steps' => ['list', 'Steps (Title | Description)', implode("\n", [
+                            'Choose a child or a fund | Sponsor a named child for the year, or give to the fund and let the school place it where the need is greatest.',
+                            'Give monthly or in full | Pay the year in one go, or spread it across the school year, whichever suits you.',
+                            'See where it goes | Every payment is recorded against that child\'s own fee account at the school.',
+                            'Hear how they are doing | The school reports each semester on the progress of the child you support.',
+                        ])],
+                    ],
+                    'Sponsored Students' => [
+                        'sponsorship.students_title' => ['title', 'Heading', 'Children currently *sponsored*'],
+                        'sponsorship.students_lead'  => ['textarea', 'Text', 'With their families\' permission, these are some of the children whose school year is being carried by a sponsor.'],
+                        'sponsorship.students_empty' => ['textarea', 'Text shown when no child is listed', 'The first sponsorships are being arranged now. Check back soon, or write to the school office to sponsor a child.'],
+                    ],
+                ],
+            ],
+
             'recognition' => [
                 'label' => 'Academic Recognition', 'url' => '/recognition', 'icon' => '🏅',
                 'desc'  => 'The honour board: best students and teachers of each period, semester and year.',

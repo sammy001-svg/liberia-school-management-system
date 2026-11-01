@@ -453,3 +453,4 @@ $router->get('/admissions',      ['WebsiteController', 'admissions']);
 $router->get('/academy-news',    ['WebsiteController', 'news']);
 $router->get('/academy-news/{id}', ['WebsiteController', 'newsPost']);
 $router->get('/recognition',     ['WebsiteController', 'recognition']);
+$router->get('/sponsorship',     ['WebsiteController', 'sponsorship']);

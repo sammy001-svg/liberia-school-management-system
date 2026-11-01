@@ -196,6 +196,33 @@ class WebsiteController extends Controller {
         ]);
     }
 
+    /**
+     * The public sponsorship page. Only children the school has ticked for the website
+     * are listed, and a child's photograph appears only where the family's media
+     * consent covers the website — child protection comes before publicity.
+     */
+    public function sponsorship(): void {
+        $tid = isset($this->tenant['id']) ? (int)$this->tenant['id'] : null;
+        $students = $tid ? WebsiteContent::rows($this->db,
+            "SELECT u.name, c.name AS class_name, sc.name AS scheme_name, sp.cover_type, sp.cover_value,
+                    CASE WHEN mc.allow_website = 1 THEN u.avatar ELSE NULL END AS photo
+             FROM sponsorships sp
+             JOIN sponsorship_schemes sc ON sc.id = sp.scheme_id
+             JOIN students s ON s.id = sp.student_id
+             JOIN users u ON u.id = s.user_id
+             LEFT JOIN classes c ON c.id = s.class_id
+             LEFT JOIN media_consents mc ON mc.student_id = s.id AND mc.tenant_id = sp.tenant_id
+             WHERE sp.tenant_id = ? AND sp.status = 'active' AND sp.show_on_website = 1
+               AND s.status = 'active'
+             ORDER BY sc.name, u.name", [$tid]) : [];
+        $schemes = $tid ? WebsiteContent::rows($this->db,
+            "SELECT name FROM sponsorship_schemes WHERE tenant_id=? AND is_active=1 ORDER BY name", [$tid]) : [];
+        $this->page('sponsorship', 'Student Sponsorship', 'Sponsor a child through the school year at CELDI Academy.', 'divisions', [
+            'sponsored' => $students,
+            'schemes'   => array_column($schemes, 'name'),
+        ]);
+    }
+
     /** The honour board: best students and teachers of each period, semester and year. */
     public function recognition(): void {
         $tid = isset($this->tenant['id']) ? (int)$this->tenant['id'] : null;

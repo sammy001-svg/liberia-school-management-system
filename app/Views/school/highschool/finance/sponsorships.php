@@ -71,11 +71,13 @@ $activeSchemes = array_values(array_filter($schemes, fn($s) => (int)$s['is_activ
                 <?php if (!$r['totals']): ?>—<?php endif; ?>
               </td>
             <?php endforeach; ?>
-            <td><span class="badge <?= $r['status'] === 'active' ? 'badge-success' : 'badge-muted' ?>"><?= ucfirst($r['status']) ?></span></td>
+            <td><span class="badge <?= $r['status'] === 'active' ? 'badge-success' : 'badge-muted' ?>"><?= ucfirst($r['status']) ?></span>
+              <?php if (!empty($r['show_on_website'])): ?><div><span class="badge badge-info" style="margin-top:4px;">On website</span></div><?php endif; ?></td>
             <td style="display:flex;gap:6px;">
               <button type="button" class="btn btn-sm btn-outline" onclick='sponsorModal(<?= json_encode([
                 'scheme_id' => (int)$r['scheme_id'], 'student_id' => (int)$r['student_id'], 'cover_type' => $r['cover_type'],
                 'cover_value' => (float)$r['cover_value'], 'currency' => $r['currency'], 'reference' => $r['reference'], 'notes' => $r['notes'],
+                'show_on_website' => (int)($r['show_on_website'] ?? 0),
               ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'>Edit</button>
               <?php if ($r['status'] === 'active'): ?>
               <form method="POST" action="<?= $base ?>/sponsorships/<?= (int)$r['id'] ?>/end" data-confirm="End <?= htmlspecialchars($r['student_name']) ?>'s sponsorship under <?= htmlspecialchars($r['scheme_name']) ?>? Money already received stays on record." data-confirm-title="End Sponsorship" data-confirm-label="End">
@@ -131,6 +133,14 @@ $activeSchemes = array_values(array_filter($schemes, fn($s) => (int)$s['is_activ
           <div class="form-group"><label class="form-label">Sponsor's reference</label><input type="text" name="reference" id="sp_ref" class="form-control" placeholder="Child ID with the sponsor, if any"></div>
           <div class="form-group"><label class="form-label">Note</label><input type="text" name="notes" id="sp_notes" class="form-control"></div>
         </div>
+        <div class="form-group">
+          <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;">
+            <input type="checkbox" name="show_on_website" id="sp_web" value="1" style="margin-top:3px;">
+            <span>Show this child on the public Sponsorship page
+              <span style="display:block;font-size:11.5px;color:var(--text-muted);">Their photograph only appears if the family's photo consent covers the website.</span>
+            </span>
+          </label>
+        </div>
         <div class="form-hint">The child keeps their normal bills. When the scheme sends money, record it on Fees Payment and choose the scheme under "Received from".</div>
       </div>
       <div class="modal-footer">
@@ -185,6 +195,7 @@ function sponsorModal(s) {
     document.getElementById('sp_value').value = s.cover_type === 'full' ? '' : s.cover_value;
     document.getElementById('sp_ref').value = s.reference || '';
     document.getElementById('sp_notes').value = s.notes || '';
+    document.getElementById('sp_web').checked = Number(s.show_on_website) === 1;
   }
   coverFields();
   document.getElementById('sponsorModal').classList.add('open');

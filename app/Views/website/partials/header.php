@@ -64,6 +64,7 @@ $nav = [
         ['label' => 'Elementary', 'href' => $url('elementary'), 'desc' => 'Grades 1 – 6'],
         ['label' => 'Junior High', 'href' => $url('junior-high'), 'desc' => 'Grades 7 – 9'],
         ['label' => 'Senior High', 'href' => $url('senior-high'), 'desc' => 'Grades 10 – 12'],
+        ['label' => 'Sponsorship', 'href' => $url('sponsorship'), 'desc' => 'Sponsor a child through school'],
     ]],
     ['key' => 'admissions', 'label' => 'Admissions', 'href' => $url('admissions')],
     ['key' => 'news', 'label' => 'News & Events', 'href' => $url('academy-news'), 'children' => [

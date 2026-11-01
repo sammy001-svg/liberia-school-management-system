@@ -82,6 +82,14 @@ abstract class Controller {
                 $this->db->execute("ALTER TABLE classes ADD COLUMN description TEXT DEFAULT NULL");
             }
 
+            // Whether a sponsored child may be shown on the public sponsorship page.
+            try {
+                $sp = array_column($this->db->fetchAll("SHOW COLUMNS FROM sponsorships"), 'Field');
+                if ($sp && !in_array('show_on_website', $sp, true)) {
+                    $this->db->execute("ALTER TABLE sponsorships ADD COLUMN show_on_website TINYINT(1) NOT NULL DEFAULT 0");
+                }
+            } catch (\Throwable $e) {}
+
             // Award voting: one poll per award and period, its candidates, and one
             // vote per person.
             $this->db->execute("CREATE TABLE IF NOT EXISTS award_polls (

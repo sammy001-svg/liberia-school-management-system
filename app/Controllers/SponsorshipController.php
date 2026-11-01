@@ -95,15 +95,17 @@ class SponsorshipController extends FinanceBaseController {
 
         $existing = $this->db->fetchOne("SELECT id FROM sponsorships WHERE scheme_id=? AND student_id=? AND academic_year_id=?", [$schemeId, $studentId, $yearId]);
         if ($existing) {
-            $this->db->execute("UPDATE sponsorships SET cover_type=?, cover_value=?, currency=?, reference=?, notes=?, status='active', ended_at=NULL, end_reason=NULL WHERE id=?",
-                [$type, $value, $currency, trim((string)($_POST['reference'] ?? '')) ?: null, mb_substr(trim((string)($_POST['notes'] ?? '')), 0, 500) ?: null, $existing['id']]);
+            $this->db->execute("UPDATE sponsorships SET cover_type=?, cover_value=?, currency=?, reference=?, notes=?, show_on_website=?, status='active', ended_at=NULL, end_reason=NULL WHERE id=?",
+                [$type, $value, $currency, trim((string)($_POST['reference'] ?? '')) ?: null, mb_substr(trim((string)($_POST['notes'] ?? '')), 0, 500) ?: null,
+                 empty($_POST['show_on_website']) ? 0 : 1, $existing['id']]);
             $this->flash('success', "{$student['name']}'s sponsorship under {$scheme['name']} was updated.");
         } else {
             $this->db->insert(
-                "INSERT INTO sponsorships (tenant_id,scheme_id,student_id,academic_year_id,cover_type,cover_value,currency,reference,notes,created_by)
-                 VALUES (?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO sponsorships (tenant_id,scheme_id,student_id,academic_year_id,cover_type,cover_value,currency,reference,notes,show_on_website,created_by)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                 [$this->tid, $schemeId, $studentId, $yearId, $type, $value, $currency,
-                 trim((string)($_POST['reference'] ?? '')) ?: null, mb_substr(trim((string)($_POST['notes'] ?? '')), 0, 500) ?: null, $_SESSION['user_id'] ?? null]);
+                 trim((string)($_POST['reference'] ?? '')) ?: null, mb_substr(trim((string)($_POST['notes'] ?? '')), 0, 500) ?: null,
+                 empty($_POST['show_on_website']) ? 0 : 1, $_SESSION['user_id'] ?? null]);
             $this->flash('success', "{$student['name']} is now sponsored by {$scheme['name']}.");
         }
         $this->redirect($back);
