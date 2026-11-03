@@ -22,10 +22,10 @@ $letterStyle   = !empty($card['letterStyle']);
 $promotion     = $card['promotion']     ?? null;
 $sponsorName   = $card['sponsorName']   ?? null;
 
-// Scores below the "Concert Not Understood" band print in red on the school's
-// cards; everything at or above it is blue. Single threshold so it is one edit
+// The school's pass mark. A mark of 69 or below is a fail and prints in red;
+// 70 and above is a pass and prints in blue. Single threshold so it is one edit
 // if the school ever moves the line.
-$RED_BELOW = 72;
+$PASS_MARK = 70;
 
 $gradeLabel = strtoupper($class['name'] ?? $class['grade_level'] ?? '');
 $yearLabel  = $year['name'] ?? '';
@@ -44,12 +44,21 @@ $labelOf = [];
 foreach ($columns as $c) { $labelOf[$c['key']] = $c['label']; }
 
 /** Renders one <td> for a grid cell. */
-$cell = function (?float $v, string $key) use ($fmt, $RED_BELOW) {
+$cell = function (?float $v, string $key) use ($fmt, $PASS_MARK) {
     $cls = 'score';
-    if ($v !== null && $v < $RED_BELOW) { $cls .= ' low'; }
+    if ($v !== null && $v < $PASS_MARK) { $cls .= ' low'; }
     if ($key === 's1' || $key === 's2') { $cls .= ' semave'; }
     if ($key === 'yr') { $cls .= ' yearly'; }
     return '<td class="' . $cls . '">' . htmlspecialchars($fmt($v)) . '</td>';
+};
+
+/**
+ * The student's own average for a column, coloured by the same pass mark —
+ * it is their mark, so it reads pass or fail exactly as the subject rows do.
+ */
+$avgCell = function (?float $v) use ($fmt, $PASS_MARK) {
+    $cls = 'score' . ($v !== null && $v < $PASS_MARK ? ' low' : '');
+    return '<td class="' . $cls . '">' . htmlspecialchars($fmt($v, true)) . '</td>';
 };
 ?>
 
@@ -179,11 +188,11 @@ $cell = function (?float $v, string $key) use ($fmt, $RED_BELOW) {
       </tr>
       <tr class="foot">
         <td class="subj">Average</td>
-        <?php foreach ($sem1 as $k): ?><td><?= htmlspecialchars($fmt($columnAverage[$k] ?? null, true)) ?></td><?php endforeach; ?>
+        <?php foreach ($sem1 as $k) { echo $avgCell($columnAverage[$k] ?? null); } ?>
         <td class="gap"></td>
-        <?php foreach ($sem2 as $k): ?><td><?= htmlspecialchars($fmt($columnAverage[$k] ?? null, true)) ?></td><?php endforeach; ?>
+        <?php foreach ($sem2 as $k) { echo $avgCell($columnAverage[$k] ?? null); } ?>
         <td class="gap"></td>
-        <td><?= htmlspecialchars($fmt($columnAverage['yr'] ?? null, true)) ?></td>
+        <?= $avgCell($columnAverage['yr'] ?? null) ?>
       </tr>
       <tr class="foot">
         <td class="subj">Class Rank</td>
@@ -206,6 +215,10 @@ $cell = function (?float $v, string $key) use ($fmt, $RED_BELOW) {
       <?php foreach ($scale as $i => $b): ?>
         <span><?= (int)$b['min'] ?> - <?= (int)$b['max'] ?> = <?= htmlspecialchars($b['label']) ?> (<?= $b['letter'] ?>)</span><?php if ($i === 2): ?><br><?php endif; ?>
       <?php endforeach; ?>
+    </div>
+    <div class="passkey">
+      <b class="pass">Blue</b> = pass (<?= (int)$PASS_MARK ?> and above) &nbsp;·&nbsp;
+      <b class="fail">Red</b> = fail (<?= (int)$PASS_MARK - 1 ?> and below)
     </div>
   </div>
 </div>

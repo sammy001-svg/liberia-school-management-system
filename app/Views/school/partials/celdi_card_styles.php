@@ -64,8 +64,12 @@
      detached Yearly column. A borderless spacer column reproduces that gap while
      keeping every row in a single table, so subject rows can never drift apart. */
   table.grid .gap { border:none; width:14px; }
+  /* Pass marks (70 and above) print blue; fails (69 and below) print red. */
   table.grid .score { color:#1d4ed8; }
   table.grid .score.low { color:#dc2626; }
+  .method .passkey { margin-top:4px; font-size:10px; }
+  .method .passkey b.pass { color:#1d4ed8; }
+  .method .passkey b.fail { color:#dc2626; }
   table.grid .semave, table.grid .yearly { font-weight:700; }
   table.grid tr.foot td { font-weight:700; }
   table.grid tr.foot td.subj { text-align:left; }
@@ -76,6 +80,9 @@
   .method .bands span { margin:0 12px; white-space:nowrap; }
 
   @media print {
+    /* The pass/fail colours carry meaning on this card, so they must survive
+       printing rather than being dropped to black by the browser. */
+    * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     body { background:#fff; padding:0; gap:0; display:block; }
     .toolbar, .notice { display:none; }
     .sheet { box-shadow:none; width:auto; min-height:auto; padding:0.3in 0.35in; page-break-after:always; }
