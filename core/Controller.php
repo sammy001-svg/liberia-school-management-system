@@ -1005,6 +1005,19 @@ abstract class Controller {
     ];
 
     /**
+     * A cache-busting version for a file under /public, taken from when the file
+     * was last changed. Browsers hold on to a stylesheet for a long time, so a
+     * link without one keeps serving yesterday's CSS after a deploy — new rules
+     * silently do nothing. Using the modification time means every edit
+     * invalidates the cache on its own, with nothing to remember to bump.
+     */
+    public static function assetVersion(string $publicPath): string {
+        $file = dirname(__DIR__) . '/public/' . ltrim($publicPath, '/');
+        $t = @filemtime($file);
+        return $t ? (string)$t : '1';
+    }
+
+    /**
      * The school's pass mark. A mark of 69 or below is a fail; 70 and above is a
      * pass. Every screen that prints a mark colours it from this one number, so
      * moving the line is a single edit here.

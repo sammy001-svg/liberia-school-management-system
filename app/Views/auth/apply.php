@@ -15,7 +15,7 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
 <title><?= htmlspecialchars($pageTitle ?? 'Online Application') ?> — <?= htmlspecialchars($appName) ?></title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<?= rawurlencode($faviconSvg) ?>">
 <script>(function(){try{if(localStorage.getItem('theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
-<link rel="stylesheet" href="<?= $cfg['url'] ?>/assets/css/style.css">
+<link rel="stylesheet" href="<?= $cfg['url'] ?>/assets/css/style.css?v=<?= Controller::assetVersion('assets/css/style.css') ?>">
 <?php if ($primaryColor): ?>
 <style>
   :root {

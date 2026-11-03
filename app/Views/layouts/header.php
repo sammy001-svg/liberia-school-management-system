@@ -35,7 +35,7 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
 <meta property="twitter:image" content="<?= htmlspecialchars($pageImage ?? ($base . '/assets/img/og-image.jpg')) ?>">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<?= rawurlencode($faviconSvg) ?>">
 <script>(function(){try{if(localStorage.getItem('theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
-<link rel="stylesheet" href="<?= $base ?>/assets/css/style.css">
+<link rel="stylesheet" href="<?= $base ?>/assets/css/style.css?v=<?= Controller::assetVersion('assets/css/style.css') ?>">
 <?php if (!empty($branding['primary_color'])):
   // The school's colour fills buttons and bars, but as *text* it has to be readable on the
   // dark surfaces too — a near-black or near-white brand colour would otherwise vanish.

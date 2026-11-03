@@ -31,7 +31,7 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>404 Not Found</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<?= rawurlencode($faviconSvg) ?>">
-<link rel="stylesheet" href="<?= $base ?>/assets/css/style.css">
+<link rel="stylesheet" href="<?= $base ?>/assets/css/style.css?v=<?= Controller::assetVersion('assets/css/style.css') ?>">
 </head>
 <body>
 <div class="login-page">

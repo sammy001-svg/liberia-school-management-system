@@ -30,7 +30,7 @@ $faviconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><re
 <meta property="twitter:image" content="<?= htmlspecialchars($pageImage ?? ($cfg['url'] . '/assets/img/og-image.jpg')) ?>">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<?= rawurlencode($faviconSvg) ?>">
 <script>(function(){try{if(localStorage.getItem('theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
-<link rel="stylesheet" href="<?= $cfg['url'] ?>/assets/css/style.css">
+<link rel="stylesheet" href="<?= $cfg['url'] ?>/assets/css/style.css?v=<?= Controller::assetVersion('assets/css/style.css') ?>">
 <style>
   .login-tabs { display:flex; gap:4px; margin-bottom:20px; border-bottom:1px solid var(--border); }
   .login-tab { flex:1; padding:10px 4px; background:none; border:none; border-bottom:2px solid transparent; color:var(--text-muted); font-size:13px; font-weight:600; cursor:pointer; }

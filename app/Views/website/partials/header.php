@@ -72,7 +72,9 @@ $nav = [
         ['label' => 'Academic Recognition', 'href' => $url('recognition'), 'desc' => 'Best students and teachers of the period'],
     ]],
 ];
-$assetVer = '5';
+// Taken from the file itself, so an edit to site.css reaches visitors
+// without anyone remembering to bump a number here.
+$assetVer = Controller::assetVersion('assets/website/site.css');
 ?>
 <!DOCTYPE html>
 <html lang="en">
