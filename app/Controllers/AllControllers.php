@@ -226,6 +226,16 @@ class GradeController extends Controller {
         // Once a class is chosen, offer only that class's exams — otherwise a teacher
         // can file marks against another class's marking period, which then never
         // appears on the report card. Report-card slots sort first, in card order.
+        // Coming back to this screen from the menu carries no class or exam, which
+        // used to open a blank sheet and make saved marks look lost. Fall back to
+        // the last sheet this person worked on so they land where they left off.
+        $remembered = $_SESSION['grades_last_sheet'] ?? [];
+        if (!isset($_GET['class_id']) && !empty($remembered['class_id'])) {
+            $_GET['class_id'] = $remembered['class_id'];
+            if (!isset($_GET['exam_id']) && !empty($remembered['exam_id'])) {
+                $_GET['exam_id'] = $remembered['exam_id'];
+            }
+        }
         $selectedClass = $_GET['class_id'] ?? '';
         $exams = $selectedClass
             ? $this->db->fetchAll(
@@ -234,7 +244,7 @@ class GradeController extends Controller {
                  ORDER BY report_column IS NULL, FIELD(report_column,'p1','p2','p3','e1','p4','p5','p6','e2'), name",
                 [$this->tid, $selectedClass])
             : $this->db->fetchAll("SELECT id, name, report_column FROM exams WHERE tenant_id=? ORDER BY name", [$this->tid]);
-        $students = []; $courses = []; $existingGrades = [];
+        $students = []; $courses = []; $existingGrades = []; $recordedCount = 0;
         $selectedExam = $_GET['exam_id'] ?? '';
         if (!empty($_GET['class_id'])) {
             $students = $this->db->fetchAll("SELECT s.id,u.name FROM students s JOIN users u ON s.user_id=u.id WHERE s.class_id=? AND s.tenant_id=? AND s.status='active' ORDER BY u.name",[$_GET['class_id'],$this->tid]);
@@ -248,14 +258,25 @@ class GradeController extends Controller {
             // there instead of blank cells — needed now that a Teacher without grades.edit can no
             // longer silently overwrite them (see store()).
             $rows = $this->db->fetchAll(
-                "SELECT student_id, course_id, marks_obtained FROM grades WHERE tenant_id=? AND exam_id <=> ?",
-                [$this->tid, $selectedExam ?: null]
+                "SELECT g.student_id, g.course_id, g.marks_obtained
+                 FROM grades g JOIN students st ON st.id=g.student_id
+                 WHERE g.tenant_id=? AND g.exam_id <=> ? AND st.class_id=?",
+                [$this->tid, $selectedExam ?: null, $_GET['class_id']]
             );
             foreach ($rows as $r) { $existingGrades[$r['student_id']][$r['course_id']] = $r['marks_obtained']; }
+
+            // Worth saying out loud: a teacher who has just saved needs to see that
+            // the marks are in, not infer it from boxes that look the same either way.
+            $recordedCount = count($rows);
+
+            if ($selectedExam) {
+                $_SESSION['grades_last_sheet'] = ['class_id' => $_GET['class_id'], 'exam_id' => $selectedExam];
+            }
         }
         $this->view('school/highschool/grades/enter', [
             'pageTitle'=>'Enter Grades','panelType'=>'school','classes'=>$classes,'exams'=>$exams,'students'=>$students,'courses'=>$courses,
             'selectedClass'=>$_GET['class_id']??'','selectedExam'=>$selectedExam,'existingGrades'=>$existingGrades,
+            'recordedCount'=>$recordedCount,
             'canEditGrades'=>$this->canEditGrades(),'flash'=>$this->getFlash(),
         ]);
     }
@@ -290,12 +311,24 @@ class GradeController extends Controller {
                 }
             }
         }
+        // Back to the sheet that was just filled in, not to the exam list: the
+        // teacher sees their own marks sitting in the boxes, which is the only
+        // confirmation that actually reassures anyone.
+        $classId = $_POST['class_id'] ?? ($_SESSION['grades_last_sheet']['class_id'] ?? '');
+        $back = '/school/grades/enter';
+        if ($classId !== '') {
+            $back .= '?class_id=' . urlencode((string)$classId)
+                  . ($examId ? '&exam_id=' . urlencode((string)$examId) : '');
+            $_SESSION['grades_last_sheet'] = ['class_id' => $classId, 'exam_id' => $examId];
+        }
+
+        $saved = count($_POST['grades'] ?? [], COUNT_RECURSIVE) - count($_POST['grades'] ?? []);
         if ($skipped > 0) {
             $this->flash('warning', "Grades saved. {$skipped} already-recorded grade(s) were left unchanged — only a School Admin can overwrite an existing grade.");
         } else {
-            $this->flash('success','Grades saved.');
+            $this->flash('success', 'Grades saved. They are shown below — reopen this class and exam any time to see or change them.');
         }
-        $this->redirect('/school/grades');
+        $this->redirect($back);
     }
 
     // Default names for the eight recordable slots. The card itself prints the

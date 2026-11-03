@@ -3,7 +3,12 @@
   <a href="<?= $cfg['url'] ?>/school/grades">Grades &amp; Exams</a>
   <span>/</span><span>Enter Grades</span>
 </div>
-<div class="page-header"><div class="page-header-title">Enter Grades</div></div>
+<div class="page-header">
+  <div>
+    <div class="page-header-title">Enter Grades</div>
+    <div class="page-header-sub">Pick a class and the exam or marking period, then type the marks. Saved marks stay on this sheet — come back to the same class and exam to see them.</div>
+  </div>
+</div>
 <form method="GET" class="card" style="padding:16px 20px;margin-bottom:20px;">
   <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
     <select name="class_id" class="form-control" style="max-width:220px;">
@@ -18,12 +23,19 @@
   </div>
 </form>
 <?php if (!empty($students)): ?>
+<?php if (!empty($recordedCount)): ?>
+<div class="alert alert-success" style="margin-bottom:16px;">
+  <strong><?= (int)$recordedCount ?></strong> mark<?= $recordedCount === 1 ? ' is' : 's are' ?> already recorded on this sheet and shown in the boxes below.
+  They stay here — reopen this class and exam any time to see or change them.
+</div>
+<?php endif; ?>
 <?php if(!$canEditGrades): ?>
 <div class="alert alert-info" style="margin-bottom:16px;">Cells with an existing grade are locked — only a School Admin can change a grade once it's recorded. You can still enter marks for anything left blank.</div>
 <?php endif; ?>
 <form method="POST" action="<?= $cfg['url'] ?>/school/grades/store">
   <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
   <input type="hidden" name="exam_id" value="<?= htmlspecialchars($selectedExam) ?>">
+  <input type="hidden" name="class_id" value="<?= htmlspecialchars($selectedClass) ?>">
   <div class="card">
     <div class="card-header">
       <div>
