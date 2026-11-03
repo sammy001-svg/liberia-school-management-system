@@ -1005,6 +1005,29 @@ abstract class Controller {
     ];
 
     /**
+     * The school's pass mark. A mark of 69 or below is a fail; 70 and above is a
+     * pass. Every screen that prints a mark colours it from this one number, so
+     * moving the line is a single edit here.
+     */
+    public const PASS_MARK = 70;
+
+    /**
+     * The CSS class for a mark, as a percentage: 'mark-fail' below the pass mark,
+     * 'mark-pass' at or above it, and '' when there is no mark to colour.
+     * The two classes are defined once in style.css.
+     */
+    public static function markClass(?float $percent): string {
+        if ($percent === null) { return ''; }
+        return $percent < self::PASS_MARK ? 'mark-fail' : 'mark-pass';
+    }
+
+    /** The same decision as a percentage worked out from a score over a total. */
+    public static function markClassOf(?float $obtained, ?float $total): string {
+        if ($obtained === null || !$total) { return ''; }
+        return self::markClass((float)$obtained / (float)$total * 100);
+    }
+
+    /**
      * The school's grading scale, printed verbatim in the METHOD OF GRADING footer.
      *
      * The wording is the school's own, typos included ("Imporving", "Concert Not

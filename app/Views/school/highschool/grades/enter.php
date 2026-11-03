@@ -26,7 +26,13 @@
   <input type="hidden" name="exam_id" value="<?= htmlspecialchars($selectedExam) ?>">
   <div class="card">
     <div class="card-header">
-      <div class="card-title">Enter Marks (out of 100) — <?= count($students) ?> students</div>
+      <div>
+        <div class="card-title">Enter Marks (out of 100) — <?= count($students) ?> students</div>
+        <div style="font-size:11.5px;color:var(--text-muted);margin-top:3px;">
+          <span class="mark-pass">Blue</span> = pass (<?= Controller::PASS_MARK ?> and above) ·
+          <span class="mark-fail">Red</span> = fail (<?= Controller::PASS_MARK - 1 ?> and below)
+        </div>
+      </div>
       <button type="submit" class="btn btn-sm btn-primary">Save Grades</button>
     </div>
     <?php if(empty($courses)): ?>
@@ -56,18 +62,26 @@
   </div>
 </form>
 <script>
-document.querySelectorAll('.mark-input').forEach(function(input){
-  input.addEventListener('input', function(){
-    const v = parseFloat(this.value);
-    this.style.color = '';
-    this.style.borderColor = '';
-    if (!isNaN(v)) {
-      if (v < 40) { this.style.color = 'var(--danger)'; this.style.borderColor = 'var(--danger)'; }
-      else if (v < 60) { this.style.color = 'var(--warning)'; this.style.borderColor = 'var(--warning)'; }
-      else { this.style.color = 'var(--success)'; this.style.borderColor = 'var(--success)'; }
-    }
+// Marks on this sheet are out of 100, so the pass mark applies to the figure as
+// typed. A fail reads red and a pass reads blue, the same as on the report card,
+// and marks already recorded are coloured as soon as the sheet opens - not only
+// while someone is typing.
+(function () {
+  const PASS = <?= (int)Controller::PASS_MARK ?>;
+  function paint(input) {
+    const v = parseFloat(input.value);
+    input.classList.remove('mark-pass', 'mark-fail');
+    input.style.borderColor = '';
+    if (isNaN(v)) { return; }
+    const fail = v < PASS;
+    input.classList.add(fail ? 'mark-fail' : 'mark-pass');
+    input.style.borderColor = fail ? '#F87171' : '#60A5FA';
+  }
+  document.querySelectorAll('.mark-input').forEach(function (input) {
+    paint(input);
+    input.addEventListener('input', function () { paint(this); });
   });
-});
+})();
 </script>
 <?php else: ?>
 <div class="card"><div class="empty-state">

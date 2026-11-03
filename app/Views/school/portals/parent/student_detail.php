@@ -91,8 +91,9 @@
                     <tr>
                         <td class="fw-600"><?= htmlspecialchars($g['course_name']) ?></td>
                         <td><?= htmlspecialchars($g['exam_name']) ?></td>
-                        <td><?= $g['marks_obtained'] ?> / <?= $g['total_marks'] ?></td>
-                        <td><span class="badge badge-primary"><?= $g['grade_letter'] ?></span></td>
+                        <?php $mk = Controller::markClassOf((float)$g['marks_obtained'], (float)$g['total_marks']); ?>
+                        <td class="<?= $mk ?>"><?= $g['marks_obtained'] ?> / <?= $g['total_marks'] ?></td>
+                        <td><span class="badge <?= $mk ?>"><?= $g['grade_letter'] ?></span></td>
                     </tr>
                     <?php endforeach; ?>
                     <?php if(empty($grades)): ?>

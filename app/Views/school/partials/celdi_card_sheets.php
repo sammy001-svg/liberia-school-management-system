@@ -22,10 +22,9 @@ $letterStyle   = !empty($card['letterStyle']);
 $promotion     = $card['promotion']     ?? null;
 $sponsorName   = $card['sponsorName']   ?? null;
 
-// The school's pass mark. A mark of 69 or below is a fail and prints in red;
-// 70 and above is a pass and prints in blue. Single threshold so it is one edit
-// if the school ever moves the line.
-$PASS_MARK = 70;
+// The school's pass mark: 69 and below prints red, 70 and above prints blue.
+// Held on the base controller so this card and every on-screen mark agree.
+$PASS_MARK = Controller::PASS_MARK;
 
 $gradeLabel = strtoupper($class['name'] ?? $class['grade_level'] ?? '');
 $yearLabel  = $year['name'] ?? '';

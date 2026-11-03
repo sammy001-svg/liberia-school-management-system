@@ -77,7 +77,7 @@
           </td>
           <td style="font-family:monospace;font-size:12px"><?= htmlspecialchars($r['admission_no']) ?></td>
           <td><?= htmlspecialchars($r['class_name'] ?? '—') ?></td>
-          <td><span class="badge badge-<?= $r['score'] >= 70 ? 'success' : ($r['score'] >= 50 ? 'warning' : 'danger') ?>"><?= number_format($r['score'],1) ?>%</span></td>
+          <td><span class="badge <?= Controller::markClass((float)$r['score']) ?>"><?= number_format($r['score'],1) ?>%</span></td>
           <td class="text-muted"><?= $r['group_size'] ?? '—' ?></td>
         </tr>
         <?php endforeach; ?>

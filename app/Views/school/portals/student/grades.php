@@ -18,9 +18,10 @@
                 <tr>
                     <td class="fw-600"><?= htmlspecialchars($g['course_name']) ?></td>
                     <td><?= htmlspecialchars($g['exam_name']) ?></td>
-                    <td class="fw-700"><?= $g['marks_obtained'] ?></td>
+                    <?php $mk = Controller::markClassOf((float)$g['marks_obtained'], (float)$g['total_marks']); ?>
+                    <td class="fw-700 <?= $mk ?>"><?= $g['marks_obtained'] ?></td>
                     <td><?= $g['total_marks'] ?></td>
-                    <td><span class="badge badge-primary"><?= $g['grade_letter'] ?></span></td>
+                    <td><span class="badge <?= $mk ?>"><?= $g['grade_letter'] ?></span></td>
                     <td class="text-muted" style="font-size:12px;"><?= htmlspecialchars($g['remarks']) ?></td>
                 </tr>
                 <?php endforeach; ?>

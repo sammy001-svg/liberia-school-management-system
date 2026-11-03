@@ -483,6 +483,18 @@ textarea.form-control { resize: vertical; min-height: 100px; }
   font-weight: 700;
   letter-spacing: 0.3px;
 }
+/* A mark on any screen: a fail (below the pass mark) reads red, a pass reads
+   blue. Light enough to stay legible on the dark theme, and redefined for the
+   light theme below so both keep their contrast. */
+.mark-pass { color: #60A5FA; font-weight: 600; }
+.mark-fail { color: #F87171; font-weight: 600; }
+:root[data-theme="light"] .mark-pass { color: #1D4ED8; }
+:root[data-theme="light"] .mark-fail { color: #DC2626; }
+.badge.mark-pass { background: rgba(59,130,246,0.15); color: #60A5FA; }
+.badge.mark-fail { background: rgba(239,68,68,0.15);  color: #F87171; }
+:root[data-theme="light"] .badge.mark-pass { background: rgba(29,78,216,0.12); color: #1D4ED8; }
+:root[data-theme="light"] .badge.mark-fail { background: rgba(220,38,38,0.12); color: #DC2626; }
+
 .badge-success { background: rgba(16,185,129,0.15); color: #10B981; }
 .badge-danger  { background: rgba(239,68,68,0.15);  color: #EF4444; }
 .badge-warning { background: rgba(245,158,11,0.15); color: #F59E0B; }

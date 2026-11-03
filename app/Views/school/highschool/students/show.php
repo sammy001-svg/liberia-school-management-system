@@ -185,7 +185,13 @@
         <thead><tr><th>Subject</th><th>Score</th><th>Grade</th></tr></thead>
         <tbody>
           <?php foreach($grades as $g): ?>
-          <tr><td><?= htmlspecialchars($g['course_name']??'—') ?></td><td><?= $g['marks_obtained'] ?>%</td><td><span class="badge badge-<?= $g['grade_letter']==='F'?'danger':'success' ?>"><?= $g['grade_letter'] ?></span></td></tr>
+          <?php
+            // The score column is a percentage, so a mark out of anything other
+            // than 100 has to be converted before it is shown or coloured.
+            $mk  = Controller::markClassOf((float)$g['marks_obtained'], (float)$g['total_marks']);
+            $pct = $g['total_marks'] > 0 ? round($g['marks_obtained'] / $g['total_marks'] * 100, 1) : null;
+          ?>
+          <tr><td><?= htmlspecialchars($g['course_name']??'—') ?></td><td class="<?= $mk ?>"><?= $pct !== null ? $pct . '%' : '—' ?></td><td><span class="badge <?= $mk ?>"><?= $g['grade_letter'] ?></span></td></tr>
           <?php endforeach; ?>
           <?php if(empty($grades)): ?>
           <tr><td colspan="3"><div class="empty-state"><div class="empty-state-icon">📝</div><div class="empty-state-text">No grades recorded yet.</div></div></td></tr>
