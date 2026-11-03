@@ -278,7 +278,10 @@ class TeacherController extends Controller {
         if (!$teacher) { $this->redirect('/school/teachers'); }
         $errors = $this->validate($_POST, ['name' => 'required|max:150', 'email' => 'required|email|max:150']);
         if ($errors) { $this->failValidation($errors, '/school/teachers/'.$id.'/edit'); }
-        $this->db->execute("UPDATE users SET name=?,email=?,phone=?,gender=? WHERE id=?", [$_POST['name'],$_POST['email'],$_POST['phone']??'',$_POST['gender']??null,$teacher['user_id']]);
+        // Same guard as the Login Accounts screen — this email is a sign-in identifier.
+        $idErrors = $this->emailChangeErrors((int)$teacher['user_id'], (string)($_POST['email'] ?? ''));
+        if ($idErrors) { $this->failValidation($idErrors, '/school/teachers'); }
+        $this->db->execute("UPDATE users SET name=?,email=?,phone=?,gender=? WHERE id=? AND tenant_id=?", [$_POST['name'],$_POST['email']?:null,$_POST['phone']??'',$_POST['gender']??null,$teacher['user_id'],$this->tid]);
         $this->db->execute("UPDATE teachers SET qualification=?,specialization=? WHERE id=? AND tenant_id=?", [$_POST['qualification']??'',$_POST['specialization']??'',$id,$this->tid]);
         $this->assignHomeroom($this->tid, (int)$id, $_POST['class_id'] ?: null);
         $this->flash('success','Teacher updated.'); $this->redirect('/school/teachers');

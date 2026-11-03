@@ -899,6 +899,29 @@ abstract class Controller {
     }
 
     /**
+     * The same rules, for the section screens (Staff, Teachers, Students, Parents)
+     * whose forms carry only an email box.
+     *
+     * Those forms used to write the email straight to `users`, which meant saving
+     * one with the box empty cleared the only thing the account could sign in with
+     * — the save reported success and the person was locked out — and saving one
+     * that another account already used raised a raw database error. This keeps the
+     * account's existing username in the picture, so clearing the email is allowed
+     * exactly when something else is still there to sign in with.
+     *
+     * Returns an errors array; empty means it is safe to save.
+     */
+    protected function emailChangeErrors(int $userId, string $email): array {
+        $row = $this->db->fetchOne("SELECT username FROM users WHERE id=?", [$userId]);
+        return $this->loginIdentifierErrors(
+            $userId,
+            $this->accountTypeOf($userId),
+            trim($email),
+            (string)($row['username'] ?? '')
+        );
+    }
+
+    /**
      * Validates a change to what an account signs in *as*, shared by the admin's Login
      * Accounts screen and each user's own account page so the two can't drift apart.
      * Either field may be blank — blank means "clear it" — except where that would leave

@@ -127,6 +127,15 @@ class UserAccountController extends Controller {
             [$email ?: null, $username ?: null, $account['id'], $this->tid]
         );
 
+        // Read it back before saying it worked. Being told a login change saved when
+        // it did not is how someone ends up locked out with no idea why.
+        $saved = $this->db->fetchOne("SELECT email, username FROM users WHERE id=?", [$account['id']]);
+        if (($saved['email'] ?? null) !== ($email ?: null) || ($saved['username'] ?? null) !== ($username ?: null)) {
+            $this->flash('danger', 'The login details could not be saved. Nothing has changed — '
+                . $account['name'] . ' can still sign in with the old ones.');
+            $this->redirect($redirect);
+        }
+
         // The signed-in user's own row is cached in the session at login, so an admin
         // editing their own account would otherwise keep seeing the old email in the topbar.
         if ((int)$account['id'] === (int)($_SESSION['user_id'] ?? 0)) {
@@ -167,10 +176,25 @@ class UserAccountController extends Controller {
             [password_hash($new, PASSWORD_BCRYPT), $account['id'], $this->tid]
         );
 
+        // Check the stored hash really matches what was just typed, rather than
+        // trusting the write. If it does not, the old secret still works and the
+        // admin needs to know that now, not at the next sign-in attempt.
+        if (!$this->secretSaved($account['id'], $new)) {
+            $this->flash('danger', 'That ' . $label . ' could not be saved. Nothing has changed — '
+                . $account['name'] . ' can still sign in with their old ' . $label . '.');
+            $this->redirect($redirect);
+        }
+
         // Deliberately not echoed back: the admin just typed it, and flash messages
         // are rendered on the next page anyone might be looking at.
         $this->flash('success', ucfirst($label) . ' set for ' . $account['name'] . '. Their old ' . $label . ' no longer works.');
         $this->redirect($redirect);
+    }
+
+    /** True when the stored hash really is a hash of the secret just set. */
+    private function secretSaved(int $userId, string $secret): bool {
+        $row = $this->db->fetchOne("SELECT password_hash FROM users WHERE id=?", [$userId]);
+        return !empty($row['password_hash']) && password_verify($secret, $row['password_hash']);
     }
 
     /** Random replacement secret, shown once — for when the admin has no particular password in mind. */
@@ -189,6 +213,11 @@ class UserAccountController extends Controller {
         );
 
         $label = $isPin ? 'PIN' : 'password';
+        if (!$this->secretSaved($account['id'], $secret)) {
+            $this->flash('danger', 'That ' . $label . ' could not be saved. Nothing has changed — '
+                . $account['name'] . ' can still sign in with their old ' . $label . '.');
+            $this->redirect($redirect);
+        }
         $this->flash('success', "New {$label} for {$account['name']}: {$secret} — write this down, it will not be shown again.");
         $this->redirect($redirect);
     }

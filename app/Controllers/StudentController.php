@@ -272,11 +272,15 @@ class StudentController extends Controller {
         if ($avatarUrl !== null) {
             $this->db->execute("UPDATE users SET avatar=? WHERE id=?", [$avatarUrl, $existing['uid']]);
         }
+        // Where a school has students signing in by email, this box is their
+        // sign-in identifier, so it gets the same guard as Login Accounts.
+        $idErrors = $this->emailChangeErrors((int)$existing['uid'], (string)($_POST['email'] ?? ''));
+        if ($idErrors) { $this->failValidation($idErrors, '/school/students'); }
         $this->db->execute(
-            "UPDATE users SET name=?,email=?,phone=?,gender=?,date_of_birth=?,address=? WHERE id=?",
+            "UPDATE users SET name=?,email=?,phone=?,gender=?,date_of_birth=?,address=? WHERE id=? AND tenant_id=?",
             [
                 $name, $_POST['email'] ?: null, $_POST['phone'] ?? '', $_POST['gender'] ?: null,
-                $_POST['dob'] ?: null, $_POST['address'] ?? '', $existing['uid'],
+                $_POST['dob'] ?: null, $_POST['address'] ?? '', $existing['uid'], $this->tid,
             ]
         );
 
@@ -497,8 +501,10 @@ class StudentController extends Controller {
         if ($avatarUrl !== null) {
             $this->db->execute("UPDATE users SET avatar=? WHERE id=?", [$avatarUrl, $student['user_id']]);
         }
-        $this->db->execute("UPDATE users SET name=?,email=?,phone=?,gender=?,date_of_birth=?,address=? WHERE id=?",
-            [$name,$_POST['email']?:null,$_POST['phone']??'',$_POST['gender']??null,$_POST['dob']??null,$_POST['address']??'',$student['user_id']]);
+        $idErrors = $this->emailChangeErrors((int)$student['user_id'], (string)($_POST['email'] ?? ''));
+        if ($idErrors) { $this->failValidation($idErrors, '/school/students'); }
+        $this->db->execute("UPDATE users SET name=?,email=?,phone=?,gender=?,date_of_birth=?,address=? WHERE id=? AND tenant_id=?",
+            [$name,$_POST['email']?:null,$_POST['phone']??'',$_POST['gender']??null,$_POST['dob']??null,$_POST['address']??'',$student['user_id'],$this->tid]);
         $this->db->execute(
             "UPDATE students SET class_id=?,status=?,first_name=?,middle_name=?,last_name=?,county=?,country=?,religion=?,
                 guardian_name=?,guardian_phone=?,guardian_relationship=?,emergency_contact_phone=?,

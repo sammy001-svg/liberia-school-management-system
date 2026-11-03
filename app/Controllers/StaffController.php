@@ -140,10 +140,14 @@ class StaffController extends Controller {
             'name' => 'required|max:150', 'email' => 'email|max:150',
             'basic_salary' => 'required|numeric', 'allowances' => 'numeric', 'deductions' => 'numeric',
         ]);
+        // The email here is what this person signs in with, so it goes through the
+        // same guard as the Login Accounts screen: no duplicates, and never leaving
+        // the account with nothing to sign in with.
+        $errors += $this->emailChangeErrors((int)$id, (string)($_POST['email'] ?? ''));
         if ($errors) { $this->failValidation($errors, '/school/staff'); }
 
-        $this->db->execute("UPDATE users SET name=?,email=?,phone=?,gender=?,employee_no=?,position=? WHERE id=?",
-            [$_POST['name'],$_POST['email']?:null,$_POST['phone']??'',$_POST['gender']??null,$_POST['employee_no']?:null,$_POST['position']?:null,$id]);
+        $this->db->execute("UPDATE users SET name=?,email=?,phone=?,gender=?,employee_no=?,position=? WHERE id=? AND tenant_id=?",
+            [$_POST['name'],$_POST['email']?:null,$_POST['phone']??'',$_POST['gender']??null,$_POST['employee_no']?:null,$_POST['position']?:null,$id,$this->tid]);
 
         // Role changes are optional and re-checked against the assignable set. Teachers are
         // skipped: their role backs a teachers record holding class and subject assignments,

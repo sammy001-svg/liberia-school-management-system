@@ -1253,9 +1253,12 @@ class ParentController extends Controller {
             $taken = $this->db->fetchOne("SELECT id FROM users WHERE username=? AND tenant_id=? AND id!=?", [$username, $this->tid, $parent['user_id']]);
             if ($taken) { $errors['username'] = 'That username is already taken.'; }
         }
+        // The email is a sign-in identifier too, so a duplicate must be refused here
+        // rather than surfacing as a database error on save.
+        $errors += $this->loginIdentifierErrors((int)$parent['user_id'], 'parent', trim((string)($_POST['email'] ?? '')), $username);
         if ($errors) { $this->failValidation($errors, '/school/parents/'.$id.'/edit'); }
-        $this->db->execute("UPDATE users SET name=?,email=?,username=?,phone=?,gender=?,date_of_birth=?,address=?,employee_no=? WHERE id=?",
-            [$_POST['name'],$_POST['email']?:null,$username,$_POST['phone']??'',$_POST['gender']??null,$_POST['dob']??null,$_POST['address']??'',$_POST['employee_no']?:null,$parent['user_id']]);
+        $this->db->execute("UPDATE users SET name=?,email=?,username=?,phone=?,gender=?,date_of_birth=?,address=?,employee_no=? WHERE id=? AND tenant_id=?",
+            [$_POST['name'],$_POST['email']?:null,$username,$_POST['phone']??'',$_POST['gender']??null,$_POST['dob']??null,$_POST['address']??'',$_POST['employee_no']?:null,$parent['user_id'],$this->tid]);
         $this->db->execute("UPDATE parents SET occupation=?,workplace=?,national_id=?,emergency_contact_phone=? WHERE id=? AND tenant_id=?",
             [$_POST['occupation']??'',$_POST['workplace']??null,$_POST['national_id']??null,$_POST['emergency_contact_phone']??null,$id,$this->tid]);
         $this->flash('success','Parent updated.'); $this->redirect('/school/parents/'.$id);
