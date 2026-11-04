@@ -230,8 +230,8 @@ $heroSlides = [
         <span class="eyebrow">Student Sponsorship</span>
         <h2 class="display"><?= $h('home.sponsor_title') ?></h2>
         <?= $paras('home.sponsor_body', 'lead') ?>
-        <?php if ($raw('home.sponsor_url') !== ''): ?>
-          <a class="btn btn-accent btn-lg" href="<?= htmlspecialchars($raw('home.sponsor_url')) ?>" target="_blank" rel="noopener">
+        <?php if (WebsiteContent::linkHref($raw('home.sponsor_url')) !== ''): ?>
+          <a class="btn btn-accent btn-lg" href="<?= htmlspecialchars(WebsiteContent::linkHref($raw('home.sponsor_url'))) ?>" target="_blank" rel="noopener">
             <?= htmlspecialchars($raw('home.sponsor_button') ?: 'Sponsor a student') ?> <?= wicon('arrow-right') ?>
           </a>
           <p class="sponsor-note">Sponsorship is handled on our partner's secure site.</p>

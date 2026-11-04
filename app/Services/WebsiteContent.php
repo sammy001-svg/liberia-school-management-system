@@ -32,6 +32,41 @@ class WebsiteContent {
         return $pages;
     }
 
+    /**
+     * Makes a link the school typed into the website editor safe to put in an href.
+     *
+     * Someone filling in a "Button link" box types what they would say out loud —
+     * `partners.org`, `www.partners.org/give`. A browser reads a value with no
+     * scheme as a path on the current site, so the button lands on
+     * faith.ledasystems.site/partners.org and shows a 404 with nothing obviously
+     * wrong in the editor.
+     *
+     * An address with a scheme, a site-relative path, a mailto: or a tel: is left
+     * exactly as typed. Anything that looks like a domain gains https://. Anything
+     * that cannot be a link at all comes back empty, so the button is left out
+     * rather than pointing somewhere broken.
+     *
+     * Applied when the value is saved and again when it is rendered, so links
+     * already stored by an earlier version are corrected without being re-entered.
+     */
+    public static function linkHref(?string $value): string {
+        $value = trim((string)$value);
+        if ($value === '') { return ''; }
+
+        // Already unambiguous: a full address, a path on this site, or a contact link.
+        if (preg_match('~^(https?://|mailto:|tel:)~i', $value)) { return $value; }
+        if ($value[0] === '/') { return $value; }
+
+        // Scheme-less but otherwise a real address: "partners.org/give", "www.x.org".
+        $host = explode('/', $value)[0];
+        if (filter_var('https://' . $value, FILTER_VALIDATE_URL) && str_contains($host, '.') && !str_contains($host, ' ')) {
+            return 'https://' . $value;
+        }
+
+        // A bare word, a sentence, anything else: not a link.
+        return '';
+    }
+
     private static function definitions(): array {
         return [
             'site' => [

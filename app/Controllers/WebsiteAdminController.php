@@ -113,6 +113,24 @@ class WebsiteAdminController extends Controller {
                     $errors[$key] = "{$label} is too long.";
                     continue;
                 }
+                // A link box is stored ready to use. Typed without https:// it would
+                // otherwise be read as a path on this site and give the visitor a 404.
+                if ($value !== '' && str_ends_with($key, '_url')) {
+                    $href = WebsiteContent::linkHref($value);
+                    // A path on this site is only useful if the site has that page.
+                    if ($href !== '' && $href[0] === '/') {
+                        $known = array_column(WebsiteContent::pages(), 'url');
+                        if (!in_array(rtrim($href, '/') ?: '/', $known, true)) {
+                            $errors[$key] = "{$label} points at {$href}, which is not a page on this website — visitors would get a page-not-found. Use the full web address of the other site, for example https://example.org.";
+                            continue;
+                        }
+                    }
+                    if ($href === '') {
+                        $errors[$key] = "{$label} does not look like a web address. Use the full address, for example https://example.org.";
+                        continue;
+                    }
+                    $value = $href;
+                }
                 // Saving the default (or clearing the box) removes the override, so the field
                 // keeps following the built-in text rather than freezing a copy of it.
                 $changed += $this->store($key, ($value === '' || $value === $default) ? null : $value);
