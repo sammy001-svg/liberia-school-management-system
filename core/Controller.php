@@ -1483,7 +1483,7 @@ abstract class Controller {
      * up. A slot without a term is omitted, and prints as an empty cell rather
      * than a misleading zero.
      */
-    private function celdiSlotRanges(int $tid, ?int $classId, $yearId): array {
+    protected function celdiSlotRanges(int $tid, ?int $classId, $yearId): array {
         if (!$classId) { return []; }
         $rows = $this->db->fetchAll(
             "SELECT e.report_column, t.start_date, t.end_date

@@ -107,6 +107,8 @@ $router->get('/school/grades/marking-periods',       ['GradeController', 'markin
 $router->post('/school/grades/marking-periods/setup', ['GradeController', 'setupMarkingPeriods']);
 $router->post('/school/grades/marking-periods/names', ['GradeController', 'saveMarkingPeriods']);
 $router->get('/school/grades/report-cards/class/{classId}', ['GradeController', 'classReportCards']);
+$router->get('/school/grades/period-report/{studentId}', ['GradeController', 'periodReport']);
+$router->get('/school/grades/period-reports/class/{classId}', ['GradeController', 'periodReportsClass']);
 $router->post('/school/grades/report-cards/publish',  ['GradeController', 'publishReportCards']);
 $router->post('/school/grades/submit-approval',  ['GradeController', 'submitForApproval']);
 $router->get('/school/grades/approvals',         ['GradeController', 'approvals']);

@@ -24,6 +24,9 @@
       <?php if(!empty($student['class_id'])): ?>
       <a href="<?= $cfg['url'] ?>/school/grades/enter?class_id=<?= $student['class_id'] ?>" class="btn btn-outline">✏️ Enter Grades</a>
       <?php endif; ?>
+      <?php if(!empty($student['class_id'])): ?>
+      <a href="<?= $cfg['url'] ?>/school/grades/period-report/<?= $student['id'] ?>" target="_blank" class="btn btn-outline">🗓️ Period Report Card</a>
+      <?php endif; ?>
       <a href="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/transcript" target="_blank" class="btn btn-outline">📜 Transcript</a>
       <a href="<?= $cfg['url'] ?>/school/certificates" class="btn btn-outline">🎓 Certificates</a>
       <a href="<?= $cfg['url'] ?>/school/students/<?= $student['id'] ?>/edit" class="btn btn-secondary">Edit Profile</a>

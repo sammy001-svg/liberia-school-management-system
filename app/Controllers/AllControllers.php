@@ -435,6 +435,147 @@ class GradeController extends Controller {
      * "p1".."e2" mean a report-card period and can match more than one row when
      * the school has duplicates; "exam:12" means that one exam.
      */
+    /**
+     * One marking period's report card, for a single student.
+     *
+     * The full report card covers a whole year across eleven columns; this is the
+     * one period the school has just finished — the sheet a parent is handed at
+     * the end of a period rather than at the end of the year.
+     */
+    public function periodReport(string $studentId): void {
+        $this->requirePermission(['grades.manage', 'students.view']);
+        $student = $this->db->fetchOne(
+            "SELECT s.*, u.name, u.gender, c.name AS class_name
+             FROM students s JOIN users u ON s.user_id = u.id
+             LEFT JOIN classes c ON c.id = s.class_id
+             WHERE s.id=? AND s.tenant_id=?",
+            [$studentId, $this->tid]
+        );
+        if (!$student) { $this->redirect('/school/students'); }
+        $built = $this->buildPeriodReport((string)($student['class_id'] ?? ''), [$student]);
+        $this->view('school/period_report_print', $built + [
+            'pageTitle' => 'Period Report — ' . $student['name'],
+            'classId'   => $student['class_id'] ?? null,
+            'oneStudent'=> true,
+        ]);
+    }
+
+    /** The same card for every active student in a class, as one printable run. */
+    public function periodReportsClass(string $classId): void {
+        $this->requirePermission(['grades.manage', 'students.view']);
+        $class = $this->db->fetchOne("SELECT * FROM classes WHERE id=? AND tenant_id=?", [$classId, $this->tid]);
+        if (!$class) { $this->redirect('/school/students'); }
+        $students = $this->db->fetchAll(
+            "SELECT s.*, u.name, u.gender, c.name AS class_name
+             FROM students s JOIN users u ON s.user_id = u.id
+             LEFT JOIN classes c ON c.id = s.class_id
+             WHERE s.class_id=? AND s.tenant_id=? AND s.status='active'
+             ORDER BY u.name",
+            [$classId, $this->tid]
+        );
+        $built = $this->buildPeriodReport((string)$classId, $students);
+        $this->view('school/period_report_print', $built + [
+            'pageTitle' => 'Period Reports — ' . $class['name'],
+            'classId'   => $classId,
+            'oneStudent'=> false,
+        ]);
+    }
+
+    /**
+     * The figures behind a period report: each student's mark per subject for the
+     * chosen period, their average, and their position in the class.
+     *
+     * The class average and position need every classmate's figures, so they are
+     * worked out once here whether one card is being printed or thirty.
+     */
+    private function buildPeriodReport(string $classId, array $students): array {
+        $years = $this->db->fetchAll(
+            "SELECT id, name, is_current FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]
+        );
+        $yearId = (string)($_GET['year_id'] ?? '');
+        if ($yearId === '') {
+            foreach ($years as $y) { if ((int)$y['is_current'] === 1) { $yearId = (string)$y['id']; break; } }
+            if ($yearId === '' && $years) { $yearId = (string)$years[0]['id']; }
+        }
+        $period = (string)($_GET['period'] ?? 'p1');
+        if (!array_key_exists($period, self::MARKING_PERIODS)) { $period = 'p1'; }
+
+        $subjects = $classId !== '' ? $this->db->fetchAll(
+            "SELECT c.id, c.name FROM courses c JOIN course_classes cc ON cc.course_id = c.id
+             WHERE cc.class_id=? AND c.tenant_id=? ORDER BY cc.sort_order, c.name",
+            [$classId, $this->tid]
+        ) : [];
+
+        // Every mark for this class and period, so a position can be worked out.
+        $examIds = $this->periodExamIds($classId, $yearId, $period);
+        $marks = [];
+        if ($examIds && $classId !== '') {
+            $in = implode(',', array_map('intval', $examIds));
+            foreach ($this->db->fetchAll(
+                "SELECT g.student_id, g.course_id, g.marks_obtained, g.total_marks
+                 FROM grades g JOIN students st ON st.id = g.student_id
+                 WHERE g.tenant_id=? AND st.class_id=? AND g.exam_id IN ({$in})",
+                [$this->tid, $classId]
+            ) as $r) {
+                $total = (float)$r['total_marks'];
+                if ($total > 0) {
+                    $marks[(int)$r['student_id']][(int)$r['course_id']] = (float)$r['marks_obtained'] / $total * 100;
+                }
+            }
+        }
+
+        // Average per student, then position: the best average is first, and equal
+        // averages share a position rather than being ordered arbitrarily.
+        $averages = [];
+        foreach ($this->db->fetchAll(
+            "SELECT id FROM students WHERE class_id=? AND tenant_id=? AND status='active'",
+            [$classId, $this->tid]
+        ) as $row) {
+            $own = $marks[(int)$row['id']] ?? [];
+            if ($own) { $averages[(int)$row['id']] = array_sum($own) / count($own); }
+        }
+        arsort($averages);
+        $positions = []; $place = 0; $seen = 0; $last = null;
+        foreach ($averages as $sid => $avg) {
+            $seen++;
+            if ($last === null || abs($avg - $last) > 0.0001) { $place = $seen; $last = $avg; }
+            $positions[$sid] = $place;
+        }
+
+        $absence = $this->celdiSlotRanges($this->tid, $classId !== '' ? (int)$classId : null, $yearId ?: null)[$period] ?? null;
+
+        $cards = [];
+        foreach ($students as $st) {
+            $sid = (int)$st['id'];
+            $own = $marks[$sid] ?? [];
+            $cards[] = [
+                'student'  => $st,
+                'rows'     => array_map(fn($c) => [
+                    'subject' => $c['name'],
+                    'mark'    => $own[(int)$c['id']] ?? null,
+                ], $subjects),
+                'average'  => $own ? array_sum($own) / count($own) : null,
+                'position' => $positions[$sid] ?? null,
+                'of'       => count($averages),
+                'absent'   => $absence ? $this->celdiStudentAbsences((string)$sid, [$period => $absence])[$period] ?? null : null,
+            ];
+        }
+
+        return [
+            'panelType'  => 'print',
+            'tenant'     => $this->db->fetchOne("SELECT * FROM tenants WHERE id=?", [$this->tid]),
+            'cards'      => $cards,
+            'subjects'   => $subjects,
+            'years'      => $years,
+            'yearId'     => $yearId,
+            'yearName'   => current(array_filter($years, fn($y) => (string)$y['id'] === $yearId))['name'] ?? '',
+            'period'     => $period,
+            'periodName' => $this->markingPeriodNames($yearId ?: null)[$period] ?? self::MARKING_PERIODS[$period],
+            'periods'    => $this->markingPeriodNames($yearId ?: null),
+            'passMark'   => self::PASS_MARK,
+        ];
+    }
+
     private function periodExamIds(string $classId, string $yearId, string $period): array {
         if ($classId === '' || $period === '') { return []; }
         if (str_starts_with($period, 'exam:')) {
