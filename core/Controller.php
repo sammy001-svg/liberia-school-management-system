@@ -1163,7 +1163,20 @@ abstract class Controller {
             [$tid, $studentId]
         );
 
+        // Marks saved with the exam box left blank join to no exam at all, so the
+        // query above cannot see them — yet they are the likeliest reason of all
+        // for a blank card, and the one that leaves the entry sheet looking full.
         $reasons = [];
+        $orphans = (int)$this->db->fetchOne(
+            "SELECT COUNT(*) c FROM grades WHERE tenant_id=? AND student_id=? AND exam_id IS NULL",
+            [$tid, $studentId]
+        )['c'];
+        if ($orphans > 0) {
+            $reasons['no_exam'] = [
+                'label' => 'saved without an exam or marking period, so they belong to no column on this card',
+                'marks' => $orphans, 'exams' => [],
+            ];
+        }
         $add = function (string $key, string $label, array $exam, int $marks) use (&$reasons) {
             $reasons[$key]['label'] = $label;
             $reasons[$key]['marks'] = ($reasons[$key]['marks'] ?? 0) + $marks;

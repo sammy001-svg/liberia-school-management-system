@@ -20,6 +20,7 @@ if (!empty($familyView)) {
     return;
 }
 $fix = [
+    'no_exam'     => ['Grades &amp; Exams &rarr; Enter Grades', 'attach those marks to the exam they belong to — the banner there does it in one step'],
     'no_slot'     => ['Grades &amp; Exams &rarr; Marking Periods', 'give each of those exams a report-card period'],
     'other_class' => ['Grades &amp; Exams', 'check which class each of those exams belongs to'],
     'other_year'  => ['the year picker above', 'switch to the year those marks were entered in'],

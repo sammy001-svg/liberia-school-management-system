@@ -15,8 +15,8 @@
       <option value="">— Select Class —</option>
       <?php foreach($classes as $c): ?><option value="<?= $c['id'] ?>" <?= $selectedClass==$c['id']?'selected':'' ?>><?= htmlspecialchars($c['name']) ?></option><?php endforeach; ?>
     </select>
-    <select name="exam_id" class="form-control" style="max-width:220px;">
-      <option value="">— No Exam —</option>
+    <select name="exam_id" class="form-control" style="max-width:220px;" required>
+      <option value="">— Select Exam / Marking Period —</option>
       <?php foreach($exams as $e): ?>
         <option value="<?= $e['id'] ?>" <?= (string)$selectedExam===(string)$e['id']?'selected':'' ?>>
           <?= htmlspecialchars($e['name']) ?><?= empty($e['report_column']) ? '  — not on the report card' : '' ?>
@@ -30,6 +30,12 @@
 $chosen = null;
 foreach ($exams as $e) { if ((string)$selectedExam === (string)$e['id']) { $chosen = $e; } }
 ?>
+<?php if (!empty($students) && !$selectedExam): ?>
+<div class="alert alert-info" style="margin-bottom:16px;">
+  Choose the exam or marking period these marks belong to, then press <strong>Load Students</strong>.
+  Every mark has to sit on a period for it to reach the report card.
+</div>
+<?php endif; ?>
 <?php if (!empty($students) && $chosen && empty($chosen['report_column'])): ?>
 <div class="alert alert-warning" style="margin-bottom:16px;">
   <strong><?= htmlspecialchars($chosen['name']) ?></strong> has not been given a report-card period,
@@ -39,7 +45,42 @@ foreach ($exams as $e) { if ((string)$selectedExam === (string)$e['id']) { $chos
   or pick one of the exams above that already has one.
 </div>
 <?php endif; ?>
-<?php if (!empty($students)): ?>
+<?php if (!empty($orphanCount)): ?>
+<div class="card" style="padding:14px 18px;margin-bottom:16px;border-left:3px solid var(--warning);">
+  <div class="fw-600" style="margin-bottom:4px;">
+    <?= (int)$orphanCount ?> mark<?= $orphanCount === 1 ? '' : 's' ?> in this class
+    <?= $orphanCount === 1 ? 'is' : 'are' ?> not attached to any exam.
+  </div>
+  <div style="font-size:13px;color:var(--text-light);margin-bottom:10px;">
+    They were saved with the exam box left blank, so they show on this sheet but on no report card.
+    Nothing is lost — choose the exam they belong to and they will be moved onto it.
+  </div>
+  <form method="POST" action="<?= $cfg['url'] ?>/school/grades/attach-marks"
+        style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"
+        data-confirm="Move these <?= (int)$orphanCount ?> marks onto the chosen exam?"
+        data-confirm-title="Attach Marks" data-confirm-label="Move them">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+    <input type="hidden" name="class_id" value="<?= htmlspecialchars($selectedClass) ?>">
+    <select name="exam_id" class="form-control" style="max-width:280px;" required>
+      <option value="">— Which exam do they belong to? —</option>
+      <?php foreach ($exams as $e): ?>
+        <option value="<?= $e['id'] ?>">
+          <?= htmlspecialchars($e['name']) ?><?= empty($e['report_column']) ? '  — not on the report card' : '' ?>
+        </option>
+      <?php endforeach; ?>
+    </select>
+    <button type="submit" class="btn btn-primary">Attach them</button>
+  </form>
+  <?php if (empty($exams)): ?>
+    <div style="font-size:12.5px;color:var(--text-muted);margin-top:8px;">
+      This class has no exams yet. Create one under
+      <a href="<?= $cfg['url'] ?>/school/grades">Grades &amp; Exams</a> first, giving it the report-card
+      period these marks belong to, then come back here.
+    </div>
+  <?php endif; ?>
+</div>
+<?php endif; ?>
+<?php if (!empty($students) && $selectedExam): ?>
 <?php if (!empty($recordedCount)): ?>
 <div class="alert alert-success" style="margin-bottom:16px;">
   <strong><?= (int)$recordedCount ?></strong> mark<?= $recordedCount === 1 ? ' is' : 's are' ?> already recorded on this sheet and shown in the boxes below.

@@ -231,6 +231,65 @@ class GradeController extends Controller {
      * marks are saved but never print. Without this the only way to correct one
      * was to edit the database by hand.
      */
+    /**
+     * Attach marks that were saved against no exam to a real one.
+     *
+     * Before the sheet required an exam it was possible to fill a whole class's
+     * marks with the exam box left alone. Those marks are saved, show back on the
+     * sheet, and appear nowhere else — so without this the only way to recover a
+     * term's work was to type it all again.
+     */
+    public function attachOrphanMarks(): void {
+        $this->requirePermission(['grades.manage']);
+        $classId = (int)($_POST['class_id'] ?? 0);
+        $examId  = (int)($_POST['exam_id'] ?? 0);
+        $back    = '/school/grades/enter' . ($classId ? '?class_id=' . $classId : '');
+
+        $exam = $this->db->fetchOne(
+            "SELECT * FROM exams WHERE id=? AND tenant_id=?", [$examId, $this->tid]
+        );
+        if (!$exam) {
+            $this->flash('danger', 'Choose which exam these marks belong to.');
+            $this->redirect($back);
+        }
+        if ($exam['class_id'] !== null && (int)$exam['class_id'] !== $classId) {
+            $this->flash('danger', '"' . $exam['name'] . '" belongs to another class, so these marks cannot be moved onto it.');
+            $this->redirect($back);
+        }
+
+        // Only this class's stranded marks, and never over a mark the exam already
+        // holds for that student and subject.
+        $rows = $this->db->fetchAll(
+            "SELECT g.id, g.student_id, g.course_id FROM grades g
+             JOIN students st ON st.id = g.student_id
+             WHERE g.tenant_id=? AND g.exam_id IS NULL AND st.class_id=?",
+            [$this->tid, $classId]
+        );
+        $moved = $clash = 0;
+        foreach ($rows as $r) {
+            $exists = $this->db->fetchOne(
+                "SELECT id FROM grades WHERE tenant_id=? AND student_id=? AND course_id=? AND exam_id=?",
+                [$this->tid, $r['student_id'], $r['course_id'], $examId]
+            );
+            if ($exists) { $clash++; continue; }
+            $this->db->execute("UPDATE grades SET exam_id=? WHERE id=? AND tenant_id=?", [$examId, $r['id'], $this->tid]);
+            $moved++;
+        }
+
+        $msg = $moved . ' mark' . ($moved === 1 ? '' : 's') . ' moved onto "' . $exam['name'] . '".';
+        if (empty($exam['report_column'])) {
+            $msg .= ' That exam has no report-card period yet, so give it one under Grades & Exams for these marks to print.';
+        } else {
+            $msg .= ' They will now print in the ' . (self::MARKING_PERIODS[$exam['report_column']] ?? 'assigned')
+                  . ' column of the report card.';
+        }
+        if ($clash) {
+            $msg .= ' ' . $clash . ' were left alone because that exam already holds a mark for the same student and subject.';
+        }
+        $this->flash($moved ? 'success' : 'warning', $msg);
+        $this->redirect($back . ($classId ? '&exam_id=' . $examId : ''));
+    }
+
     public function setExamPeriod(string $id): void {
         $this->requirePermission(['grades.manage']);
         $exam = $this->db->fetchOne("SELECT * FROM exams WHERE id=? AND tenant_id=?", [$id, $this->tid]);
@@ -311,7 +370,7 @@ class GradeController extends Controller {
                  ORDER BY report_column IS NULL, FIELD(report_column,'p1','p2','p3','e1','p4','p5','p6','e2'), name",
                 [$this->tid, $selectedClass])
             : $this->db->fetchAll("SELECT id, name, report_column FROM exams WHERE tenant_id=? ORDER BY name", [$this->tid]);
-        $students = []; $courses = []; $existingGrades = []; $recordedCount = 0;
+        $students = []; $courses = []; $existingGrades = []; $recordedCount = 0; $orphanCount = 0;
         $selectedExam = $_GET['exam_id'] ?? '';
         if (!empty($_GET['class_id'])) {
             $students = $this->db->fetchAll("SELECT s.id,u.name FROM students s JOIN users u ON s.user_id=u.id WHERE s.class_id=? AND s.tenant_id=? AND s.status='active' ORDER BY u.name",[$_GET['class_id'],$this->tid]);
@@ -336,6 +395,15 @@ class GradeController extends Controller {
             // the marks are in, not infer it from boxes that look the same either way.
             $recordedCount = count($rows);
 
+            // Marks saved before the sheet required an exam: they sit against no
+            // exam at all, show nowhere but the Grade Report, and are the reason a
+            // card can be blank while the sheet looks full.
+            $orphanCount = (int)$this->db->fetchOne(
+                "SELECT COUNT(*) c FROM grades g JOIN students st ON st.id=g.student_id
+                 WHERE g.tenant_id=? AND g.exam_id IS NULL AND st.class_id=?",
+                [$this->tid, $_GET['class_id']]
+            )['c'];
+
             if ($selectedExam) {
                 $_SESSION['grades_last_sheet'] = ['class_id' => $_GET['class_id'], 'exam_id' => $selectedExam];
             }
@@ -343,7 +411,7 @@ class GradeController extends Controller {
         $this->view('school/highschool/grades/enter', [
             'pageTitle'=>'Enter Grades','panelType'=>'school','classes'=>$classes,'exams'=>$exams,'students'=>$students,'courses'=>$courses,
             'selectedClass'=>$_GET['class_id']??'','selectedExam'=>$selectedExam,'existingGrades'=>$existingGrades,
-            'recordedCount'=>$recordedCount,
+            'recordedCount'=>$recordedCount, 'orphanCount'=>$orphanCount,
             // Marks filed against an exam with no report-card period are saved but
             // can never show on the card, so the screen says which exams those are.
             'slotLabels'=>self::MARKING_PERIOD_SHORT,
@@ -355,6 +423,16 @@ class GradeController extends Controller {
         $this->requirePermission(['grades.manage']);
         $canEdit = $this->canEditGrades();
         $examId = $_POST['exam_id'] ?: null;
+
+        // A mark with no exam belongs to no period, so it can never reach a report
+        // card — and the sheet shows it back afterwards, which makes it look filed.
+        // Marks were being lost to this in plain sight, so the save is refused.
+        if ($examId === null && !empty($_POST['grades'])) {
+            $this->flash('danger', 'Choose which exam or marking period these marks belong to before saving. '
+                . 'Marks saved against no exam cannot appear on the report card.');
+            $this->redirect('/school/grades/enter' . (!empty($_POST['class_id'])
+                ? '?class_id=' . urlencode((string)$_POST['class_id']) : ''));
+        }
         $skipped = 0;
         foreach ($_POST['grades'] ?? [] as $studentId => $marks) {
             foreach ($marks as $courseId => $score) {

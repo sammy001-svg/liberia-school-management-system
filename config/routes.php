@@ -99,6 +99,7 @@ $router->post('/school/timetable/{id}/delete', ['TimetableController', 'deleteEn
 $router->get('/school/grades',              ['GradeController', 'index']);
 $router->get('/school/grades/enter',        ['GradeController', 'enter']);
 $router->post('/school/grades/store',       ['GradeController', 'store']);
+$router->post('/school/grades/attach-marks', ['GradeController', 'attachOrphanMarks']);
 $router->post('/school/exams/store',        ['GradeController', 'storeExam']);
 // Literal /school/grades/... paths must be registered before the {id} wildcard
 // below, or "report-cards" is matched as an exam id and the request is silently
