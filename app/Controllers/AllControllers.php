@@ -243,6 +243,10 @@ class GradeController extends Controller {
         $this->requirePermission(['grades.manage']);
         $classId = (int)($_POST['class_id'] ?? 0);
         $examId  = (int)($_POST['exam_id'] ?? 0);
+        // Where the marks are coming from: blank means "the ones filed against no
+        // exam at all", a number means that exam's marks are being moved across.
+        $fromRaw = $_POST['from_exam_id'] ?? '';
+        $fromId  = ($fromRaw === '' || $fromRaw === null) ? null : (int)$fromRaw;
         $back    = '/school/grades/enter' . ($classId ? '?class_id=' . $classId : '');
 
         $exam = $this->db->fetchOne(
@@ -259,11 +263,15 @@ class GradeController extends Controller {
 
         // Only this class's stranded marks, and never over a mark the exam already
         // holds for that student and subject.
+        if ($fromId === $examId) {
+            $this->flash('danger', 'Those marks are already on that exam.');
+            $this->redirect($back);
+        }
         $rows = $this->db->fetchAll(
             "SELECT g.id, g.student_id, g.course_id FROM grades g
              JOIN students st ON st.id = g.student_id
-             WHERE g.tenant_id=? AND g.exam_id IS NULL AND st.class_id=?",
-            [$this->tid, $classId]
+             WHERE g.tenant_id=? AND st.class_id=? AND g.exam_id <=> ?",
+            [$this->tid, $classId, $fromId]
         );
         $moved = $clash = 0;
         foreach ($rows as $r) {
@@ -433,7 +441,7 @@ class GradeController extends Controller {
             );
             if ($missing) { array_unshift($exams, $missing); }
         }
-        $students = []; $courses = []; $existingGrades = []; $recordedCount = 0; $orphanCount = 0;
+        $students = []; $courses = []; $existingGrades = []; $recordedCount = 0; $orphanCount = 0; $marksElsewhere = [];
         $selectedExam = $_GET['exam_id'] ?? '';
         if (!empty($_GET['class_id'])) {
             $students = $this->db->fetchAll("SELECT s.id,u.name FROM students s JOIN users u ON s.user_id=u.id WHERE s.class_id=? AND s.tenant_id=? AND s.status='active' ORDER BY u.name",[$_GET['class_id'],$this->tid]);
@@ -467,6 +475,30 @@ class GradeController extends Controller {
                 [$this->tid, $_GET['class_id']]
             )['c'];
 
+            // Every mark these students hold, wherever it is filed. When the sheet
+            // comes up empty this is what answers "but we entered them" — rather
+            // than leaving the school to guess which of several look-alike exams
+            // their work went to, or whether it went to one at all.
+            $marksElsewhere = $this->db->fetchAll(
+                "SELECT e.id AS exam_id, e.name AS exam_name, e.report_column, e.class_id AS exam_class_id,
+                        ec.name AS exam_class_name, ey.name AS exam_year_name, e.academic_year_id,
+                        COUNT(*) AS marks, COUNT(DISTINCT g.student_id) AS students
+                 FROM grades g
+                 JOIN students st ON st.id = g.student_id
+                 LEFT JOIN exams e   ON e.id = g.exam_id
+                 LEFT JOIN classes ec ON ec.id = e.class_id
+                 LEFT JOIN academic_years ey ON ey.id = e.academic_year_id
+                 WHERE g.tenant_id = ? AND st.class_id = ?
+                 GROUP BY e.id, e.name, e.report_column, e.class_id, ec.name, ey.name, e.academic_year_id
+                 ORDER BY marks DESC",
+                [$this->tid, $_GET['class_id']]
+            );
+            // What is already on screen needs no rescuing.
+            $marksElsewhere = array_values(array_filter(
+                $marksElsewhere,
+                fn($r) => (string)($r['exam_id'] ?? '') !== (string)$selectedExam
+            ));
+
             if ($selectedExam) {
                 $_SESSION['grades_last_sheet'] = ['class_id' => $_GET['class_id'], 'exam_id' => $selectedExam];
             }
@@ -475,10 +507,8 @@ class GradeController extends Controller {
             'pageTitle'=>'Enter Grades','panelType'=>'school','classes'=>$classes,'exams'=>$exams,'students'=>$students,'courses'=>$courses,
             'selectedClass'=>$_GET['class_id']??'','selectedExam'=>$selectedExam,'existingGrades'=>$existingGrades,
             'recordedCount'=>$recordedCount, 'orphanCount'=>$orphanCount,
+            'marksElsewhere'=>$marksElsewhere, 'slotLabels'=>self::MARKING_PERIODS,
             'years'=>$years, 'selectedYear'=>$selectedYear,
-            // Marks filed against an exam with no report-card period are saved but
-            // can never show on the card, so the screen says which exams those are.
-            'slotLabels'=>self::MARKING_PERIOD_SHORT,
             'canEditGrades'=>$this->canEditGrades(),'flash'=>$this->getFlash(),
         ]);
     }

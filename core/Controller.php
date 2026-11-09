@@ -1220,7 +1220,24 @@ abstract class Controller {
         $yearOptions = $this->db->fetchAll(
             "SELECT id, name, start_date FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$tid]
         );
-        $yearId = $_GET['year_id'] ?? ($class['academic_year_id'] ?? null) ?: ($yearOptions[0]['id'] ?? null);
+        // Open on the year this student's marks are actually in. Falling back to
+        // the class's year or simply the newest printed an empty card for a school
+        // whose marks sit elsewhere, which reads as results that were never saved.
+        $yearId = $_GET['year_id'] ?? null;
+        if ($yearId === null) {
+            $withMarks = $this->db->fetchOne(
+                "SELECT e.academic_year_id FROM grades g
+                 JOIN exams e ON e.id = g.exam_id
+                 LEFT JOIN academic_years y ON y.id = e.academic_year_id
+                 WHERE g.tenant_id=? AND g.student_id=? AND e.academic_year_id IS NOT NULL
+                   AND e.report_column IS NOT NULL
+                 GROUP BY e.academic_year_id, y.start_date
+                 ORDER BY y.start_date DESC LIMIT 1",
+                [$tid, $studentId]
+            );
+            $yearId = $withMarks['academic_year_id'] ?? null;
+        }
+        $yearId = $yearId ?: (($class['academic_year_id'] ?? null) ?: ($yearOptions[0]['id'] ?? null));
         $year = null;
         foreach ($yearOptions as $y) { if ((string)$y['id'] === (string)$yearId) { $year = $y; } }
 

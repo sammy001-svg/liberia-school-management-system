@@ -60,39 +60,70 @@ foreach ($exams as $e) { if ((string)$selectedExam === (string)$e['id']) { $chos
   or pick one of the exams above that already has one.
 </div>
 <?php endif; ?>
-<?php if (!empty($orphanCount)): ?>
-<div class="card" style="padding:14px 18px;margin-bottom:16px;border-left:3px solid var(--warning);">
+<?php
+// Where this class's marks actually are.
+//
+// A school that has entered a period's marks and then finds the sheet blank
+// needs to be told where that work went, not left to try each look-alike exam
+// in turn. Every mark these students hold is listed with the exam, class and
+// year it is filed under, and whether this sheet or the report card can see it
+// — with a one-press move onto the period being worked on.
+$elsewhere = $marksElsewhere ?? [];
+$chosenExam = null;
+foreach ($exams as $e) { if ((string)$selectedExam === (string)$e['id']) { $chosenExam = $e; } }
+$sheetIsEmpty = empty($recordedCount);
+if ($elsewhere && $sheetIsEmpty):
+  $total = array_sum(array_map(fn($r) => (int)$r['marks'], $elsewhere));
+?>
+<div class="card" style="padding:16px 20px;margin-bottom:16px;border-left:3px solid var(--warning);">
   <div class="fw-600" style="margin-bottom:4px;">
-    <?= (int)$orphanCount ?> mark<?= $orphanCount === 1 ? '' : 's' ?> in this class
-    <?= $orphanCount === 1 ? 'is' : 'are' ?> not attached to any exam.
+    This sheet is empty, but <?= (int)$total ?> mark<?= $total === 1 ? '' : 's' ?>
+    for these students <?= $total === 1 ? 'is' : 'are' ?> recorded elsewhere.
   </div>
-  <div style="font-size:13px;color:var(--text-light);margin-bottom:10px;">
-    They were saved with the exam box left blank, so they show on this sheet but on no report card.
-    Nothing is lost — choose the exam they belong to and they will be moved onto it.
+  <div style="font-size:13px;color:var(--text-light);margin-bottom:12px;">
+    Nothing has been lost. Below is every place this class's marks are filed.
+    Move the right set onto the period you are working on and it will fill this
+    sheet and print on the report card.
   </div>
-  <form method="POST" action="<?= $cfg['url'] ?>/school/grades/attach-marks"
-        style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"
-        data-confirm="Move these <?= (int)$orphanCount ?> marks onto the chosen exam?"
-        data-confirm-title="Attach Marks" data-confirm-label="Move them">
-    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
-    <input type="hidden" name="class_id" value="<?= htmlspecialchars($selectedClass) ?>">
-    <select name="exam_id" class="form-control" style="max-width:280px;" required>
-      <option value="">— Which exam do they belong to? —</option>
-      <?php foreach ($exams as $e): ?>
-        <option value="<?= $e['id'] ?>">
-          <?= htmlspecialchars($e['name']) ?><?= empty($e['report_column']) ? '  — not on the report card' : '' ?>
-        </option>
-      <?php endforeach; ?>
-    </select>
-    <button type="submit" class="btn btn-primary">Attach them</button>
-  </form>
-  <?php if (empty($exams)): ?>
-    <div style="font-size:12.5px;color:var(--text-muted);margin-top:8px;">
-      This class has no exams yet. Create one under
-      <a href="<?= $cfg['url'] ?>/school/grades">Grades &amp; Exams</a> first, giving it the report-card
-      period these marks belong to, then come back here.
-    </div>
-  <?php endif; ?>
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>Filed under</th><th>Class</th><th>Year</th><th>On the report card</th><th>Marks</th><th></th></tr></thead>
+      <tbody>
+        <?php foreach ($elsewhere as $r): ?>
+        <tr>
+          <td class="fw-600"><?= $r['exam_id'] ? htmlspecialchars($r['exam_name']) : '<em>no exam at all</em>' ?></td>
+          <td><?= $r['exam_id']
+                ? htmlspecialchars($r['exam_class_name'] ?? '(no class)')
+                : '—' ?></td>
+          <td><?= htmlspecialchars($r['exam_year_name'] ?? '—') ?></td>
+          <td>
+            <?php if (!empty($r['report_column'])): ?>
+              <span class="badge badge-info"><?= htmlspecialchars($slotLabels[$r['report_column']] ?? $r['report_column']) ?></span>
+            <?php else: ?>
+              <span class="badge badge-muted">not on the card</span>
+            <?php endif; ?>
+          </td>
+          <td><?= (int)$r['marks'] ?> <span class="text-muted" style="font-size:11.5px;">(<?= (int)$r['students'] ?> students)</span></td>
+          <td>
+            <?php if ($selectedExam && $chosenExam): ?>
+              <form method="POST" action="<?= $cfg['url'] ?>/school/grades/attach-marks"
+                    data-confirm="Move these <?= (int)$r['marks'] ?> marks onto <?= htmlspecialchars(addslashes($chosenExam['name'])) ?>?"
+                    data-confirm-title="Move Marks" data-confirm-label="Move them">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+                <input type="hidden" name="class_id" value="<?= htmlspecialchars($selectedClass) ?>">
+                <input type="hidden" name="exam_id" value="<?= (int)$selectedExam ?>">
+                <input type="hidden" name="from_exam_id" value="<?= $r['exam_id'] !== null ? (int)$r['exam_id'] : '' ?>">
+                <button type="submit" class="btn btn-sm btn-primary">Move onto <?= htmlspecialchars($chosenExam['name']) ?></button>
+              </form>
+            <?php else: ?>
+              <span class="text-muted" style="font-size:12px;">Choose the period above first</span>
+            <?php endif; ?>
+          </td>
+        </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
 </div>
 <?php endif; ?>
 <?php if (!empty($students) && $selectedExam): ?>
