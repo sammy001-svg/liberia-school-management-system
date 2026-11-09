@@ -62,13 +62,17 @@ $card = [
   <button onclick="window.print()">Print Report Card</button>
 </div>
 
-<?php if (empty($slotsConfigured)): ?>
+<?php // Staff-only: a parent cannot act on this, and the new explanation below
+      // covers their side in words that make sense to them.
+      if (empty($slotsConfigured) && empty($familyView)): ?>
 <div class="notice">
   No marking periods have been set up for this class in <strong><?= htmlspecialchars($year['name'] ?? 'this year') ?></strong>,
   so the grid below is empty. Open <strong>Grades &amp; Exams → Marking Periods</strong> and set up the six periods
   and two semester exams for this class, then enter marks against them.
 </div>
 <?php endif; ?>
+
+<?php require ROOT_DIR . '/app/Views/school/partials/celdi_card_why_empty.php'; ?>
 
 <?php require ROOT_DIR . '/app/Views/school/partials/celdi_card_sheets.php'; ?>
 

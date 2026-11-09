@@ -44,13 +44,25 @@ $logo = !empty($tenant['logo']) ? $cfg['url'] . '/uploads/logos/' . $tenant['log
 
 <?php if (empty($cards)): ?>
   <div class="notice">No active students in this class, so there is nothing to print.</div>
-<?php elseif (empty($slotsConfigured)): ?>
+<?php elseif (empty($slotsConfigured) && empty($familyView)): ?>
   <div class="notice">
     No marking periods have been set up for this class in
     <strong><?= htmlspecialchars($yearName ?? 'this year') ?></strong>, so every grid below is empty.
     Set them up under <strong>Grades &amp; Exams → Marking Periods</strong> first.
   </div>
 <?php endif; ?>
+
+<?php
+// One explanation for the batch, taken from the first student that has one —
+// the cause is a class-level setting, so it is the same for all of them.
+foreach ($cards as $c) {
+    if (!empty($c['emptyReasons'])) {
+        $emptyReasons = $c['emptyReasons'];
+        require ROOT_DIR . '/app/Views/school/partials/celdi_card_why_empty.php';
+        break;
+    }
+}
+?>
 
 <?php foreach ($cards as $card): ?>
   <?php require ROOT_DIR . '/app/Views/school/partials/celdi_card_sheets.php'; ?>

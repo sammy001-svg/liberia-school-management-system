@@ -17,11 +17,28 @@
     </select>
     <select name="exam_id" class="form-control" style="max-width:220px;">
       <option value="">— No Exam —</option>
-      <?php foreach($exams as $e): ?><option value="<?= $e['id'] ?>" <?= (string)$selectedExam===(string)$e['id']?'selected':'' ?>><?= htmlspecialchars($e['name']) ?></option><?php endforeach; ?>
+      <?php foreach($exams as $e): ?>
+        <option value="<?= $e['id'] ?>" <?= (string)$selectedExam===(string)$e['id']?'selected':'' ?>>
+          <?= htmlspecialchars($e['name']) ?><?= empty($e['report_column']) ? '  — not on the report card' : '' ?>
+        </option>
+      <?php endforeach; ?>
     </select>
     <button type="submit" class="btn btn-secondary">Load Students</button>
   </div>
 </form>
+<?php
+$chosen = null;
+foreach ($exams as $e) { if ((string)$selectedExam === (string)$e['id']) { $chosen = $e; } }
+?>
+<?php if (!empty($students) && $chosen && empty($chosen['report_column'])): ?>
+<div class="alert alert-warning" style="margin-bottom:16px;">
+  <strong><?= htmlspecialchars($chosen['name']) ?></strong> has not been given a report-card period,
+  so marks entered here are saved and appear in each student's Grade Report, but
+  <strong>will not show on the printed report card</strong>.
+  Give it a period under <a href="<?= $cfg['url'] ?>/school/grades/marking-periods">Marking Periods</a>,
+  or pick one of the exams above that already has one.
+</div>
+<?php endif; ?>
 <?php if (!empty($students)): ?>
 <?php if (!empty($recordedCount)): ?>
 <div class="alert alert-success" style="margin-bottom:16px;">

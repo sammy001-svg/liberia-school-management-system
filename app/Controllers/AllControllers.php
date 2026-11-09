@@ -178,7 +178,7 @@ class GradeController extends Controller {
             'upcoming' => count(array_filter($exams, fn($e) => $e['exam_date'] && strtotime($e['exam_date']) >= strtotime(date('Y-m-d')))),
             'graded'   => count(array_filter($exams, fn($e) => $e['graded_count'] > 0)),
         ];
-        $this->view('school/highschool/grades/index', ['pageTitle'=>'Grades & Exams','panelType'=>'school','exams'=>$exams,'classes'=>$classes,'terms'=>$terms,'academicYears'=>$academicYears,'stats'=>$stats,'flash'=>$this->getFlash()]);
+        $this->view('school/highschool/grades/index', ['pageTitle'=>'Grades & Exams','panelType'=>'school','exams'=>$exams,'classes'=>$classes,'terms'=>$terms,'academicYears'=>$academicYears,'stats'=>$stats,'slotLabels'=>self::MARKING_PERIODS,'flash'=>$this->getFlash()]);
     }
 
     public function storeExam(): void {
@@ -189,15 +189,38 @@ class GradeController extends Controller {
             'total_marks' => 'numeric',
             'pass_marks'  => 'numeric',
         ]);
+        // Which report-card period this exam fills. Without one its marks are saved
+        // but never reach the card, which is the commonest way a card comes out
+        // blank — so it is asked for here rather than left to be discovered later.
+        $slot = $_POST['report_column'] ?? '';
+        if ($slot !== '' && !array_key_exists($slot, self::MARKING_PERIODS)) {
+            $errors['report_column'] = 'Choose one of the report-card periods, or leave it off the card.';
+        }
+        if ($slot !== '' && empty($_POST['class_id'])) {
+            $errors['class_id'] = 'An exam that fills a report-card period has to belong to a class.';
+        }
+        if ($slot !== '' && empty($errors)) {
+            // One exam per period per class and year — two would make the card ambiguous.
+            $taken = $this->db->fetchOne(
+                "SELECT name FROM exams WHERE tenant_id=? AND class_id=? AND academic_year_id <=> ? AND report_column=?",
+                [$this->tid, $_POST['class_id'], $_POST['academic_year_id'] ?: null, $slot]
+            );
+            if ($taken) {
+                $errors['report_column'] = self::MARKING_PERIODS[$slot]
+                    . ' is already filled by "' . $taken['name'] . '" for this class and year.';
+            }
+        }
         if ($errors) { $this->failValidation($errors, '/school/grades'); }
         $this->db->insert(
-            "INSERT INTO exams (tenant_id,name,class_id,term_id,academic_year_id,exam_date,total_marks,pass_marks) VALUES (?,?,?,?,?,?,?,?)",
+            "INSERT INTO exams (tenant_id,name,class_id,term_id,academic_year_id,exam_date,total_marks,pass_marks,report_column) VALUES (?,?,?,?,?,?,?,?,?)",
             [
                 $this->tid, $_POST['name'], $_POST['class_id']?:null, $_POST['term_id']?:null, $_POST['academic_year_id']?:null,
-                $_POST['exam_date']?:null, $_POST['total_marks']?:100, $_POST['pass_marks']?:40,
+                $_POST['exam_date']?:null, $_POST['total_marks']?:100, $_POST['pass_marks']?:40, $slot ?: null,
             ]
         );
-        $this->flash('success', 'Exam created.');
+        $this->flash('success', $slot
+            ? 'Exam created and set as ' . self::MARKING_PERIODS[$slot] . ' on the report card.'
+            : 'Exam created. It is not on the report card — give it a period if its marks should print there.');
         $this->redirect('/school/grades');
     }
 
@@ -277,6 +300,9 @@ class GradeController extends Controller {
             'pageTitle'=>'Enter Grades','panelType'=>'school','classes'=>$classes,'exams'=>$exams,'students'=>$students,'courses'=>$courses,
             'selectedClass'=>$_GET['class_id']??'','selectedExam'=>$selectedExam,'existingGrades'=>$existingGrades,
             'recordedCount'=>$recordedCount,
+            // Marks filed against an exam with no report-card period are saved but
+            // can never show on the card, so the screen says which exams those are.
+            'slotLabels'=>self::MARKING_PERIOD_SHORT,
             'canEditGrades'=>$this->canEditGrades(),'flash'=>$this->getFlash(),
         ]);
     }

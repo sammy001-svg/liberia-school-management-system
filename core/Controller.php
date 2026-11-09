@@ -1138,6 +1138,62 @@ abstract class Controller {
      * Returns subject rows keyed by the CELDI_COLUMNS keys, plus the two footer
      * rows (Days Absent, Average), the per-column Class Rank, and the header data.
      */
+    /**
+     * Why a report card came out empty.
+     *
+     * A mark only reaches the grid when the exam it was entered against belongs
+     * to this class, sits in the year being printed, carries a report-card slot
+     * (1st Pd., Exam, and so on) and — for the parent and student copies — has
+     * been published. A mark that misses any one of those is saved, shows up in
+     * the Grade Report, and never appears on the card. Printing a blank card
+     * with no explanation is what makes that look like lost data, so when the
+     * grid is empty this works out which of the four it is and says so.
+     *
+     * Returns [] when there is nothing to explain.
+     */
+    protected function celdiEmptyCardReasons(string $studentId, $classId, $yearId, bool $publishedOnly, array $subjects): array {
+        $tid = $this->tenantId() ?? 0;
+        $rows = $this->db->fetchAll(
+            "SELECT e.id, e.name, e.class_id, e.academic_year_id, e.report_column, e.status,
+                    COUNT(*) AS marks
+             FROM grades g JOIN exams e ON e.id = g.exam_id
+             WHERE g.tenant_id = ? AND g.student_id = ?
+             GROUP BY e.id, e.name, e.class_id, e.academic_year_id, e.report_column, e.status
+             ORDER BY e.name",
+            [$tid, $studentId]
+        );
+
+        $reasons = [];
+        $add = function (string $key, string $label, array $exam, int $marks) use (&$reasons) {
+            $reasons[$key]['label'] = $label;
+            $reasons[$key]['marks'] = ($reasons[$key]['marks'] ?? 0) + $marks;
+            $reasons[$key]['exams'][] = $exam['name'];
+        };
+
+        foreach ($rows as $r) {
+            $n = (int)$r['marks'];
+            if ($r['report_column'] === null) {
+                $add('no_slot', 'not set up as a report-card period', $r, $n);
+            } elseif ((string)$r['class_id'] !== (string)$classId) {
+                $add('other_class', 'recorded against a different class', $r, $n);
+            } elseif ((string)$r['academic_year_id'] !== (string)$yearId) {
+                $add('other_year', 'recorded in a different academic year', $r, $n);
+            } elseif ($publishedOnly && $r['status'] !== 'published') {
+                $add('unpublished', 'not published yet', $r, $n);
+            }
+        }
+        foreach ($reasons as &$g) { $g['exams'] = array_values(array_unique($g['exams'])); }
+        unset($g);
+
+        if (!$subjects) {
+            $reasons['no_subjects'] = [
+                'label' => 'this class has no subjects assigned, so the card has no rows to fill',
+                'marks' => 0, 'exams' => [],
+            ];
+        }
+        return $reasons;
+    }
+
     protected function buildCeldiReportCard(string $studentId, array $student, bool $publishedOnly): array {
         $tid = $this->tenantId() ?? 0;
         $classId = $student['class_id'] ?? null;
@@ -1212,6 +1268,10 @@ abstract class Controller {
         }
 
         $mine = $grids[(int)$studentId] ?? ['rows' => [], 'columnAverage' => []];
+        $hasAnyMark = false;
+        foreach ($mine['rows'] as $row) {
+            foreach ($row['cells'] as $v) { if ($v !== null) { $hasAnyMark = true; break 2; } }
+        }
 
         // Class Rank row: for each column, position among classmates who have a
         // figure in that column, highest first. Ties share a position (competition
@@ -1262,6 +1322,12 @@ abstract class Controller {
             'promotion'    => $promotion,
             'sponsorName'  => $sponsor['name'] ?? null,
             'slotsConfigured' => count($slotOfExam),
+            // Only worked out when there is nothing to show, so a normal card
+            // costs no extra query.
+            'emptyReasons' => $hasAnyMark ? [] : $this->celdiEmptyCardReasons($studentId, $classId, $yearId, $publishedOnly, $subjects),
+            // The parent and student copies get a plain sentence instead of the
+            // school's own to-do list: publishing marks is not theirs to act on.
+            'familyView' => $publishedOnly,
         ];
     }
 

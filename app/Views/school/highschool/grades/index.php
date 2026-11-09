@@ -29,13 +29,20 @@
 <div class="card">
   <div class="card-header"><div class="card-title">All Exams (<?= count($exams) ?>)</div></div>
   <div class="table-wrapper"><table>
-    <thead><tr><th>Exam</th><th>Class</th><th>Date</th><th>Total Marks</th><th>Pass Marks</th><th>Grading</th><th>Publish Status</th><th></th></tr></thead>
+    <thead><tr><th>Exam</th><th>Class</th><th>On the report card</th><th>Date</th><th>Total Marks</th><th>Pass Marks</th><th>Grading</th><th>Publish Status</th><th></th></tr></thead>
     <tbody>
       <?php foreach($exams as $e): ?>
       <?php $isUpcoming = $e['exam_date'] && strtotime($e['exam_date']) >= strtotime(date('Y-m-d')); ?>
       <tr>
         <td class="fw-600"><?= htmlspecialchars($e['name']) ?></td>
         <td><?= htmlspecialchars($e['class_name']??'All Classes') ?></td>
+        <td>
+          <?php if (!empty($e['report_column'])): ?>
+            <span class="badge badge-info"><?= htmlspecialchars($slotLabels[$e['report_column']] ?? $e['report_column']) ?></span>
+          <?php else: ?>
+            <span class="badge badge-muted" title="Marks for this exam are saved, but they will not print on the report card.">Not on the card</span>
+          <?php endif; ?>
+        </td>
         <td><?= $e['exam_date']?date('M d, Y',strtotime($e['exam_date'])):'—' ?></td>
         <td><?= $e['total_marks'] ?></td>
         <td><?= $e['pass_marks'] ?></td>
@@ -72,7 +79,7 @@
       </tr>
       <?php endforeach; ?>
       <?php if(empty($exams)): ?>
-      <tr><td colspan="8">
+      <tr><td colspan="9">
         <div class="empty-state">
           <div class="empty-state-icon">📝</div>
           <div class="empty-state-text">No exams created yet. <a href="javascript:void(0)" onclick="document.getElementById('addExamModal').classList.add('open')">Add one</a></div>
@@ -110,6 +117,20 @@
           <div class="form-group">
             <label class="form-label">Exam Date</label>
             <input type="date" name="exam_date" class="form-control">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Report-card period</label>
+          <select name="report_column" class="form-control">
+            <option value="">Not on the report card</option>
+            <?php foreach(($slotLabels ?? []) as $k => $label): ?>
+              <option value="<?= $k ?>"><?= htmlspecialchars($label) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <div class="form-hint">
+            Which column this exam fills on the printed report card. Leave it off the card and
+            its marks are still saved and still shown in each student's Grade Report — they just
+            will not print on the card. A class may have one exam per period per year.
           </div>
         </div>
         <div class="form-row">

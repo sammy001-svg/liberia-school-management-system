@@ -15,6 +15,11 @@
       background:#fff; color:#111827; text-decoration:none; cursor:pointer; }
   .toolbar button { background:#4c1d95; color:#fff; border-color:#4c1d95; font-weight:600; }
   .toolbar .spacer { flex:1; }
+  .notice-why ul { margin:8px 0 6px; padding-left:20px; }
+  .notice-why li { margin-bottom:6px; line-height:1.55; }
+  .notice-why em { font-style:normal; color:#92400e; }
+  .notice-why p { margin:6px 0; }
+  .notice-why .notice-foot { font-size:12px; opacity:0.85; margin-bottom:0; }
   .notice { width:11.69in; max-width:100%; background:#fef3c7; border:1px solid #f59e0b; color:#78350f;
             padding:12px 16px; border-radius:8px; font-family:'Segoe UI',Arial,sans-serif; font-size:13px; }
 
