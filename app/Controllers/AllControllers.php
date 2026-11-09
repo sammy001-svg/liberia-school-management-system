@@ -239,64 +239,6 @@ class GradeController extends Controller {
      * sheet, and appear nowhere else — so without this the only way to recover a
      * term's work was to type it all again.
      */
-    public function attachOrphanMarks(): void {
-        $this->requirePermission(['grades.manage']);
-        $classId = (int)($_POST['class_id'] ?? 0);
-        $examId  = (int)($_POST['exam_id'] ?? 0);
-        // Where the marks are coming from: blank means "the ones filed against no
-        // exam at all", a number means that exam's marks are being moved across.
-        $fromRaw = $_POST['from_exam_id'] ?? '';
-        $fromId  = ($fromRaw === '' || $fromRaw === null) ? null : (int)$fromRaw;
-        $back    = '/school/grades/enter' . ($classId ? '?class_id=' . $classId : '');
-
-        $exam = $this->db->fetchOne(
-            "SELECT * FROM exams WHERE id=? AND tenant_id=?", [$examId, $this->tid]
-        );
-        if (!$exam) {
-            $this->flash('danger', 'Choose which exam these marks belong to.');
-            $this->redirect($back);
-        }
-        if ($exam['class_id'] !== null && (int)$exam['class_id'] !== $classId) {
-            $this->flash('danger', '"' . $exam['name'] . '" belongs to another class, so these marks cannot be moved onto it.');
-            $this->redirect($back);
-        }
-
-        // Only this class's stranded marks, and never over a mark the exam already
-        // holds for that student and subject.
-        if ($fromId === $examId) {
-            $this->flash('danger', 'Those marks are already on that exam.');
-            $this->redirect($back);
-        }
-        $rows = $this->db->fetchAll(
-            "SELECT g.id, g.student_id, g.course_id FROM grades g
-             JOIN students st ON st.id = g.student_id
-             WHERE g.tenant_id=? AND st.class_id=? AND g.exam_id <=> ?",
-            [$this->tid, $classId, $fromId]
-        );
-        $moved = $clash = 0;
-        foreach ($rows as $r) {
-            $exists = $this->db->fetchOne(
-                "SELECT id FROM grades WHERE tenant_id=? AND student_id=? AND course_id=? AND exam_id=?",
-                [$this->tid, $r['student_id'], $r['course_id'], $examId]
-            );
-            if ($exists) { $clash++; continue; }
-            $this->db->execute("UPDATE grades SET exam_id=? WHERE id=? AND tenant_id=?", [$examId, $r['id'], $this->tid]);
-            $moved++;
-        }
-
-        $msg = $moved . ' mark' . ($moved === 1 ? '' : 's') . ' moved onto "' . $exam['name'] . '".';
-        if (empty($exam['report_column'])) {
-            $msg .= ' That exam has no report-card period yet, so give it one under Grades & Exams for these marks to print.';
-        } else {
-            $msg .= ' They will now print in the ' . (self::MARKING_PERIODS[$exam['report_column']] ?? 'assigned')
-                  . ' column of the report card.';
-        }
-        if ($clash) {
-            $msg .= ' ' . $clash . ' were left alone because that exam already holds a mark for the same student and subject.';
-        }
-        $this->flash($moved ? 'success' : 'warning', $msg);
-        $this->redirect($back . ($classId ? '&exam_id=' . $examId : ''));
-    }
 
     public function setExamPeriod(string $id): void {
         $this->requirePermission(['grades.manage']);
@@ -354,179 +296,185 @@ class GradeController extends Controller {
         $this->redirect('/school/grades');
     }
 
+    /**
+     * Enter Grades: class, academic year, marking period — then the marks.
+     *
+     * The three boxes are what the school thinks in, so the sheet is driven by
+     * them and nothing else. A period is identified by its slot ("p1" for 1st
+     * Pd.), not by a row in `exams`, because a class can hold more than one exam
+     * row for the same period — one per year, or a duplicate — and asking a
+     * teacher to tell two identically named rows apart is what made saved marks
+     * look lost. Every exam row for the chosen class, year and period is read,
+     * so whichever one the marks were filed against, they appear.
+     */
     public function enter(): void {
         $this->requirePermission(['grades.manage']);
-        $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=?", [$this->tid]);
-        // Once a class is chosen, offer only that class's exams — otherwise a teacher
-        // can file marks against another class's marking period, which then never
-        // appears on the report card. Report-card slots sort first, in card order.
-        // Coming back to this screen from the menu carries no class or exam, which
-        // used to open a blank sheet and make saved marks look lost. Fall back to
-        // the last sheet this person worked on so they land where they left off.
-        $remembered = $_SESSION['grades_last_sheet'] ?? [];
-        if (!isset($_GET['class_id']) && !empty($remembered['class_id'])) {
-            $_GET['class_id'] = $remembered['class_id'];
-            if (!isset($_GET['exam_id']) && !empty($remembered['exam_id'])) {
-                $_GET['exam_id'] = $remembered['exam_id'];
-            }
-        }
-        $selectedClass = $_GET['class_id'] ?? '';
 
-        // Marking periods are created per academic year and every year's set is
-        // named the same — "1st Pd.", "2nd Pd." and so on — so listing them all
-        // together made two entries read identically and marks appear to vanish.
-        // The list is tied to a year to stop that, but the year is only ever a
-        // filter over the list: it never overrides a chosen exam and never hides
-        // the one place a class's marks actually are.
-        $years = $this->db->fetchAll(
+        $classes = $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]);
+        $years   = $this->db->fetchAll(
             "SELECT id, name, is_current FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]
         );
 
-        // The chosen exam decides the year, not the other way round. Picking an
-        // exam from one year while the box still shows another used to blank the
-        // exam and empty the sheet; now the box simply follows the exam.
-        $examYear = null;
-        if (!empty($_GET['exam_id'])) {
-            $ofExam = $this->db->fetchOne(
-                "SELECT academic_year_id FROM exams WHERE id=? AND tenant_id=?", [$_GET['exam_id'], $this->tid]
+        // Come back to the sheet last worked on rather than a blank screen.
+        $remembered = $_SESSION['grades_last_sheet'] ?? [];
+        $selectedClass  = (string)($_GET['class_id'] ?? $remembered['class_id'] ?? '');
+        $selectedYear   = (string)($_GET['year_id']  ?? $remembered['year_id']  ?? '');
+        $selectedPeriod = (string)($_GET['period']   ?? $remembered['period']   ?? '');
+
+        // An older link carrying ?exam_id= still works: it names the period.
+        if ($selectedPeriod === '' && !empty($_GET['exam_id'])) {
+            $fromExam = $this->db->fetchOne(
+                "SELECT class_id, academic_year_id, report_column, id FROM exams WHERE id=? AND tenant_id=?",
+                [$_GET['exam_id'], $this->tid]
             );
-            if ($ofExam) { $examYear = $ofExam['academic_year_id']; }
+            if ($fromExam) {
+                $selectedClass  = (string)($fromExam['class_id'] ?? $selectedClass);
+                $selectedYear   = (string)($fromExam['academic_year_id'] ?? $selectedYear);
+                $selectedPeriod = $fromExam['report_column'] ?: ('exam:' . $fromExam['id']);
+            }
         }
 
-        $selectedYear = $examYear !== null ? (string)$examYear : ($_GET['year_id'] ?? '');
-        if ($selectedYear === '' && $selectedClass !== '' && !isset($_GET['year_id'])) {
-            // Open on the year this class's marks are actually in. A school whose
-            // "current year" flag sits on a year with no marks would otherwise see
-            // every class come up empty.
-            $withMarks = $this->db->fetchOne(
-                "SELECT e.academic_year_id FROM exams e
-                 JOIN grades g ON g.exam_id = e.id
-                 LEFT JOIN academic_years y ON y.id = e.academic_year_id
-                 WHERE e.tenant_id=? AND e.class_id=? AND e.academic_year_id IS NOT NULL
-                 GROUP BY e.academic_year_id, y.start_date
-                 ORDER BY y.start_date DESC LIMIT 1",
-                [$this->tid, $selectedClass]
-            );
-            if ($withMarks) { $selectedYear = (string)$withMarks['academic_year_id']; }
-        }
-        if ($selectedYear === '' && !isset($_GET['year_id'])) {
+        if ($selectedYear === '') {
             foreach ($years as $y) { if ((int)$y['is_current'] === 1) { $selectedYear = (string)$y['id']; break; } }
             if ($selectedYear === '' && $years) { $selectedYear = (string)$years[0]['id']; }
         }
 
-        // Exams with no year of their own stay visible whichever year is chosen,
-        // and "All years" ($selectedYear === 'all') hides nothing at all, so no
-        // exam this class has can ever be out of reach.
-        $examSql = "SELECT e.id, e.name, e.report_column, e.academic_year_id, y.name AS year_name
-                    FROM exams e LEFT JOIN academic_years y ON y.id = e.academic_year_id
-                    WHERE e.tenant_id=?";
-        $examArgs = [$this->tid];
-        if ($selectedClass !== '') { $examSql .= " AND e.class_id=?"; $examArgs[] = $selectedClass; }
-        if ($selectedYear !== '' && $selectedYear !== 'all') {
-            $examSql .= " AND (e.academic_year_id=? OR e.academic_year_id IS NULL)";
-            $examArgs[] = $selectedYear;
+        // What the period box offers: the eight report-card periods, plus any
+        // other exam this class holds for the year, which has no period of its own.
+        $periods = [];
+        foreach (self::MARKING_PERIODS as $slot => $label) {
+            $periods[] = ['value' => $slot, 'label' => $label, 'on_card' => true];
         }
-        $examSql .= " ORDER BY y.start_date DESC, e.report_column IS NULL,
-                      FIELD(e.report_column,'p1','p2','p3','e1','p4','p5','p6','e2'), e.name, e.id";
-        $exams = $this->db->fetchAll($examSql, $examArgs);
-
-        // Last safety net: whatever the filter decided, the chosen exam is always
-        // in the list. An exam that is selected but absent is what empties a sheet.
-        if (!empty($_GET['exam_id']) && !in_array((string)$_GET['exam_id'], array_map(fn($e) => (string)$e['id'], $exams), true)) {
-            $missing = $this->db->fetchOne(
-                "SELECT e.id, e.name, e.report_column, e.academic_year_id, y.name AS year_name
-                 FROM exams e LEFT JOIN academic_years y ON y.id = e.academic_year_id
-                 WHERE e.id=? AND e.tenant_id=?",
-                [$_GET['exam_id'], $this->tid]
-            );
-            if ($missing) { array_unshift($exams, $missing); }
-        }
-        $students = []; $courses = []; $existingGrades = []; $recordedCount = 0; $orphanCount = 0; $marksElsewhere = [];
-        $selectedExam = $_GET['exam_id'] ?? '';
-        if (!empty($_GET['class_id'])) {
-            $students = $this->db->fetchAll("SELECT s.id,u.name FROM students s JOIN users u ON s.user_id=u.id WHERE s.class_id=? AND s.tenant_id=? AND s.status='active' ORDER BY u.name",[$_GET['class_id'],$this->tid]);
-            // Same order as the report card, so a teacher reading down a printed card
-            // and typing across this grid is looking at the same subject sequence.
-            $courses  = $this->db->fetchAll(
-                "SELECT c.id,c.name FROM courses c JOIN course_classes cc ON cc.course_id=c.id
-                 WHERE cc.class_id=? AND c.tenant_id=? ORDER BY cc.sort_order, c.name",[$_GET['class_id'],$this->tid]
-            );
-            // Prefill already-recorded marks for this exam so re-opening the screen shows what's
-            // there instead of blank cells — needed now that a Teacher without grades.edit can no
-            // longer silently overwrite them (see store()).
-            $rows = $this->db->fetchAll(
-                "SELECT g.student_id, g.course_id, g.marks_obtained
-                 FROM grades g JOIN students st ON st.id=g.student_id
-                 WHERE g.tenant_id=? AND g.exam_id <=> ? AND st.class_id=?",
-                [$this->tid, $selectedExam ?: null, $_GET['class_id']]
-            );
-            foreach ($rows as $r) { $existingGrades[$r['student_id']][$r['course_id']] = $r['marks_obtained']; }
-
-            // Worth saying out loud: a teacher who has just saved needs to see that
-            // the marks are in, not infer it from boxes that look the same either way.
-            $recordedCount = count($rows);
-
-            // Marks saved before the sheet required an exam: they sit against no
-            // exam at all, show nowhere but the Grade Report, and are the reason a
-            // card can be blank while the sheet looks full.
-            $orphanCount = (int)$this->db->fetchOne(
-                "SELECT COUNT(*) c FROM grades g JOIN students st ON st.id=g.student_id
-                 WHERE g.tenant_id=? AND g.exam_id IS NULL AND st.class_id=?",
-                [$this->tid, $_GET['class_id']]
-            )['c'];
-
-            // Every mark these students hold, wherever it is filed. When the sheet
-            // comes up empty this is what answers "but we entered them" — rather
-            // than leaving the school to guess which of several look-alike exams
-            // their work went to, or whether it went to one at all.
-            $marksElsewhere = $this->db->fetchAll(
-                "SELECT e.id AS exam_id, e.name AS exam_name, e.report_column, e.class_id AS exam_class_id,
-                        ec.name AS exam_class_name, ey.name AS exam_year_name, e.academic_year_id,
-                        COUNT(*) AS marks, COUNT(DISTINCT g.student_id) AS students
-                 FROM grades g
-                 JOIN students st ON st.id = g.student_id
-                 LEFT JOIN exams e   ON e.id = g.exam_id
-                 LEFT JOIN classes ec ON ec.id = e.class_id
-                 LEFT JOIN academic_years ey ON ey.id = e.academic_year_id
-                 WHERE g.tenant_id = ? AND st.class_id = ?
-                 GROUP BY e.id, e.name, e.report_column, e.class_id, ec.name, ey.name, e.academic_year_id
-                 ORDER BY marks DESC",
-                [$this->tid, $_GET['class_id']]
-            );
-            // What is already on screen needs no rescuing.
-            $marksElsewhere = array_values(array_filter(
-                $marksElsewhere,
-                fn($r) => (string)($r['exam_id'] ?? '') !== (string)$selectedExam
-            ));
-
-            if ($selectedExam) {
-                $_SESSION['grades_last_sheet'] = ['class_id' => $_GET['class_id'], 'exam_id' => $selectedExam];
+        if ($selectedClass !== '') {
+            foreach ($this->db->fetchAll(
+                "SELECT id, name FROM exams
+                 WHERE tenant_id=? AND class_id=? AND academic_year_id <=> ? AND report_column IS NULL
+                 ORDER BY name, id",
+                [$this->tid, $selectedClass, $selectedYear ?: null]
+            ) as $e) {
+                $periods[] = ['value' => 'exam:' . $e['id'], 'label' => $e['name'], 'on_card' => false];
             }
         }
+
+        // Every exam row that answers to the chosen class, year and period. More
+        // than one means the school has duplicates for that period; all are read
+        // so no mark is hidden behind the row that happens not to be picked.
+        $examIds = $this->periodExamIds($selectedClass, $selectedYear, $selectedPeriod);
+
+        $students = []; $courses = []; $existingGrades = []; $recordedCount = 0;
+        if ($selectedClass !== '') {
+            $students = $this->db->fetchAll(
+                "SELECT s.id, u.name FROM students s JOIN users u ON s.user_id=u.id
+                 WHERE s.class_id=? AND s.tenant_id=? AND s.status='active' ORDER BY u.name",
+                [$selectedClass, $this->tid]
+            );
+            // Same order as the report card, so a teacher reading down a printed
+            // card and typing across this grid follows the same subject sequence.
+            $courses = $this->db->fetchAll(
+                "SELECT c.id, c.name FROM courses c JOIN course_classes cc ON cc.course_id=c.id
+                 WHERE cc.class_id=? AND c.tenant_id=? ORDER BY cc.sort_order, c.name",
+                [$selectedClass, $this->tid]
+            );
+
+            if ($examIds) {
+                $in = implode(',', array_map('intval', $examIds));
+                $rows = $this->db->fetchAll(
+                    "SELECT g.student_id, g.course_id, g.marks_obtained
+                     FROM grades g JOIN students st ON st.id = g.student_id
+                     WHERE g.tenant_id=? AND st.class_id=? AND g.exam_id IN ({$in})",
+                    [$this->tid, $selectedClass]
+                );
+                foreach ($rows as $r) { $existingGrades[$r['student_id']][$r['course_id']] = $r['marks_obtained']; }
+                $recordedCount = count($rows);
+            }
+
+            if ($selectedPeriod !== '') {
+                $_SESSION['grades_last_sheet'] = [
+                    'class_id' => $selectedClass, 'year_id' => $selectedYear, 'period' => $selectedPeriod,
+                ];
+            }
+        }
+
         $this->view('school/highschool/grades/enter', [
-            'pageTitle'=>'Enter Grades','panelType'=>'school','classes'=>$classes,'exams'=>$exams,'students'=>$students,'courses'=>$courses,
-            'selectedClass'=>$_GET['class_id']??'','selectedExam'=>$selectedExam,'existingGrades'=>$existingGrades,
-            'recordedCount'=>$recordedCount, 'orphanCount'=>$orphanCount,
-            'marksElsewhere'=>$marksElsewhere, 'slotLabels'=>self::MARKING_PERIODS,
-            'years'=>$years, 'selectedYear'=>$selectedYear,
-            'canEditGrades'=>$this->canEditGrades(),'flash'=>$this->getFlash(),
+            'pageTitle' => 'Enter Grades', 'panelType' => 'school',
+            'classes' => $classes, 'years' => $years, 'periods' => $periods,
+            'selectedClass' => $selectedClass, 'selectedYear' => $selectedYear, 'selectedPeriod' => $selectedPeriod,
+            'students' => $students, 'courses' => $courses,
+            'existingGrades' => $existingGrades, 'recordedCount' => $recordedCount,
+            'periodIsSetUp' => (bool)$examIds,
+            'canEditGrades' => $this->canEditGrades(), 'flash' => $this->getFlash(),
         ]);
     }
 
+    /**
+     * The exam rows a class/year/period selection refers to.
+     *
+     * "p1".."e2" mean a report-card period and can match more than one row when
+     * the school has duplicates; "exam:12" means that one exam.
+     */
+    private function periodExamIds(string $classId, string $yearId, string $period): array {
+        if ($classId === '' || $period === '') { return []; }
+        if (str_starts_with($period, 'exam:')) {
+            $row = $this->db->fetchOne(
+                "SELECT id FROM exams WHERE id=? AND tenant_id=? AND class_id=?",
+                [(int)substr($period, 5), $this->tid, $classId]
+            );
+            return $row ? [(int)$row['id']] : [];
+        }
+        if (!array_key_exists($period, self::MARKING_PERIODS)) { return []; }
+        return array_map(fn($r) => (int)$r['id'], $this->db->fetchAll(
+            "SELECT id FROM exams
+             WHERE tenant_id=? AND class_id=? AND academic_year_id <=> ? AND report_column=?
+             ORDER BY id",
+            [$this->tid, $classId, $yearId ?: null, $period]
+        ));
+    }
+
+    /**
+     * The one exam a period's marks are written to, created if the school has
+     * not set that period up yet — so a teacher can pick a period and save
+     * without being sent away to another screen first.
+     */
+    private function examForPeriod(string $classId, string $yearId, string $period): ?int {
+        $ids = $this->periodExamIds($classId, $yearId, $period);
+        if ($ids) { return $ids[0]; }
+        if (str_starts_with($period, 'exam:') || !array_key_exists($period, self::MARKING_PERIODS)) { return null; }
+        $names = $this->markingPeriodNames($yearId ?: null);
+        return (int)$this->db->insert(
+            "INSERT INTO exams (tenant_id,name,class_id,academic_year_id,total_marks,pass_marks,report_column,status)
+             VALUES (?,?,?,?,100,?, ?, 'published')",
+            [$this->tid, $names[$period] ?? self::MARKING_PERIODS[$period], $classId, $yearId ?: null,
+             self::PASS_MARK, $period]
+        );
+    }
+
+    /**
+     * Save a sheet of marks against one class, year and marking period.
+     *
+     * The period, not a row in `exams`, is what the screen works in; the exam
+     * row that backs it is found here, and created if the school has not set
+     * that period up yet.
+     */
     public function store(): void {
         $this->requirePermission(['grades.manage']);
         $canEdit = $this->canEditGrades();
-        $examId = $_POST['exam_id'] ?: null;
 
-        // A mark with no exam belongs to no period, so it can never reach a report
-        // card — and the sheet shows it back afterwards, which makes it look filed.
-        // Marks were being lost to this in plain sight, so the save is refused.
-        if ($examId === null && !empty($_POST['grades'])) {
-            $this->flash('danger', 'Choose which exam or marking period these marks belong to before saving. '
-                . 'Marks saved against no exam cannot appear on the report card.');
-            $this->redirect('/school/grades/enter' . (!empty($_POST['class_id'])
-                ? '?class_id=' . urlencode((string)$_POST['class_id']) : ''));
+        $classId = (string)($_POST['class_id'] ?? '');
+        $yearId  = (string)($_POST['year_id'] ?? '');
+        $period  = (string)($_POST['period'] ?? '');
+        $back    = '/school/grades/enter?class_id=' . urlencode($classId)
+                 . '&year_id=' . urlencode($yearId) . '&period=' . urlencode($period);
+
+        if ($classId === '' || $period === '') {
+            $this->flash('danger', 'Choose the class and the marking period these marks belong to.');
+            $this->redirect('/school/grades/enter');
         }
+        $examId = $this->examForPeriod($classId, $yearId, $period);
+        if (!$examId) {
+            $this->flash('danger', 'That marking period could not be found for this class and year.');
+            $this->redirect($back);
+        }
+
         $skipped = 0;
         foreach ($_POST['grades'] ?? [] as $studentId => $marks) {
             foreach ($marks as $courseId => $score) {
@@ -538,38 +486,29 @@ class GradeController extends Controller {
                 $letter = self::celdiLetter($pct);
                 $gpa    = ['E'=>4.0,'S'=>3.0,'I'=>2.0,'N'=>1.0,'C'=>0.0][$letter] ?? 0.0;
                 $existing = $this->db->fetchOne(
-                    "SELECT id FROM grades WHERE tenant_id=? AND student_id=? AND course_id=? AND exam_id <=> ?",
+                    "SELECT id FROM grades WHERE tenant_id=? AND student_id=? AND course_id=? AND exam_id=?",
                     [$this->tid, $studentId, $courseId, $examId]
                 );
                 if ($existing) {
                     if (!$canEdit) { $skipped++; continue; }
-                    $this->db->execute("UPDATE grades SET marks_obtained=?,grade_letter=?,gpa_points=?,graded_by=? WHERE id=?",
-                        [$pct, $letter, $gpa, $_SESSION['user_id'], $existing['id']]);
+                    $this->db->execute(
+                        "UPDATE grades SET marks_obtained=?,grade_letter=?,gpa_points=?,graded_by=? WHERE id=?",
+                        [$pct, $letter, $gpa, $_SESSION['user_id'], $existing['id']]
+                    );
                 } else {
                     $this->db->insert(
-                        "INSERT INTO grades (tenant_id,student_id,course_id,exam_id,marks_obtained,total_marks,grade_letter,gpa_points,graded_by) VALUES (?,?,?,?,?,100,?,?,?)",
+                        "INSERT INTO grades (tenant_id,student_id,course_id,exam_id,marks_obtained,total_marks,grade_letter,gpa_points,graded_by)
+                         VALUES (?,?,?,?,?,100,?,?,?)",
                         [$this->tid,$studentId,$courseId,$examId,$pct,$letter,$gpa,$_SESSION['user_id']]
                     );
                 }
             }
         }
-        // Back to the sheet that was just filled in, not to the exam list: the
-        // teacher sees their own marks sitting in the boxes, which is the only
-        // confirmation that actually reassures anyone.
-        $classId = $_POST['class_id'] ?? ($_SESSION['grades_last_sheet']['class_id'] ?? '');
-        $back = '/school/grades/enter';
-        if ($classId !== '') {
-            $back .= '?class_id=' . urlencode((string)$classId)
-                  . ($examId ? '&exam_id=' . urlencode((string)$examId) : '');
-            $_SESSION['grades_last_sheet'] = ['class_id' => $classId, 'exam_id' => $examId];
-        }
 
-        $saved = count($_POST['grades'] ?? [], COUNT_RECURSIVE) - count($_POST['grades'] ?? []);
-        if ($skipped > 0) {
-            $this->flash('warning', "Grades saved. {$skipped} already-recorded grade(s) were left unchanged — only a School Admin can overwrite an existing grade.");
-        } else {
-            $this->flash('success', 'Grades saved. They are shown below — reopen this class and exam any time to see or change them.');
-        }
+        $_SESSION['grades_last_sheet'] = ['class_id' => $classId, 'year_id' => $yearId, 'period' => $period];
+        $this->flash($skipped ? 'warning' : 'success', $skipped
+            ? "Grades saved. {$skipped} already-recorded grade(s) were left unchanged — only a School Admin can overwrite an existing grade."
+            : 'Grades saved. They are shown below — come back to the same class, year and period to see them.');
         $this->redirect($back);
     }
 
