@@ -362,14 +362,48 @@ class GradeController extends Controller {
                 $_GET['exam_id'] = $remembered['exam_id'];
             }
         }
+        // A chosen exam always wins over a remembered one from another year.
+        if (!empty($_GET['exam_id']) && isset($_GET['year_id']) && $_GET['year_id'] !== '') {
+            $belongs = $this->db->fetchOne(
+                "SELECT id FROM exams WHERE id=? AND tenant_id=? AND (academic_year_id=? OR academic_year_id IS NULL)",
+                [$_GET['exam_id'], $this->tid, $_GET['year_id']]
+            );
+            if (!$belongs) { $_GET['exam_id'] = ''; }
+        }
         $selectedClass = $_GET['class_id'] ?? '';
-        $exams = $selectedClass
-            ? $this->db->fetchAll(
-                "SELECT id, name, report_column FROM exams
-                 WHERE tenant_id=? AND class_id=?
-                 ORDER BY report_column IS NULL, FIELD(report_column,'p1','p2','p3','e1','p4','p5','p6','e2'), name",
-                [$this->tid, $selectedClass])
-            : $this->db->fetchAll("SELECT id, name, report_column FROM exams WHERE tenant_id=? ORDER BY name", [$this->tid]);
+
+        // Marking periods are set up per academic year, and every year's set is
+        // named the same — "1st Pd.", "2nd Pd." and so on. Listing them all
+        // together put two identical "1st Pd." entries in this box, so marks
+        // entered against one year were invisible when the other was picked.
+        // The list is therefore tied to a year, and every option carries it.
+        $years = $this->db->fetchAll(
+            "SELECT id, name, is_current FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]
+        );
+        $selectedYear = $_GET['year_id'] ?? '';
+        if ($selectedYear === '' && !empty($_GET['exam_id'])) {
+            // Following a link straight to an exam: show the year that exam is in.
+            $ofExam = $this->db->fetchOne(
+                "SELECT academic_year_id FROM exams WHERE id=? AND tenant_id=?", [$_GET['exam_id'], $this->tid]
+            );
+            $selectedYear = (string)($ofExam['academic_year_id'] ?? '');
+        }
+        if ($selectedYear === '') {
+            foreach ($years as $y) { if ((int)$y['is_current'] === 1) { $selectedYear = (string)$y['id']; break; } }
+        }
+        if ($selectedYear === '' && $years) { $selectedYear = (string)$years[0]['id']; }
+
+        // Exams with no year of their own stay visible whichever year is chosen —
+        // they belong to none, so hiding them would strand their marks.
+        $examSql = "SELECT e.id, e.name, e.report_column, e.academic_year_id, y.name AS year_name
+                    FROM exams e LEFT JOIN academic_years y ON y.id = e.academic_year_id
+                    WHERE e.tenant_id=?";
+        $examArgs = [$this->tid];
+        if ($selectedClass !== '') { $examSql .= " AND e.class_id=?"; $examArgs[] = $selectedClass; }
+        if ($selectedYear !== '')  { $examSql .= " AND (e.academic_year_id=? OR e.academic_year_id IS NULL)"; $examArgs[] = $selectedYear; }
+        $examSql .= " ORDER BY e.report_column IS NULL,
+                      FIELD(e.report_column,'p1','p2','p3','e1','p4','p5','p6','e2'), e.name, e.id";
+        $exams = $this->db->fetchAll($examSql, $examArgs);
         $students = []; $courses = []; $existingGrades = []; $recordedCount = 0; $orphanCount = 0;
         $selectedExam = $_GET['exam_id'] ?? '';
         if (!empty($_GET['class_id'])) {
@@ -412,6 +446,7 @@ class GradeController extends Controller {
             'pageTitle'=>'Enter Grades','panelType'=>'school','classes'=>$classes,'exams'=>$exams,'students'=>$students,'courses'=>$courses,
             'selectedClass'=>$_GET['class_id']??'','selectedExam'=>$selectedExam,'existingGrades'=>$existingGrades,
             'recordedCount'=>$recordedCount, 'orphanCount'=>$orphanCount,
+            'years'=>$years, 'selectedYear'=>$selectedYear,
             // Marks filed against an exam with no report-card period are saved but
             // can never show on the card, so the screen says which exams those are.
             'slotLabels'=>self::MARKING_PERIOD_SHORT,

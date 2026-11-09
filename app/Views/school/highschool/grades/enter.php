@@ -15,11 +15,25 @@
       <option value="">— Select Class —</option>
       <?php foreach($classes as $c): ?><option value="<?= $c['id'] ?>" <?= $selectedClass==$c['id']?'selected':'' ?>><?= htmlspecialchars($c['name']) ?></option><?php endforeach; ?>
     </select>
-    <select name="exam_id" class="form-control" style="max-width:220px;" required>
+    <select name="year_id" class="form-control" style="max-width:190px;" title="Which academic year's marking periods to show">
+      <?php foreach (($years ?? []) as $y): ?>
+        <option value="<?= $y['id'] ?>" <?= (string)($selectedYear ?? '') === (string)$y['id'] ? 'selected' : '' ?>>
+          <?= htmlspecialchars($y['name']) ?><?= (int)$y['is_current'] === 1 ? ' (current)' : '' ?>
+        </option>
+      <?php endforeach; ?>
+    </select>
+    <select name="exam_id" class="form-control" style="max-width:260px;" required>
       <option value="">— Select Exam / Marking Period —</option>
       <?php foreach($exams as $e): ?>
         <option value="<?= $e['id'] ?>" <?= (string)$selectedExam===(string)$e['id']?'selected':'' ?>>
-          <?= htmlspecialchars($e['name']) ?><?= empty($e['report_column']) ? '  — not on the report card' : '' ?>
+          <?= htmlspecialchars($e['name']) ?><?php
+            // The year is spelled out because every year's periods carry the same
+            // names, and two identical entries are impossible to choose between.
+            echo empty($e['academic_year_id'])
+                ? '  (no year)'
+                : '  · ' . htmlspecialchars($e['year_name'] ?? '');
+            echo empty($e['report_column']) ? '  — not on the report card' : '';
+          ?>
         </option>
       <?php endforeach; ?>
     </select>
