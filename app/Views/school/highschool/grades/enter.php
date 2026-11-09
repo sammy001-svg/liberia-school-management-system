@@ -77,6 +77,34 @@
   </div>
   <?php endif; ?>
 
+  <?php if (empty($recordedCount) && !empty($marksElsewhere)): ?>
+  <div class="card" style="padding:14px 18px;margin-bottom:16px;border-left:3px solid var(--info);">
+    <div class="fw-600" style="margin-bottom:6px;">These students do have marks recorded — under these periods:</div>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Period</th><th>Class it belongs to</th><th>Academic year</th><th>Marks</th></tr></thead>
+        <tbody>
+          <?php foreach ($marksElsewhere as $r): ?>
+          <tr>
+            <td class="fw-600">
+              <?= htmlspecialchars($r['exam_name']) ?><?php if (!empty($r['report_column'])): ?>
+                <span class="badge badge-info" style="margin-left:6px;"><?= htmlspecialchars($slotLabels[$r['report_column']] ?? $r['report_column']) ?></span>
+              <?php endif; ?>
+            </td>
+            <td><?= htmlspecialchars($r['class_name']) ?></td>
+            <td><?= htmlspecialchars($r['year_name']) ?></td>
+            <td><?= (int)$r['marks'] ?></td>
+          </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+    <div style="font-size:12.5px;color:var(--text-muted);margin-top:8px;">
+      Choose that class, year and period above to see and edit them. Nothing has been lost.
+    </div>
+  </div>
+  <?php endif; ?>
+
   <?php if (!$canEditGrades): ?>
   <div class="alert alert-info" style="margin-bottom:16px;">
     Cells with an existing grade are locked — only a School Admin can change a grade once it is

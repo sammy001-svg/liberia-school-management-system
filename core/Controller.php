@@ -1244,8 +1244,12 @@ abstract class Controller {
         // The eight recordable slots for this class+year, as exam_id => column key.
         $pub = $publishedOnly ? " AND e.status='published'" : "";
         $slotRows = $this->db->fetchAll(
+            // An exam carrying no academic year has no other home, so it counts
+            // towards whichever year is being printed. Matching strictly left a
+            // card blank while its marks sat on a period with no year attached.
             "SELECT e.id, e.report_column FROM exams e
-             WHERE e.tenant_id=? AND e.class_id <=> ? AND e.academic_year_id <=> ?
+             WHERE e.tenant_id=? AND e.class_id <=> ?
+               AND (e.academic_year_id <=> ? OR e.academic_year_id IS NULL)
                AND e.report_column IS NOT NULL{$pub}",
             [$tid, $classId, $yearId]
         );

@@ -361,7 +361,7 @@ class GradeController extends Controller {
         // so no mark is hidden behind the row that happens not to be picked.
         $examIds = $this->periodExamIds($selectedClass, $selectedYear, $selectedPeriod);
 
-        $students = []; $courses = []; $existingGrades = []; $recordedCount = 0;
+        $students = []; $courses = []; $existingGrades = []; $recordedCount = 0; $marksElsewhere = [];
         if ($selectedClass !== '') {
             $students = $this->db->fetchAll(
                 "SELECT s.id, u.name FROM students s JOIN users u ON s.user_id=u.id
@@ -388,6 +388,27 @@ class GradeController extends Controller {
                 $recordedCount = count($rows);
             }
 
+            // An empty sheet is only puzzling when the marks exist somewhere else.
+            // This states where, and nothing more — it is a reading of the books,
+            // not an offer to move anything.
+            if ($selectedPeriod !== '' && $recordedCount === 0) {
+                $marksElsewhere = $this->db->fetchAll(
+                    "SELECT COALESCE(e.name, 'no exam at all') AS exam_name,
+                            COALESCE(ec.name, '—')  AS class_name,
+                            COALESCE(ey.name, 'no year') AS year_name,
+                            e.report_column, COUNT(*) AS marks
+                     FROM grades g
+                     JOIN students st ON st.id = g.student_id
+                     LEFT JOIN exams e ON e.id = g.exam_id
+                     LEFT JOIN classes ec ON ec.id = e.class_id
+                     LEFT JOIN academic_years ey ON ey.id = e.academic_year_id
+                     WHERE g.tenant_id = ? AND st.class_id = ?
+                     GROUP BY e.id, e.name, ec.name, ey.name, e.report_column
+                     ORDER BY marks DESC",
+                    [$this->tid, $selectedClass]
+                );
+            }
+
             if ($selectedPeriod !== '') {
                 $_SESSION['grades_last_sheet'] = [
                     'class_id' => $selectedClass, 'year_id' => $selectedYear, 'period' => $selectedPeriod,
@@ -402,6 +423,8 @@ class GradeController extends Controller {
             'students' => $students, 'courses' => $courses,
             'existingGrades' => $existingGrades, 'recordedCount' => $recordedCount,
             'periodIsSetUp' => (bool)$examIds,
+            'marksElsewhere' => $marksElsewhere,
+            'slotLabels' => self::MARKING_PERIODS,
             'canEditGrades' => $this->canEditGrades(), 'flash' => $this->getFlash(),
         ]);
     }
@@ -422,11 +445,15 @@ class GradeController extends Controller {
             return $row ? [(int)$row['id']] : [];
         }
         if (!array_key_exists($period, self::MARKING_PERIODS)) { return []; }
+        // An exam carrying no academic year has no other home, so it answers to
+        // whichever year is being looked at rather than to none — matching it
+        // strictly is how a period full of marks came up empty.
         return array_map(fn($r) => (int)$r['id'], $this->db->fetchAll(
             "SELECT id FROM exams
-             WHERE tenant_id=? AND class_id=? AND academic_year_id <=> ? AND report_column=?
-             ORDER BY id",
-            [$this->tid, $classId, $yearId ?: null, $period]
+             WHERE tenant_id=? AND class_id=? AND report_column=?
+               AND (academic_year_id <=> ? OR academic_year_id IS NULL)
+             ORDER BY academic_year_id IS NULL, id",
+            [$this->tid, $classId, $period, $yearId ?: null]
         ));
     }
 
