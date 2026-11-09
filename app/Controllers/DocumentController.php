@@ -103,8 +103,10 @@ class DocumentController extends Controller {
             $years[$yearKey]['subjects'][$courseName][] = (float)$r['marks_obtained'] / $total * 100;
         }
 
-        $letterFor = fn(float $p) => $p>=90?'A+':($p>=80?'A':($p>=70?'B':($p>=60?'C':($p>=50?'D':'F'))));
-        $gpaFor    = fn(float $p) => $p>=90?4.0:($p>=80?3.5:($p>=70?3.0:($p>=60?2.5:($p>=50?2.0:0.0))));
+        // Shared with the period report card so one mark never reads as two
+        // different grades across the school's own documents.
+        $letterFor = fn(float $p) => self::transcriptLetter($p);
+        $gpaFor    = fn(float $p) => self::transcriptGpa($p);
 
         $allPercentages = [];
         foreach ($years as $yearKey => $data) {

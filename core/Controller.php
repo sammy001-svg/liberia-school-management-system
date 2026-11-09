@@ -1028,6 +1028,23 @@ abstract class Controller {
     ];
 
     /**
+     * The letter and GPA a transcript reports, on the A+ .. F scale.
+     *
+     * Defined once because the transcript and the period report card are the
+     * same document bar the title, and a mark that reads A+ on one must not
+     * read anything else on the other.
+     */
+    public static function transcriptLetter(float $percent): string {
+        return $percent >= 90 ? 'A+' : ($percent >= 80 ? 'A' : ($percent >= 70 ? 'B'
+             : ($percent >= 60 ? 'C' : ($percent >= 50 ? 'D' : 'F'))));
+    }
+
+    public static function transcriptGpa(float $percent): float {
+        return $percent >= 90 ? 4.0 : ($percent >= 80 ? 3.5 : ($percent >= 70 ? 3.0
+             : ($percent >= 60 ? 2.5 : ($percent >= 50 ? 2.0 : 0.0))));
+    }
+
+    /**
      * The school's logo as something an <img src> can use.
      *
      * Uploads are stored as a full URL by handleImageUpload(), so a view that

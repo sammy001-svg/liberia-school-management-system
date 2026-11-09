@@ -509,6 +509,7 @@ class GradeController extends Controller {
         // Every mark for this class and period, so a position can be worked out.
         $examIds = $this->periodExamIds($classId, $yearId, $period);
         $marks = [];
+        $tally = [];
         if ($examIds && $classId !== '') {
             $in = implode(',', array_map('intval', $examIds));
             foreach ($this->db->fetchAll(
@@ -519,7 +520,9 @@ class GradeController extends Controller {
             ) as $r) {
                 $total = (float)$r['total_marks'];
                 if ($total > 0) {
-                    $marks[(int)$r['student_id']][(int)$r['course_id']] = (float)$r['marks_obtained'] / $total * 100;
+                    $sid = (int)$r['student_id']; $cid = (int)$r['course_id'];
+                    $marks[$sid][$cid] = (float)$r['marks_obtained'] / $total * 100;
+                    $tally[$sid][$cid] = ($tally[$sid][$cid] ?? 0) + 1;
                 }
             }
         }
@@ -547,12 +550,16 @@ class GradeController extends Controller {
         $cards = [];
         foreach ($students as $st) {
             $sid = (int)$st['id'];
-            $own = $marks[$sid] ?? [];
+            $own    = $marks[$sid] ?? [];
+            $counts = $tally[$sid] ?? [];
             $cards[] = [
                 'student'  => $st,
                 'rows'     => array_map(fn($c) => [
-                    'subject' => $c['name'],
-                    'mark'    => $own[(int)$c['id']] ?? null,
+                    'subject'     => $c['name'],
+                    'mark'        => $own[(int)$c['id']] ?? null,
+                    // The transcript counts the assessments behind each average;
+                    // for one period that is however many marks were recorded.
+                    'assessments' => $counts[(int)$c['id']] ?? 0,
                 ], $subjects),
                 'average'  => $own ? array_sum($own) / count($own) : null,
                 'position' => $positions[$sid] ?? null,

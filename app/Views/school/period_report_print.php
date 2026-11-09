@@ -60,9 +60,6 @@ $single     = !empty($oneStudent) ? ($cards[0]['student'] ?? null) : null;
   table.grades td { font-size:12px; padding:7px 10px; border-bottom:1px solid #e5e7eb; color:#1f2937; }
   table.grades tr:nth-child(even) td { background:#f9fafb; }
   table.grades td.num, table.grades th.num { text-align:center; width:90px; }
-  table.grades td.pass { color:#1d4ed8; font-weight:700; }
-  table.grades td.fail { color:#dc2626; font-weight:700; }
-  table.grades td.blank { color:#9ca3af; }
 
   .summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:22px 0; }
   .summary-card { border:1px solid #e5e7eb; border-radius:10px; padding:12px; text-align:center; }
@@ -71,7 +68,6 @@ $single     = !empty($oneStudent) ? ($cards[0]['student'] ?? null) : null;
 
   .scale { border:1px dashed #d1d5db; border-radius:10px; padding:12px 14px; font-size:10.5px; color:#4b5563; margin-bottom:26px; }
   .scale .lbl { font-size:9.5px; text-transform:uppercase; color:#9ca3af; font-weight:700; letter-spacing:0.05em; margin-bottom:6px; }
-  .scale b.pass { color:#1d4ed8; } .scale b.fail { color:#dc2626; }
 
   .signatures { display:grid; grid-template-columns:repeat(2,1fr); gap:40px; margin-top:36px; }
   .signatures div { text-align:center; font-size:11px; color:#374151; }
@@ -81,7 +77,7 @@ $single     = !empty($oneStudent) ? ($cards[0]['student'] ?? null) : null;
   .empty { text-align:center; padding:40px 20px; color:#9ca3af; font-size:12.5px; }
 
   @media print {
-    /* The pass and fail colours carry meaning here, so they must survive printing. */
+    /* The letterhead rule and table header are colour, so keep them on paper. */
     * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     body { background:#fff; padding:0; }
     .toolbar { display:none; }
@@ -172,15 +168,15 @@ $single     = !empty($oneStudent) ? ($cards[0]['student'] ?? null) : null;
       </div>
       <table class="grades">
         <thead>
-          <tr><th>Subject</th><th class="num">Mark</th><th class="num">Grade</th><th class="num">Remark</th></tr>
+          <tr><th>Subject</th><th class="num">Assessments</th><th class="num">Average</th><th class="num">Grade</th></tr>
         </thead>
         <tbody>
-          <?php foreach ($card['rows'] as $row): $m = $row['mark']; $cls = $m === null ? 'blank' : ($m < $passMark ? 'fail' : 'pass'); ?>
+          <?php foreach ($card['rows'] as $row): $m = $row['mark']; ?>
           <tr>
             <td><?= htmlspecialchars($row['subject']) ?></td>
-            <td class="num <?= $cls ?>"><?= $m !== null ? number_format($m, 1) . '%' : '—' ?></td>
-            <td class="num <?= $cls ?>"><?= $m !== null ? Controller::celdiLetter($m) : '—' ?></td>
-            <td class="num <?= $cls ?>"><?= $m === null ? '—' : ($m < $passMark ? 'Fail' : 'Pass') ?></td>
+            <td class="num"><?= (int)$row['assessments'] ?></td>
+            <td class="num"><?= $m !== null ? number_format($m, 1) . '%' : '—' ?></td>
+            <td class="num"><?= $m !== null ? Controller::transcriptLetter($m) : '—' ?></td>
           </tr>
           <?php endforeach; ?>
         </tbody>
@@ -189,17 +185,16 @@ $single     = !empty($oneStudent) ? ($cards[0]['student'] ?? null) : null;
 
     <div class="summary-grid">
       <div class="summary-card"><div class="lbl">Period Average</div><div class="val"><?= $card['average'] !== null ? number_format($card['average'], 1) . '%' : '—' ?></div></div>
-      <div class="summary-card"><div class="lbl">Overall Grade</div><div class="val"><?= $card['average'] !== null ? Controller::celdiLetter($card['average']) : '—' ?></div></div>
+      <div class="summary-card"><div class="lbl">Overall Grade</div><div class="val"><?= $card['average'] !== null ? Controller::transcriptLetter($card['average']) : '—' ?></div></div>
+      <div class="summary-card"><div class="lbl">GPA (4.0)</div><div class="val"><?= $card['average'] !== null ? number_format(Controller::transcriptGpa($card['average']), 2) : '—' ?></div></div>
       <div class="summary-card"><div class="lbl">Position in Class</div><div class="val"><?= $card['position'] ? $card['position'] . ' / ' . $card['of'] : '—' ?></div></div>
-      <div class="summary-card"><div class="lbl">Days Absent</div><div class="val"><?= $card['absent'] !== null ? (int)$card['absent'] : '—' ?></div></div>
     </div>
   <?php endif; ?>
 
   <div class="scale">
     <div class="lbl">Grading Scale</div>
-    <?php foreach ($scale as $i => $b): ?><?= (int)$b['min'] ?>–<?= (int)$b['max'] ?> = <?= htmlspecialchars($b['label']) ?> (<?= $b['letter'] ?>)<?= $i < count($scale) - 1 ? ' &nbsp;·&nbsp; ' : '.' ?><?php endforeach; ?>
-    <br><b class="pass">Blue</b> = pass (<?= (int)$passMark ?> and above) &nbsp;·&nbsp; <b class="fail">Red</b> = fail (<?= (int)$passMark - 1 ?> and below).
-    The period average is the mean of this student's marks for the subjects shown.
+    A+ = 90–100 &nbsp;·&nbsp; A = 80–89 &nbsp;·&nbsp; B = 70–79 &nbsp;·&nbsp; C = 60–69 &nbsp;·&nbsp; D = 50–59 &nbsp;·&nbsp; F = below 50.
+    Subject averages are the mean of all marks recorded for that subject in the stated marking period.
   </div>
 
   <div class="signatures">
