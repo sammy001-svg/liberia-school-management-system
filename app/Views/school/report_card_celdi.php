@@ -12,7 +12,7 @@
  */
 $cfg = require ROOT_DIR . '/config/app.php';
 $schoolName = $tenant['name'] ?? ($cfg['name'] ?? 'School');
-$logo = !empty($tenant['logo']) ? $cfg['url'] . '/uploads/logos/' . $tenant['logo'] : null;
+$logo = Controller::logoUrl($tenant['logo'] ?? null);
 
 // The controller extracts the builder's result as loose variables; the sheet
 // partial takes a single $card so the class batch can loop it per student.

@@ -10,7 +10,7 @@ $cfg        = require ROOT_DIR . '/config/app.php';
 $primary    = $tenant['primary_color'] ?? '#10B981';
 $secondary  = $tenant['secondary_color'] ?? '#059669';
 $schoolName = $tenant['name'] ?? ($cfg['name'] ?? 'School');
-$logo       = !empty($tenant['logo']) ? $cfg['url'] . '/uploads/logos/' . $tenant['logo'] : null;
+$logo        = Controller::logoUrl($tenant['logo'] ?? null);
 $issued     = date('d M Y');
 $mark = function (?float $v) use ($passMark) {
     if ($v === null) { return ['', '']; }

@@ -10,7 +10,7 @@
  */
 $cfg = require ROOT_DIR . '/config/app.php';
 $schoolName = $tenant['name'] ?? ($cfg['name'] ?? 'School');
-$logo = !empty($tenant['logo']) ? $cfg['url'] . '/uploads/logos/' . $tenant['logo'] : null;
+$logo = Controller::logoUrl($tenant['logo'] ?? null);
 ?>
 <!DOCTYPE html>
 <html lang="en">

@@ -1028,6 +1028,22 @@ abstract class Controller {
     ];
 
     /**
+     * The school's logo as something an <img src> can use.
+     *
+     * Uploads are stored as a full URL by handleImageUpload(), so a view that
+     * prefixes the uploads path again produces a doubled address and a broken
+     * image. Older rows may instead hold a bare filename, so both are handled
+     * here rather than in each print view.
+     */
+    public static function logoUrl(?string $stored): ?string {
+        $stored = trim((string)$stored);
+        if ($stored === '') { return null; }
+        if (preg_match('~^(https?:)?//~i', $stored) || $stored[0] === '/') { return $stored; }
+        $cfg = require dirname(__DIR__) . '/config/app.php';
+        return rtrim($cfg['url'], '/') . '/uploads/logos/' . ltrim($stored, '/');
+    }
+
+    /**
      * A cache-busting version for a file under /public, taken from when the file
      * was last changed. Browsers hold on to a stylesheet for a long time, so a
      * link without one keeps serving yesterday's CSS after a deploy — new rules
