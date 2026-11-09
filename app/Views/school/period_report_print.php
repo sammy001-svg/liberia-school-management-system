@@ -122,7 +122,7 @@ $single     = !empty($oneStudent) ? ($cards[0]['student'] ?? null) : null;
   <div class="sheet"><div class="empty">There are no students to report on here.</div></div>
 <?php endif; ?>
 
-<?php foreach ($cards as $card): $student = $card['student']; $marked = array_filter($card['rows'], fn($r) => $r['mark'] !== null); ?>
+<?php foreach ($cards as $card): $student = $card['student']; ?>
 <div class="sheet">
 
   <div class="letterhead">
@@ -154,9 +154,11 @@ $single     = !empty($oneStudent) ? ($cards[0]['student'] ?? null) : null;
     <div><span class="lbl">Attendance</span><span class="val"><?= $card['attendance'] !== null ? (int)$card['attendance'] . '%' : '—' ?></span></div>
   </div>
 
-  <?php if (empty($card['rows'])): ?>
+  <?php // Only marked subjects are listed, so an empty table means either the
+        // class has no subjects at all or nothing was marked this period. ?>
+  <?php if (empty($subjects)): ?>
     <div class="empty">This class has no subjects assigned yet, so there is nothing to report.</div>
-  <?php elseif (empty($marked)): ?>
+  <?php elseif (empty($card['rows'])): ?>
     <div class="empty">No marks have been recorded for <?= htmlspecialchars($periodName) ?> yet.</div>
   <?php else: ?>
     <div class="yearblock">

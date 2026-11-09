@@ -158,7 +158,9 @@ $avgCell = function (?float $v) use ($fmt, $PASS_MARK) {
     <tbody>
       <?php if (empty($rows)): ?>
       <tr><td class="subj" colspan="13" style="text-align:center;padding:18px;font-style:italic;">
-        This class has no subjects assigned yet.
+        <?= empty($card['subjects'])
+              ? 'This class has no subjects assigned yet.'
+              : 'No marks have been recorded for this student yet — only subjects that carry a mark are printed.' ?>
       </td></tr>
       <?php endif; ?>
       <?php foreach ($rows as $r): ?>

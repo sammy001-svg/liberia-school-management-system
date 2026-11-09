@@ -22,6 +22,8 @@ $card = [
     'year'          => $year          ?? null,
     'columns'       => $columns       ?? [],
     'rows'          => $rows          ?? [],
+    // Needed to tell 'this class teaches nothing' from 'this student has no marks'.
+    'subjects'      => $subjects      ?? [],
     'columnAverage' => $columnAverage ?? [],
     'rank'          => $rank          ?? [],
     'absence'       => $absence       ?? [],

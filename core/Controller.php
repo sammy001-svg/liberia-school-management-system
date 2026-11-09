@@ -1487,7 +1487,13 @@ abstract class Controller {
             $semesters = array_values(array_filter([$cells['s1'], $cells['s2']], fn($v) => $v !== null));
             $cells['yr'] = $semesters ? self::celdiRound(array_sum($semesters) / count($semesters)) : null;
 
-            $rows[] = ['subject' => $s['name'], 'course_id' => $cid, 'cells' => $cells];
+            // A subject nobody has marked contributes nothing but an empty line
+            // across eleven columns, so it is left off the card entirely. A
+            // subject marked in some periods and not others still prints: the
+            // blanks there are information, the whole row is not.
+            if (array_filter($cells, fn($v) => $v !== null)) {
+                $rows[] = ['subject' => $s['name'], 'course_id' => $cid, 'cells' => $cells];
+            }
         }
 
         // Average row. The recorded columns hold whole-number marks and the school

@@ -554,13 +554,15 @@ class GradeController extends Controller {
             $counts = $tally[$sid] ?? [];
             $cards[] = [
                 'student'  => $st,
-                'rows'     => array_map(fn($c) => [
+                // Only the subjects this student was actually marked in for this
+                // period. An unmarked subject would print as a row of dashes.
+                'rows'     => array_values(array_map(fn($c) => [
                     'subject'     => $c['name'],
-                    'mark'        => $own[(int)$c['id']] ?? null,
+                    'mark'        => $own[(int)$c['id']],
                     // The transcript counts the assessments behind each average;
                     // for one period that is however many marks were recorded.
                     'assessments' => $counts[(int)$c['id']] ?? 0,
-                ], $subjects),
+                ], array_filter($subjects, fn($c) => isset($own[(int)$c['id']])))),
                 'average'  => $own ? array_sum($own) / count($own) : null,
                 'position' => $positions[$sid] ?? null,
                 'of'       => count($averages),
