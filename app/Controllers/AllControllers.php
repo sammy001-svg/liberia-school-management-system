@@ -362,48 +362,77 @@ class GradeController extends Controller {
                 $_GET['exam_id'] = $remembered['exam_id'];
             }
         }
-        // A chosen exam always wins over a remembered one from another year.
-        if (!empty($_GET['exam_id']) && isset($_GET['year_id']) && $_GET['year_id'] !== '') {
-            $belongs = $this->db->fetchOne(
-                "SELECT id FROM exams WHERE id=? AND tenant_id=? AND (academic_year_id=? OR academic_year_id IS NULL)",
-                [$_GET['exam_id'], $this->tid, $_GET['year_id']]
-            );
-            if (!$belongs) { $_GET['exam_id'] = ''; }
-        }
         $selectedClass = $_GET['class_id'] ?? '';
 
-        // Marking periods are set up per academic year, and every year's set is
-        // named the same — "1st Pd.", "2nd Pd." and so on. Listing them all
-        // together put two identical "1st Pd." entries in this box, so marks
-        // entered against one year were invisible when the other was picked.
-        // The list is therefore tied to a year, and every option carries it.
+        // Marking periods are created per academic year and every year's set is
+        // named the same — "1st Pd.", "2nd Pd." and so on — so listing them all
+        // together made two entries read identically and marks appear to vanish.
+        // The list is tied to a year to stop that, but the year is only ever a
+        // filter over the list: it never overrides a chosen exam and never hides
+        // the one place a class's marks actually are.
         $years = $this->db->fetchAll(
             "SELECT id, name, is_current FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]
         );
-        $selectedYear = $_GET['year_id'] ?? '';
-        if ($selectedYear === '' && !empty($_GET['exam_id'])) {
-            // Following a link straight to an exam: show the year that exam is in.
+
+        // The chosen exam decides the year, not the other way round. Picking an
+        // exam from one year while the box still shows another used to blank the
+        // exam and empty the sheet; now the box simply follows the exam.
+        $examYear = null;
+        if (!empty($_GET['exam_id'])) {
             $ofExam = $this->db->fetchOne(
                 "SELECT academic_year_id FROM exams WHERE id=? AND tenant_id=?", [$_GET['exam_id'], $this->tid]
             );
-            $selectedYear = (string)($ofExam['academic_year_id'] ?? '');
+            if ($ofExam) { $examYear = $ofExam['academic_year_id']; }
         }
-        if ($selectedYear === '') {
-            foreach ($years as $y) { if ((int)$y['is_current'] === 1) { $selectedYear = (string)$y['id']; break; } }
-        }
-        if ($selectedYear === '' && $years) { $selectedYear = (string)$years[0]['id']; }
 
-        // Exams with no year of their own stay visible whichever year is chosen —
-        // they belong to none, so hiding them would strand their marks.
+        $selectedYear = $examYear !== null ? (string)$examYear : ($_GET['year_id'] ?? '');
+        if ($selectedYear === '' && $selectedClass !== '' && !isset($_GET['year_id'])) {
+            // Open on the year this class's marks are actually in. A school whose
+            // "current year" flag sits on a year with no marks would otherwise see
+            // every class come up empty.
+            $withMarks = $this->db->fetchOne(
+                "SELECT e.academic_year_id FROM exams e
+                 JOIN grades g ON g.exam_id = e.id
+                 LEFT JOIN academic_years y ON y.id = e.academic_year_id
+                 WHERE e.tenant_id=? AND e.class_id=? AND e.academic_year_id IS NOT NULL
+                 GROUP BY e.academic_year_id, y.start_date
+                 ORDER BY y.start_date DESC LIMIT 1",
+                [$this->tid, $selectedClass]
+            );
+            if ($withMarks) { $selectedYear = (string)$withMarks['academic_year_id']; }
+        }
+        if ($selectedYear === '' && !isset($_GET['year_id'])) {
+            foreach ($years as $y) { if ((int)$y['is_current'] === 1) { $selectedYear = (string)$y['id']; break; } }
+            if ($selectedYear === '' && $years) { $selectedYear = (string)$years[0]['id']; }
+        }
+
+        // Exams with no year of their own stay visible whichever year is chosen,
+        // and "All years" ($selectedYear === 'all') hides nothing at all, so no
+        // exam this class has can ever be out of reach.
         $examSql = "SELECT e.id, e.name, e.report_column, e.academic_year_id, y.name AS year_name
                     FROM exams e LEFT JOIN academic_years y ON y.id = e.academic_year_id
                     WHERE e.tenant_id=?";
         $examArgs = [$this->tid];
         if ($selectedClass !== '') { $examSql .= " AND e.class_id=?"; $examArgs[] = $selectedClass; }
-        if ($selectedYear !== '')  { $examSql .= " AND (e.academic_year_id=? OR e.academic_year_id IS NULL)"; $examArgs[] = $selectedYear; }
-        $examSql .= " ORDER BY e.report_column IS NULL,
+        if ($selectedYear !== '' && $selectedYear !== 'all') {
+            $examSql .= " AND (e.academic_year_id=? OR e.academic_year_id IS NULL)";
+            $examArgs[] = $selectedYear;
+        }
+        $examSql .= " ORDER BY y.start_date DESC, e.report_column IS NULL,
                       FIELD(e.report_column,'p1','p2','p3','e1','p4','p5','p6','e2'), e.name, e.id";
         $exams = $this->db->fetchAll($examSql, $examArgs);
+
+        // Last safety net: whatever the filter decided, the chosen exam is always
+        // in the list. An exam that is selected but absent is what empties a sheet.
+        if (!empty($_GET['exam_id']) && !in_array((string)$_GET['exam_id'], array_map(fn($e) => (string)$e['id'], $exams), true)) {
+            $missing = $this->db->fetchOne(
+                "SELECT e.id, e.name, e.report_column, e.academic_year_id, y.name AS year_name
+                 FROM exams e LEFT JOIN academic_years y ON y.id = e.academic_year_id
+                 WHERE e.id=? AND e.tenant_id=?",
+                [$_GET['exam_id'], $this->tid]
+            );
+            if ($missing) { array_unshift($exams, $missing); }
+        }
         $students = []; $courses = []; $existingGrades = []; $recordedCount = 0; $orphanCount = 0;
         $selectedExam = $_GET['exam_id'] ?? '';
         if (!empty($_GET['class_id'])) {

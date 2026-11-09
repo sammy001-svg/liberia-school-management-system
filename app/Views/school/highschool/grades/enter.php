@@ -21,6 +21,7 @@
           <?= htmlspecialchars($y['name']) ?><?= (int)$y['is_current'] === 1 ? ' (current)' : '' ?>
         </option>
       <?php endforeach; ?>
+      <option value="all" <?= ($selectedYear ?? '') === 'all' ? 'selected' : '' ?>>All years</option>
     </select>
     <select name="exam_id" class="form-control" style="max-width:260px;" required>
       <option value="">— Select Exam / Marking Period —</option>
