@@ -160,6 +160,27 @@ reason they missed it, add a question, publish. It appears on that student's
 
 ---
 
+## If you get "HTTP ERROR 500" after deploying
+
+A 500 with no message means PHP stopped before it could render anything, and
+`config/app.php` has `debug => false` so the reason is not shown. Do not guess:
+
+1. Upload `public/health.php` from the release to the site's public folder.
+2. Open `https://your-site/health.php`.
+3. It names the exact problem — a file that did not upload fully, a missing
+   `config/database.php`, a wrong PHP version, a missing extension, a database
+   it cannot reach.
+4. Fix what it names, reload the site, then **delete `health.php`**.
+
+The commonest cause is a large file that did not finish uploading:
+`core/Controller.php` and `app/Controllers/AllControllers.php` are around 80 KB
+each and load on every request, so a half-written copy takes the whole site
+down. The check catches exactly that and names the file.
+
+If `health.php` reports everything fine, the failure is inside a page rather
+than at load time: open **cPanel → Metrics → Errors**, or the `error_log` file
+in the site folder, and read the newest lines.
+
 ## If something looks wrong afterwards
 
 Tell me which of the five checks above failed and what you saw. Do not roll
