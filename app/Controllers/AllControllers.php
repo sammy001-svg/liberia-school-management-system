@@ -224,6 +224,50 @@ class GradeController extends Controller {
         $this->redirect('/school/grades');
     }
 
+    /**
+     * Put an existing exam on the report card, or take it off.
+     *
+     * Exams made before the Add Exam form asked for a period carry none, so their
+     * marks are saved but never print. Without this the only way to correct one
+     * was to edit the database by hand.
+     */
+    public function setExamPeriod(string $id): void {
+        $this->requirePermission(['grades.manage']);
+        $exam = $this->db->fetchOne("SELECT * FROM exams WHERE id=? AND tenant_id=?", [$id, $this->tid]);
+        if (!$exam) { $this->redirect('/school/grades'); }
+
+        $slot = $_POST['report_column'] ?? '';
+        if ($slot !== '' && !array_key_exists($slot, self::MARKING_PERIODS)) {
+            $this->flash('danger', 'That is not one of the report-card periods.');
+            $this->redirect('/school/grades');
+        }
+        if ($slot !== '' && empty($exam['class_id'])) {
+            $this->flash('danger', '"' . $exam['name'] . '" belongs to no class, so it cannot fill a report-card period. '
+                . 'Give it a class first — a card is printed per class.');
+            $this->redirect('/school/grades');
+        }
+        if ($slot !== '') {
+            $taken = $this->db->fetchOne(
+                "SELECT name FROM exams WHERE tenant_id=? AND class_id=? AND academic_year_id <=> ? AND report_column=? AND id<>?",
+                [$this->tid, $exam['class_id'], $exam['academic_year_id'], $slot, $exam['id']]
+            );
+            if ($taken) {
+                $this->flash('danger', self::MARKING_PERIODS[$slot] . ' is already filled by "' . $taken['name']
+                    . '" for this class and year. Take that one off the card first if this exam should fill it instead.');
+                $this->redirect('/school/grades');
+            }
+        }
+
+        $this->db->execute("UPDATE exams SET report_column=? WHERE id=? AND tenant_id=?", [$slot ?: null, $exam['id'], $this->tid]);
+
+        $marks = (int)$this->db->fetchOne("SELECT COUNT(*) c FROM grades WHERE exam_id=?", [$exam['id']])['c'];
+        $this->flash('success', $slot
+            ? '"' . $exam['name'] . '" now fills ' . self::MARKING_PERIODS[$slot] . ' on the report card'
+              . ($marks ? ' — its ' . $marks . ' recorded mark' . ($marks === 1 ? '' : 's') . ' will print there.' : '.')
+            : '"' . $exam['name'] . '" has been taken off the report card. Its marks are still recorded.');
+        $this->redirect('/school/grades');
+    }
+
     public function publish(string $id): void {
         $this->requirePermission(['grades.manage']);
         $exam = $this->db->fetchOne("SELECT * FROM exams WHERE id=? AND tenant_id=?", [$id, $this->tid]);

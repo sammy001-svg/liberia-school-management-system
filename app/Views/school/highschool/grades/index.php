@@ -37,11 +37,17 @@
         <td class="fw-600"><?= htmlspecialchars($e['name']) ?></td>
         <td><?= htmlspecialchars($e['class_name']??'All Classes') ?></td>
         <td>
-          <?php if (!empty($e['report_column'])): ?>
-            <span class="badge badge-info"><?= htmlspecialchars($slotLabels[$e['report_column']] ?? $e['report_column']) ?></span>
-          <?php else: ?>
-            <span class="badge badge-muted" title="Marks for this exam are saved, but they will not print on the report card.">Not on the card</span>
-          <?php endif; ?>
+          <form method="POST" action="<?= $cfg['url'] ?>/school/exams/<?= $e['id'] ?>/report-period">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
+            <select name="report_column" class="form-control" style="min-width:160px;padding:4px 8px;font-size:12.5px;"
+                    onchange="this.form.submit()"
+                    title="Which column this exam fills on the printed report card">
+              <option value="">Not on the card</option>
+              <?php foreach (($slotLabels ?? []) as $k => $label): ?>
+                <option value="<?= $k ?>" <?= ($e['report_column'] ?? '') === $k ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </form>
         </td>
         <td><?= $e['exam_date']?date('M d, Y',strtotime($e['exam_date'])):'—' ?></td>
         <td><?= $e['total_marks'] ?></td>

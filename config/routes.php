@@ -115,6 +115,7 @@ $router->post('/school/classes/{id}/report-style', ['GradeController', 'toggleRe
 $router->get('/school/grades/promotions',        ['GradeController', 'promotions']);
 $router->post('/school/grades/promotions/save',  ['GradeController', 'savePromotions']);
 $router->post('/school/grades/{id}/publish', ['GradeController', 'publish']);
+$router->post('/school/exams/{id}/report-period', ['GradeController', 'setExamPeriod']);
 $router->get('/school/grades/report/{studentId}', ['GradeController', 'report']);
 $router->get('/school/grades/report-card/{studentId}', ['GradeController', 'reportCard']);
 $router->get('/school/grades/rankings',            ['GradeController', 'rankings']);
