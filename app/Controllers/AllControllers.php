@@ -445,7 +445,7 @@ class GradeController extends Controller {
     public function periodReport(string $studentId): void {
         $this->requirePermission(['grades.manage', 'students.view']);
         $student = $this->db->fetchOne(
-            "SELECT s.*, u.name, u.gender, c.name AS class_name
+            "SELECT s.*, u.name, u.gender, u.date_of_birth, c.name AS class_name
              FROM students s JOIN users u ON s.user_id = u.id
              LEFT JOIN classes c ON c.id = s.class_id
              WHERE s.id=? AND s.tenant_id=?",
@@ -466,7 +466,7 @@ class GradeController extends Controller {
         $class = $this->db->fetchOne("SELECT * FROM classes WHERE id=? AND tenant_id=?", [$classId, $this->tid]);
         if (!$class) { $this->redirect('/school/students'); }
         $students = $this->db->fetchAll(
-            "SELECT s.*, u.name, u.gender, c.name AS class_name
+            "SELECT s.*, u.name, u.gender, u.date_of_birth, c.name AS class_name
              FROM students s JOIN users u ON s.user_id = u.id
              LEFT JOIN classes c ON c.id = s.class_id
              WHERE s.class_id=? AND s.tenant_id=? AND s.status='active'
@@ -558,6 +558,7 @@ class GradeController extends Controller {
                 'position' => $positions[$sid] ?? null,
                 'of'       => count($averages),
                 'absent'   => $absence ? $this->celdiStudentAbsences((string)$sid, [$period => $absence])[$period] ?? null : null,
+                'attendance' => $this->attendanceRateFor($sid),
             ];
         }
 
@@ -573,7 +574,18 @@ class GradeController extends Controller {
             'periodName' => $this->markingPeriodNames($yearId ?: null)[$period] ?? self::MARKING_PERIODS[$period],
             'periods'    => $this->markingPeriodNames($yearId ?: null),
             'passMark'   => self::PASS_MARK,
+            'scale'      => self::CELDI_SCALE,
         ];
+    }
+
+    /** Share of marked days this student was present, as the transcript reports it. */
+    private function attendanceRateFor(int $studentId): ?int {
+        $a = $this->db->fetchOne(
+            "SELECT COUNT(*) total, SUM(CASE WHEN status='present' THEN 1 ELSE 0 END) present
+             FROM attendance WHERE student_id=? AND tenant_id=?",
+            [$studentId, $this->tid]
+        );
+        return ($a['total'] ?? 0) > 0 ? (int)round($a['present'] / $a['total'] * 100) : null;
     }
 
     private function periodExamIds(string $classId, string $yearId, string $period): array {
