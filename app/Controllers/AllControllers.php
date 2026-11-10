@@ -597,6 +597,184 @@ class GradeController extends Controller {
         return ($a['total'] ?? 0) > 0 ? (int)round($a['present'] / $a['total'] * 100) : null;
     }
 
+    /**
+     * Bulk entry of marks already recorded on paper.
+     *
+     * A school moving from master grade sheets has hundreds of marks to get in,
+     * and typing them one sheet at a time through the entry grid is both slow
+     * and risky. This takes the sheet as pasted text, shows exactly what it
+     * matched before anything is written, and then only ever adds: a subject and
+     * student that already carry a mark for the period are left exactly as they
+     * are and reported as skipped.
+     */
+    public function importGrades(): void {
+        $this->requirePermission(['grades.manage']);
+        $this->view('school/highschool/grades/import', $this->importScreen());
+    }
+
+    /** Parse and show what would happen; write only when asked to confirm. */
+    public function importGradesRun(): void {
+        $this->requirePermission(['grades.manage']);
+
+        $classId = (string)($_POST['class_id'] ?? '');
+        $yearId  = (string)($_POST['year_id'] ?? '');
+        $period  = (string)($_POST['period'] ?? '');
+        $subject = (string)($_POST['course_id'] ?? '');
+        $raw     = (string)($_POST['data'] ?? '');
+        $confirm = !empty($_POST['confirm']);
+
+        $screen = $this->importScreen($classId, $yearId, $period, $subject, $raw);
+
+        if ($classId === '' || $period === '') {
+            $screen['error'] = 'Choose the class and the marking period these marks belong to.';
+            $this->view('school/highschool/grades/import', $screen);
+            return;
+        }
+        if (trim($raw) === '') {
+            $screen['error'] = 'Paste the marks first — one student per line.';
+            $this->view('school/highschool/grades/import', $screen);
+            return;
+        }
+
+        $plan = $this->planGradeImport($classId, $yearId, $period, $subject, $raw);
+        $screen = array_merge($screen, $plan);
+
+        if (!$confirm) {
+            $this->view('school/highschool/grades/import', $screen);
+            return;
+        }
+
+        // Writing. Nothing here touches a mark that already exists.
+        $examId = $this->examForPeriod($classId, $yearId, $period);
+        if (!$examId) {
+            $screen['error'] = 'That marking period could not be set up for this class and year.';
+            $this->view('school/highschool/grades/import', $screen);
+            return;
+        }
+        $added = 0;
+        foreach ($plan['rows'] as $row) {
+            if ($row['status'] !== 'ready') { continue; }
+            $letter = self::celdiLetter((float)$row['mark']);
+            $this->db->insert(
+                "INSERT INTO grades (tenant_id,student_id,course_id,exam_id,marks_obtained,total_marks,grade_letter,gpa_points,graded_by)
+                 VALUES (?,?,?,?,?,100,?,?,?)",
+                [$this->tid, $row['student_id'], $row['course_id'], $examId, $row['mark'], $letter,
+                 ['E'=>4.0,'S'=>3.0,'I'=>2.0,'N'=>1.0,'C'=>0.0][$letter] ?? 0.0, $_SESSION['user_id'] ?? null]
+            );
+            $added++;
+        }
+        $this->flash('success', $added . ' mark' . ($added === 1 ? '' : 's') . ' added. '
+            . 'Nothing already recorded was changed.');
+        $this->redirect('/school/grades/enter?class_id=' . urlencode($classId)
+            . '&year_id=' . urlencode($yearId) . '&period=' . urlencode($period));
+    }
+
+    /** The pickers and whatever was last submitted, for redisplay. */
+    private function importScreen(string $classId = '', string $yearId = '', string $period = '', string $subject = '', string $raw = ''): array {
+        $years = $this->db->fetchAll(
+            "SELECT id, name, is_current FROM academic_years WHERE tenant_id=? ORDER BY start_date DESC", [$this->tid]
+        );
+        if ($yearId === '') {
+            foreach ($years as $y) { if ((int)$y['is_current'] === 1) { $yearId = (string)$y['id']; break; } }
+            if ($yearId === '' && $years) { $yearId = (string)$years[0]['id']; }
+        }
+        return [
+            'pageTitle' => 'Import Grades', 'panelType' => 'school',
+            'classes'   => $this->db->fetchAll("SELECT id,name FROM classes WHERE tenant_id=? ORDER BY name", [$this->tid]),
+            'years'     => $years,
+            'periods'   => self::MARKING_PERIODS,
+            'subjects'  => $classId !== '' ? $this->db->fetchAll(
+                "SELECT c.id, c.name FROM courses c JOIN course_classes cc ON cc.course_id=c.id
+                 WHERE cc.class_id=? AND c.tenant_id=? ORDER BY cc.sort_order, c.name",
+                [$classId, $this->tid]) : [],
+            'selectedClass' => $classId, 'selectedYear' => $yearId,
+            'selectedPeriod' => $period, 'selectedSubject' => $subject,
+            'raw' => $raw, 'rows' => null, 'summary' => [], 'error' => null,
+            'flash' => $this->getFlash(),
+        ];
+    }
+
+    /**
+     * Works out, line by line, what the pasted text would do — without writing.
+     *
+     * Each line is "student name, mark". The student is matched against this
+     * class only, so a name cannot land on a child in another class.
+     */
+    private function planGradeImport(string $classId, string $yearId, string $period, string $subject, string $raw): array {
+        $roster = $this->db->fetchAll(
+            "SELECT s.id, u.name FROM students s JOIN users u ON u.id = s.user_id
+             WHERE s.class_id=? AND s.tenant_id=? AND s.status='active'",
+            [$classId, $this->tid]
+        );
+        $byKey = [];
+        foreach ($roster as $r) { $byKey[self::nameKey($r['name'])][] = $r; }
+
+        $examIds  = $this->periodExamIds($classId, $yearId, $period);
+        $existing = [];
+        if ($examIds) {
+            $in = implode(',', array_map('intval', $examIds));
+            foreach ($this->db->fetchAll(
+                "SELECT student_id, course_id FROM grades WHERE tenant_id=? AND exam_id IN ({$in})", [$this->tid]
+            ) as $g) { $existing[(int)$g['student_id']][(int)$g['course_id']] = true; }
+        }
+
+        $courseId = (int)$subject;
+        $rows = [];
+        foreach (preg_split('/\r\n|\r|\n/', $raw) as $line) {
+            $line = trim($line);
+            if ($line === '') { continue; }
+            // "Name, 85" / "Name<tab>85" / "Name 85" all read the same way.
+            if (!preg_match('/^(.*?)[\s,;\t]+(\d{1,3}(?:\.\d+)?)\s*$/u', $line, $m)) {
+                $rows[] = ['raw' => $line, 'status' => 'unreadable', 'note' => 'no mark found at the end of the line'];
+                continue;
+            }
+            $name = trim($m[1], " \t.,;-");
+            $mark = (float)$m[2];
+            if ($mark < 0 || $mark > 100) {
+                $rows[] = ['raw' => $line, 'name' => $name, 'mark' => $mark,
+                           'status' => 'bad_mark', 'note' => 'a mark must be between 0 and 100'];
+                continue;
+            }
+            $match = $byKey[self::nameKey($name)] ?? [];
+            if (count($match) !== 1) {
+                $rows[] = ['raw' => $line, 'name' => $name, 'mark' => $mark,
+                           'status' => $match ? 'ambiguous' : 'no_student',
+                           'note' => $match ? 'more than one student of this name in the class' : 'no student of this name in the class'];
+                continue;
+            }
+            $sid = (int)$match[0]['id'];
+            if (isset($existing[$sid][$courseId])) {
+                $rows[] = ['raw' => $line, 'name' => $match[0]['name'], 'mark' => $mark, 'student_id' => $sid,
+                           'course_id' => $courseId, 'status' => 'already',
+                           'note' => 'this student already has a mark for this subject and period — left as it is'];
+                continue;
+            }
+            $rows[] = ['raw' => $line, 'name' => $match[0]['name'], 'mark' => $mark, 'student_id' => $sid,
+                       'course_id' => $courseId, 'status' => 'ready', 'note' => ''];
+        }
+
+        $count = fn(string $st) => count(array_filter($rows, fn($r) => $r['status'] === $st));
+        return ['rows' => $rows, 'summary' => [
+            'ready' => $count('ready'), 'already' => $count('already'),
+            'no_student' => $count('no_student'), 'ambiguous' => $count('ambiguous'),
+            'bad_mark' => $count('bad_mark'), 'unreadable' => $count('unreadable'),
+            'lines' => count($rows),
+        ]];
+    }
+
+    /**
+     * A name reduced to what is worth comparing: lower case, no punctuation, no
+     * middle initials and no Jr/Sr, so "Darlington S. Siafa Jr" on a paper sheet
+     * finds "Darlington Siafa" in the system.
+     */
+    public static function nameKey(string $name): string {
+        $n = strtolower(trim($name));
+        $n = str_replace(['\u2019', chr(39), '.', ',', '-'], ' ', $n);
+        $n = preg_replace('/\b(jr|sr|ii|iii|mr|mrs|miss)\b/u', ' ', $n);
+        $parts = array_values(array_filter(preg_split('/\s+/u', $n), fn($w) => mb_strlen($w) > 1));
+        return implode(' ', $parts);
+    }
+
     private function periodExamIds(string $classId, string $yearId, string $period): array {
         if ($classId === '' || $period === '') { return []; }
         if (str_starts_with($period, 'exam:')) {

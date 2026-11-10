@@ -7,6 +7,7 @@
   <div style="display:flex;gap:10px;">
     <a href="<?= $cfg['url'] ?>/school/grades/rankings" class="btn btn-outline">🏆 Rankings</a>
     <button type="button" class="btn btn-secondary" onclick="document.getElementById('addExamModal').classList.add('open')">+ Add Exam</button>
+    <a href="<?= $cfg['url'] ?>/school/grades/import" class="btn btn-outline">⇪ Import Grades</a>
     <a href="<?= $cfg['url'] ?>/school/grades/enter" class="btn btn-primary">Enter Grades</a>
   </div>
 </div>
