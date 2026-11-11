@@ -17,6 +17,17 @@
 
 <?php if (!empty($error)): ?>
   <div class="alert alert-danger" style="margin-bottom:16px;"><?= htmlspecialchars($error) ?></div>
+<?php elseif (!empty($notice)): ?>
+  <div class="alert alert-info" style="margin-bottom:16px;"><?= htmlspecialchars($notice) ?></div>
+<?php endif; ?>
+
+<?php if (empty($error) && !empty($selectedClass) && empty($subjects)): ?>
+  <div class="alert alert-warning" style="margin-bottom:16px;">
+    <strong>This class has no subjects yet.</strong>
+    Marks are recorded against a subject, so there is nothing to import against until the
+    class has some. Open <a href="<?= $cfg['url'] ?>/school/courses">Academics &rsaquo; Subjects</a>,
+    edit each subject this class takes, and tick this class. Then come back here.
+  </div>
 <?php endif; ?>
 
 <form method="POST" action="<?= $cfg['url'] ?>/school/grades/import">
@@ -65,7 +76,11 @@
             <?php endforeach; ?>
           </select>
           <?php if (empty($subjects)): ?>
-            <div class="form-hint">Choose a class first — its subjects will appear here.</div>
+            <div class="form-hint">
+              <?= empty($selectedClass)
+                    ? 'Choose a class first — its subjects will appear here.'
+                    : 'This class has no subjects attached yet. See the note above.' ?>
+            </div>
           <?php endif; ?>
         </div>
       </div>

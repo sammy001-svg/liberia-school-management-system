@@ -624,15 +624,40 @@ class GradeController extends Controller {
         $confirm = !empty($_POST['confirm']);
 
         $screen = $this->importScreen($classId, $yearId, $period, $subject, $raw);
+        $stop = function (string $msg) use (&$screen) {
+            $screen['error'] = $msg;
+            $this->view('school/highschool/grades/import', $screen);
+        };
 
-        if ($classId === '' || $period === '') {
-            $screen['error'] = 'Choose the class and the marking period these marks belong to.';
+        if ($classId === '') { $stop('Choose the class these marks belong to.'); return; }
+
+        // Choosing a class reloads this page so its subjects can be listed. That is
+        // not a mistake the user made, so it must not come back looking like one.
+        if ($period === '' && $subject === '' && trim($raw) === '') {
+            $screen['notice'] = empty($screen['subjects'])
+                ? null
+                : 'Subjects for this class are listed now — choose the marking period and the subject.';
             $this->view('school/highschool/grades/import', $screen);
             return;
         }
+
+        if (empty($screen['subjects'])) {
+            $stop('No subjects are attached to this class yet, so there is nothing to import against. '
+                . 'Add them under Academics → Subjects first: open a subject and tick this class.');
+            return;
+        }
+        if ($period === '') { $stop('Choose the marking period these marks belong to.'); return; }
+
+        // The subject has to be one this class actually takes. Without this a blank
+        // or stale value reached the insert and the save died on a database error.
+        $allowed = array_map(fn($s) => (string)$s['id'], $screen['subjects']);
+        if ($subject === '') { $stop('Choose the subject these marks are for.'); return; }
+        if (!in_array($subject, $allowed, true)) {
+            $stop('That subject is not taught to this class. Pick one from the list and try again.');
+            return;
+        }
         if (trim($raw) === '') {
-            $screen['error'] = 'Paste the marks first — one student per line.';
-            $this->view('school/highschool/grades/import', $screen);
+            $stop('Paste the marks first — one student per line.');
             return;
         }
 
@@ -689,7 +714,7 @@ class GradeController extends Controller {
                 [$classId, $this->tid]) : [],
             'selectedClass' => $classId, 'selectedYear' => $yearId,
             'selectedPeriod' => $period, 'selectedSubject' => $subject,
-            'raw' => $raw, 'rows' => null, 'summary' => [], 'error' => null,
+            'raw' => $raw, 'rows' => null, 'summary' => [], 'error' => null, 'notice' => null,
             'flash' => $this->getFlash(),
         ];
     }
@@ -769,7 +794,11 @@ class GradeController extends Controller {
      */
     public static function nameKey(string $name): string {
         $n = strtolower(trim($name));
-        $n = str_replace(['\u2019', chr(39), '.', ',', '-'], ' ', $n);
+        // Apostrophes vanish rather than split, so N'Garn and NGarn, O'Brien and
+        // OBrien are the same name however the sheet or the register spells them.
+        // Curly ones count: Word and phones produce those, not the straight one.
+        $n = str_replace(["\u{2019}", "\u{2018}", "\u{02BC}", "'"], '', $n);
+        $n = str_replace(['.', ',', '-'], ' ', $n);
         $n = preg_replace('/\b(jr|sr|ii|iii|mr|mrs|miss)\b/u', ' ', $n);
         $parts = array_values(array_filter(preg_split('/\s+/u', $n), fn($w) => mb_strlen($w) > 1));
         return implode(' ', $parts);
