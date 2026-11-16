@@ -44,6 +44,10 @@ $issued = date('d M Y');
   table.grades td { font-size:12px; padding:7px 10px; border-bottom:1px solid #e5e7eb; color:#1f2937; }
   table.grades tr:nth-child(even) td { background:#f9fafb; }
   table.grades td.num, table.grades th.num { text-align:center; width:90px; }
+  /* A failed subject reads red across its name, average and grade; a passed one
+     blue — the same 70 the report cards and the grade sheet already use. */
+  table.grades td.mark-fail { color:#DC2626; font-weight:700; }
+  table.grades td.mark-pass { color:#1D4ED8; font-weight:700; }
 
   .summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:22px 0; }
   .summary-card { border:1px solid #e5e7eb; border-radius:10px; padding:12px; text-align:center; }
