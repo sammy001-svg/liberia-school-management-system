@@ -117,6 +117,21 @@
     <input type="hidden" name="class_id" value="<?= htmlspecialchars($selectedClass) ?>">
     <input type="hidden" name="year_id"  value="<?= htmlspecialchars($selectedYear) ?>">
     <input type="hidden" name="period"   value="<?= htmlspecialchars($selectedPeriod) ?>">
+    <?php
+      /*
+       * A sheet posts one form field per cell, and PHP throws away everything past
+       * max_input_vars (1000 by default) without raising a word — so a big class
+       * used to half-save and still say "Grades saved".
+       *
+       * The script below packs the whole grid into grades_json, one field however
+       * many students there are. sheet_cells is what the server counts against if
+       * that script never ran, so a truncated sheet is refused rather than lost.
+       */
+      $sheetCells = count($students) * count($courses);
+    ?>
+    <input type="hidden" name="sheet_cells"  value="<?= (int)$sheetCells ?>">
+    <input type="hidden" name="grades_json"  id="grades_json"  value="">
+    <input type="hidden" name="grades_count" id="grades_count" value="">
     <div class="card">
       <div class="card-header">
         <div>
@@ -170,6 +185,35 @@
     document.querySelectorAll('.mark-input').forEach(function (input) {
       paint(input);
       input.addEventListener('input', function () { paint(this); });
+    });
+
+    // Send the grid as one field instead of one per cell. A class of any size
+    // then posts a handful of fields, so PHP's max_input_vars can never reach in
+    // and drop the bottom of the sheet on the way to the server.
+    var form = document.querySelector('form[action$="/school/grades/store"]');
+    if (!form) { return; }
+    form.addEventListener('submit', function () {
+      var grid = {}, n = 0, stripped = [];
+      document.querySelectorAll('.mark-input').forEach(function (input) {
+        var m = /^grades\[(\d+)\]\[(\d+)\]$/.exec(input.name || '');
+        if (!m) { return; }
+        var v = (input.value || '').trim();
+        if (v !== '') {
+          if (!grid[m[1]]) { grid[m[1]] = {}; }
+          grid[m[1]][m[2]] = v;
+          n++;
+        }
+        // Keep the individual cells out of the POST now their values are packed.
+        input.setAttribute('data-name', input.name);
+        input.removeAttribute('name');
+        stripped.push(input);
+      });
+      document.getElementById('grades_json').value = JSON.stringify(grid);
+      document.getElementById('grades_count').value = String(n);
+      // If the browser stays on the page after all, put the sheet back as it was.
+      setTimeout(function () {
+        stripped.forEach(function (i) { i.setAttribute('name', i.getAttribute('data-name')); });
+      }, 4000);
     });
   })();
   </script>

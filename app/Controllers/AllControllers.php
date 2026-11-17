@@ -845,6 +845,65 @@ class GradeController extends Controller {
     }
 
     /**
+     * The marks a sheet submitted, as [student_id][course_id] => mark.
+     *
+     * Returns [grid, error]. The error is set when the sheet did not arrive whole,
+     * and the caller must then save nothing: a half-saved sheet is worse than a
+     * refused one, because it looks like it worked.
+     *
+     * PHP stops reading a POST after max_input_vars fields (1000 as shipped) and
+     * says nothing at all, so a class big enough to pass that line used to lose
+     * the bottom of its sheet every single time it was saved. The entry screen now
+     * packs the grid into one field; this reads that, falls back to the old
+     * field-per-cell shape, and checks the count either way.
+     */
+    private function postedGradeGrid(): array {
+        $json = (string)($_POST['grades_json'] ?? '');
+
+        if ($json !== '') {
+            $grid = json_decode($json, true);
+            if (!is_array($grid)) {
+                return [[], 'The marks on that sheet could not be read. Nothing was saved — '
+                          . 'please reload the sheet and try again.'];
+            }
+            $claimed = $_POST['grades_count'] ?? '';
+            if ($claimed !== '' && $this->countGridMarks($grid) !== (int)$claimed) {
+                return [[], 'Part of that sheet was lost on its way to the server, so nothing was '
+                          . 'saved. Please reload the sheet and try again.'];
+            }
+            return [$grid, null];
+        }
+
+        // No packed grid: the sheet was posted a field per cell.
+        $grid  = (array)($_POST['grades'] ?? []);
+        $cells = 0;
+        foreach ($grid as $marks) { $cells += count((array)$marks); }
+        $expected = (int)($_POST['sheet_cells'] ?? 0);
+
+        if ($expected > 0 && $cells < $expected) {
+            $limit = ini_get('max_input_vars') ?: 'the server limit';
+            return [[], sprintf(
+                'Only %d of the %d boxes on that sheet reached the server, so nothing was saved. '
+                . 'The sheet is larger than this server accepts in one go (max_input_vars is %s). '
+                . 'Enter the marks for fewer students at a time, or ask your host to raise that limit.',
+                $cells, $expected, $limit)];
+        }
+        return [$grid, null];
+    }
+
+    /** How many marks a grid actually carries, blanks not counted. */
+    private function countGridMarks(array $grid): int {
+        $n = 0;
+        foreach ($grid as $marks) {
+            foreach ((array)$marks as $v) {
+                if (is_string($v)) { $v = trim($v); }
+                if ($v !== '' && $v !== null) { $n++; }
+            }
+        }
+        return $n;
+    }
+
+    /**
      * Save a sheet of marks against one class, year and marking period.
      *
      * The period, not a row in `exams`, is what the screen works in; the exam
@@ -871,10 +930,17 @@ class GradeController extends Controller {
             $this->redirect($back);
         }
 
+        [$grid, $gridError] = $this->postedGradeGrid();
+        if ($gridError !== null) {
+            $this->flash('danger', $gridError);
+            $this->redirect($back);
+        }
+
         $skipped = 0;
-        foreach ($_POST['grades'] ?? [] as $studentId => $marks) {
-            foreach ($marks as $courseId => $score) {
-                if ($score === '') { continue; }
+        foreach ($grid as $studentId => $marks) {
+            foreach ((array)$marks as $courseId => $score) {
+                $score = is_string($score) ? trim($score) : $score;
+                if ($score === '' || $score === null) { continue; }
                 $pct = (float)$score;
                 // The school's own scale (E/S/I/N/C) — the same one printed in the
                 // METHOD OF GRADING key on the report card, so a letter shown in the
