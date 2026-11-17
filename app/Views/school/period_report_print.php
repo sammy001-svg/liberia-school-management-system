@@ -62,8 +62,8 @@ $single     = !empty($oneStudent) ? ($cards[0]['student'] ?? null) : null;
   table.grades td.num, table.grades th.num { text-align:center; width:90px; }
   /* A failed subject reads red across its name, average and grade; a passed one
      blue — the same 70 the report cards and the grade sheet already use. */
-  table.grades td.mark-fail { color:#DC2626; font-weight:700; }
-  table.grades td.mark-pass { color:#1D4ED8; font-weight:700; }
+  .mark-fail, table.grades td.mark-fail { color:#DC2626; font-weight:700; }
+  .mark-pass, table.grades td.mark-pass { color:#1D4ED8; font-weight:700; }
 
   .summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:22px 0; }
   .summary-card { border:1px solid #e5e7eb; border-radius:10px; padding:12px; text-align:center; }
@@ -177,12 +177,16 @@ $single     = !empty($oneStudent) ? ($cards[0]['student'] ?? null) : null;
           <tr><th>Subject</th><th class="num">Assessments</th><th class="num">Average</th><th class="num">Grade</th></tr>
         </thead>
         <tbody>
-          <?php foreach ($card['rows'] as $row): $m = $row['mark']; $mk = Controller::markClass($m); ?>
+          <?php foreach ($card['rows'] as $row):
+            $m   = $row['mark'];
+            $mk  = Controller::markClass($m);
+            $sub = $mk !== '' ? ' class="' . $mk . '"' : '';
+            $num = ' class="num' . ($mk !== '' ? ' ' . $mk : '') . '"'; ?>
           <tr>
-            <td class="<?= $mk ?>"><?= htmlspecialchars($row['subject']) ?></td>
+            <td<?= $sub ?>><?= htmlspecialchars($row['subject']) ?></td>
             <td class="num"><?= (int)$row['assessments'] ?></td>
-            <td class="num <?= $mk ?>"><?= $m !== null ? number_format($m, 1) . '%' : '—' ?></td>
-            <td class="num <?= $mk ?>"><?= $m !== null ? Controller::transcriptLetter($m) : '—' ?></td>
+            <td<?= $num ?>><?= $m !== null ? number_format($m, 1) . '%' : '—' ?></td>
+            <td<?= $num ?>><?= $m !== null ? Controller::transcriptLetter($m) : '—' ?></td>
           </tr>
           <?php endforeach; ?>
         </tbody>
@@ -199,7 +203,9 @@ $single     = !empty($oneStudent) ? ($cards[0]['student'] ?? null) : null;
 
   <div class="scale">
     <div class="lbl">Grading Scale</div>
-    A+ = 90–100 &nbsp;·&nbsp; A = 80–89 &nbsp;·&nbsp; B = 70–79 &nbsp;·&nbsp; C = 60–69 &nbsp;·&nbsp; D = 50–59 &nbsp;·&nbsp; F = below 50.
+    <?= htmlspecialchars(Controller::gradeScaleNote()) ?>
+    A subject shown in <span class="mark-fail">red</span> is below the pass mark;
+    one shown in <span class="mark-pass">blue</span> is at or above it.
     Subject averages are the mean of all marks recorded for that subject in the stated marking period.
   </div>
 

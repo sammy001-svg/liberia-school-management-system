@@ -156,8 +156,8 @@ $schoolName = $tenant['name'] ?? ($cfg['name'] ?? 'School');
     <tbody>
       <?php foreach($termRows as $r):
         $pct = round((float)$r['avg_pct'],1);
-        $gl = $pct>=90?'A+':($pct>=80?'A':($pct>=70?'B':($pct>=60?'C':($pct>=50?'D':'F'))));
-        $remark = $pct>=80?'Excellent':($pct>=70?'Very Good':($pct>=60?'Good':($pct>=50?'Fair':'Needs Improvement')));
+        $gl = Controller::transcriptLetter($pct);
+        $remark = $pct>=90?'Excellent':($pct>=80?'Very Good':($pct>=Controller::PASS_MARK?'Good':'Needs Improvement'));
       ?>
       <tr>
         <td><?= htmlspecialchars($r['course_name'] ?? '—') ?></td>

@@ -1,6 +1,6 @@
 <?php
 $pct = $attempt['total_marks'] > 0 ? round($attempt['score'] / $attempt['total_marks'] * 100, 1) : 0;
-$grade = $pct>=90?'A+':($pct>=80?'A':($pct>=70?'B':($pct>=60?'C':($pct>=50?'D':'F'))));
+$grade = Controller::transcriptLetter($pct);
 require ROOT_DIR . '/app/Views/layouts/header.php';
 ?>
 <?php $backUrl = $backUrl ?? '/student/exams'; $isMakeup = ($exam['exam_type'] ?? 'standard') === 'makeup'; ?>

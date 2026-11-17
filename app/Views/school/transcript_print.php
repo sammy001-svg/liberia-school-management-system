@@ -46,8 +46,8 @@ $issued = date('d M Y');
   table.grades td.num, table.grades th.num { text-align:center; width:90px; }
   /* A failed subject reads red across its name, average and grade; a passed one
      blue — the same 70 the report cards and the grade sheet already use. */
-  table.grades td.mark-fail { color:#DC2626; font-weight:700; }
-  table.grades td.mark-pass { color:#1D4ED8; font-weight:700; }
+  .mark-fail, table.grades td.mark-fail { color:#DC2626; font-weight:700; }
+  .mark-pass, table.grades td.mark-pass { color:#1D4ED8; font-weight:700; }
 
   .summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:22px 0; }
   .summary-card { border:1px solid #e5e7eb; border-radius:10px; padding:12px; text-align:center; }
@@ -65,6 +65,9 @@ $issued = date('d M Y');
   .empty { text-align:center; padding:40px 20px; color:#9ca3af; font-size:12.5px; }
 
   @media print {
+    /* Without this the browser drops the header fill and the red/blue marks,
+       and the sheet comes out of the printer in plain black. */
+    * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     body { background:#fff; padding:0; }
     .toolbar { display:none; }
     .sheet { box-shadow:none; width:auto; min-height:auto; padding:0.4in 0.5in; }
@@ -130,12 +133,15 @@ $issued = date('d M Y');
           <tr><th>Subject</th><th class="num">Assessments</th><th class="num">Average</th><th class="num">Grade</th></tr>
         </thead>
         <tbody>
-          <?php foreach ($data['rows'] as $row): ?>
+          <?php foreach ($data['rows'] as $row):
+            $mk  = Controller::markClass((float)$row['average']);
+            $sub = $mk !== '' ? ' class="' . $mk . '"' : '';
+            $num = ' class="num' . ($mk !== '' ? ' ' . $mk : '') . '"'; ?>
           <tr>
-            <td><?= htmlspecialchars($row['course']) ?></td>
+            <td<?= $sub ?>><?= htmlspecialchars($row['course']) ?></td>
             <td class="num"><?= (int)$row['assessments'] ?></td>
-            <td class="num"><?= number_format($row['average'], 1) ?>%</td>
-            <td class="num"><?= htmlspecialchars($row['letter']) ?></td>
+            <td<?= $num ?>><?= number_format($row['average'], 1) ?>%</td>
+            <td<?= $num ?>><?= htmlspecialchars($row['letter']) ?></td>
           </tr>
           <?php endforeach; ?>
         </tbody>
@@ -153,7 +159,9 @@ $issued = date('d M Y');
 
   <div class="scale">
     <div class="lbl">Grading Scale</div>
-    A+ = 90–100 &nbsp;·&nbsp; A = 80–89 &nbsp;·&nbsp; B = 70–79 &nbsp;·&nbsp; C = 60–69 &nbsp;·&nbsp; D = 50–59 &nbsp;·&nbsp; F = below 50.
+    <?= htmlspecialchars(Controller::gradeScaleNote()) ?>
+    A subject shown in <span class="mark-fail">red</span> is below the pass mark;
+    one shown in <span class="mark-pass">blue</span> is at or above it.
     Subject averages are the mean of all recorded assessments for that subject in the stated academic year.
   </div>
 

@@ -675,7 +675,7 @@ abstract class Controller {
     protected function buildReportCardData(string $studentId, array $student, bool $publishedOnly): array {
         $tid = $this->tenantId() ?? 0;
         $pub = $publishedOnly ? " AND e.status='published'" : "";
-        $letterFor = fn(float $p) => $p>=90?'A+':($p>=80?'A':($p>=70?'B':($p>=60?'C':($p>=50?'D':'F'))));
+        $letterFor = fn(float $p) => self::transcriptLetter($p);
         // An exam belongs to an academic year either directly or through its term.
         $yearOfExam = "COALESCE(e.academic_year_id, (SELECT t2.academic_year_id FROM terms t2 WHERE t2.id=e.term_id))";
 
@@ -1028,20 +1028,45 @@ abstract class Controller {
     ];
 
     /**
-     * The letter and GPA a transcript reports, on the A+ .. F scale.
+     * The school's letter scale: four letters, no plus or minus.
      *
-     * Defined once because the transcript and the period report card are the
-     * same document bar the title, and a mark that reads A+ on one must not
-     * read anything else on the other.
+     *   A  90 - 100
+     *   B  80 -  89
+     *   C  70 -  79
+     *   D   0 -  69   — the fail band
+     *
+     * D starts where the pass mark ends, so the letter and the red/blue colouring
+     * can never disagree: every subject printed red is a D, every blue one is not.
+     *
+     * Every document takes its letter from here. It used to be written out by hand
+     * in five separate places, which is how they drifted apart.
      */
-    public static function transcriptLetter(float $percent): string {
-        return $percent >= 90 ? 'A+' : ($percent >= 80 ? 'A' : ($percent >= 70 ? 'B'
-             : ($percent >= 60 ? 'C' : ($percent >= 50 ? 'D' : 'F'))));
+    public const GRADE_SCALE = [
+        ['min' => 90, 'letter' => 'A', 'gpa' => 4.0],
+        ['min' => 80, 'letter' => 'B', 'gpa' => 3.0],
+        ['min' => self::PASS_MARK, 'letter' => 'C', 'gpa' => 2.0],
+        ['min' => 0,  'letter' => 'D', 'gpa' => 0.0],
+    ];
+
+    /** The scale as one line, for the note printed at the foot of a document. */
+    public static function gradeScaleNote(): string {
+        return 'A = 90–100 · B = 80–89 · C = ' . self::PASS_MARK . '–79 · D = below '
+             . self::PASS_MARK . ' (fail).';
     }
 
+    public static function transcriptLetter(float $percent): string {
+        foreach (self::GRADE_SCALE as $band) {
+            if ($percent >= $band['min']) { return $band['letter']; }
+        }
+        return 'D';
+    }
+
+    /** A fail earns nothing, so D scores 0.0 rather than part marks. */
     public static function transcriptGpa(float $percent): float {
-        return $percent >= 90 ? 4.0 : ($percent >= 80 ? 3.5 : ($percent >= 70 ? 3.0
-             : ($percent >= 60 ? 2.5 : ($percent >= 50 ? 2.0 : 0.0))));
+        foreach (self::GRADE_SCALE as $band) {
+            if ($percent >= $band['min']) { return $band['gpa']; }
+        }
+        return 0.0;
     }
 
     /**
