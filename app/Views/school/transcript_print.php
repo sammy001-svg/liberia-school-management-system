@@ -134,14 +134,15 @@ $issued = date('d M Y');
         </thead>
         <tbody>
           <?php foreach ($data['rows'] as $row):
-            $mk  = Controller::markClass((float)$row['average']);
-            $sub = $mk !== '' ? ' class="' . $mk . '"' : '';
-            $num = ' class="num' . ($mk !== '' ? ' ' . $mk : '') . '"'; ?>
+            // Only the grade carries the colour. The subject and the figures
+            // beside it stay black, so the eye goes straight to the letter.
+            $mk = Controller::markClass((float)$row['average']);
+            $gr = ' class="num' . ($mk !== '' ? ' ' . $mk : '') . '"'; ?>
           <tr>
-            <td<?= $sub ?>><?= htmlspecialchars($row['course']) ?></td>
+            <td><?= htmlspecialchars($row['course']) ?></td>
             <td class="num"><?= (int)$row['assessments'] ?></td>
-            <td<?= $num ?>><?= number_format($row['average'], 1) ?>%</td>
-            <td<?= $num ?>><?= htmlspecialchars($row['letter']) ?></td>
+            <td class="num"><?= number_format($row['average'], 1) ?>%</td>
+            <td<?= $gr ?>><?= htmlspecialchars($row['letter']) ?></td>
           </tr>
           <?php endforeach; ?>
         </tbody>
@@ -160,7 +161,7 @@ $issued = date('d M Y');
   <div class="scale">
     <div class="lbl">Grading Scale</div>
     <?= htmlspecialchars(Controller::gradeScaleNote()) ?>
-    A subject shown in <span class="mark-fail">red</span> is below the pass mark;
+    A grade shown in <span class="mark-fail">red</span> is below the pass mark;
     one shown in <span class="mark-pass">blue</span> is at or above it.
     Subject averages are the mean of all recorded assessments for that subject in the stated academic year.
   </div>

@@ -178,15 +178,16 @@ $single     = !empty($oneStudent) ? ($cards[0]['student'] ?? null) : null;
         </thead>
         <tbody>
           <?php foreach ($card['rows'] as $row):
-            $m   = $row['mark'];
-            $mk  = Controller::markClass($m);
-            $sub = $mk !== '' ? ' class="' . $mk . '"' : '';
-            $num = ' class="num' . ($mk !== '' ? ' ' . $mk : '') . '"'; ?>
+            $m  = $row['mark'];
+            // Only the grade carries the colour. The subject and the figures
+            // beside it stay black, so the eye goes straight to the letter.
+            $mk = Controller::markClass($m);
+            $gr = ' class="num' . ($mk !== '' ? ' ' . $mk : '') . '"'; ?>
           <tr>
-            <td<?= $sub ?>><?= htmlspecialchars($row['subject']) ?></td>
+            <td><?= htmlspecialchars($row['subject']) ?></td>
             <td class="num"><?= (int)$row['assessments'] ?></td>
-            <td<?= $num ?>><?= $m !== null ? number_format($m, 1) . '%' : '—' ?></td>
-            <td<?= $num ?>><?= $m !== null ? Controller::transcriptLetter($m) : '—' ?></td>
+            <td class="num"><?= $m !== null ? number_format($m, 1) . '%' : '—' ?></td>
+            <td<?= $gr ?>><?= $m !== null ? Controller::transcriptLetter($m) : '—' ?></td>
           </tr>
           <?php endforeach; ?>
         </tbody>
@@ -204,7 +205,7 @@ $single     = !empty($oneStudent) ? ($cards[0]['student'] ?? null) : null;
   <div class="scale">
     <div class="lbl">Grading Scale</div>
     <?= htmlspecialchars(Controller::gradeScaleNote()) ?>
-    A subject shown in <span class="mark-fail">red</span> is below the pass mark;
+    A grade shown in <span class="mark-fail">red</span> is below the pass mark;
     one shown in <span class="mark-pass">blue</span> is at or above it.
     Subject averages are the mean of all marks recorded for that subject in the stated marking period.
   </div>
